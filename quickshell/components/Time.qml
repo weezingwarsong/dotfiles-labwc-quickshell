@@ -7,8 +7,9 @@ Item {
 
     property bool hovered: false
 
-    implicitWidth: parent ? parent.width : calendarWidget.width
-    implicitHeight: hovered ? clockBox.height + calendarWidget.implicitHeight : clockBox.height
+    implicitWidth: parent ? parent.width : 0
+    readonly property int calendarGap: Math.round(Screen.height * 0.01)
+    implicitHeight: hovered ? clockBox.height + calendarGap + calendarWidget.implicitHeight : clockBox.height
 
     MouseArea {
         anchors.fill: parent
@@ -21,7 +22,9 @@ Item {
         id: clockBox
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        color: "#3B4252"
+        color: Style.rectMainBg
+        border.width: Style.rectBorderWidth
+        border.color: Style.rectMainBorder
         width: parent.width
         height: 24
 
@@ -29,19 +32,21 @@ Item {
             id: clock
             anchors.centerIn: parent
             text: Qt.formatTime(new Date(), "HHmm")
-            color: "#8FBCBB"
-            font.family: "JetBrainsMono Nerd Font"
-            font.pointSize: 10
+            color: Style.textHeaderHighlight
+            font.family: Style.fontFamily
+            font.pointSize: Style.fontSize
         }
     }
 
     Rectangle {
         id: calendarWidget
         anchors.top: clockBox.bottom
+        anchors.topMargin: root.calendarGap
         anchors.horizontalCenter: parent.horizontalCenter
-        width: 260
-        opacity: 0.9
-        color: "#3B4252"
+        width: parent.width
+        color: Style.rectNormalBg
+        border.width: Style.rectBorderWidth
+        border.color: Style.rectNormalBorder
         implicitHeight: calendarLayout.implicitHeight + 16
 
         ColumnLayout {
@@ -61,8 +66,8 @@ Item {
                     required property string shortName
                     text: shortName
                     horizontalAlignment: Text.AlignHCenter
-                    color: "#8FBCBB"
-                    font.family: "JetBrainsMono Nerd Font"
+                    color: Style.textBodyHighlight
+                    font.family: Style.fontFamily
                     font.pointSize: 11
                 }
             }
@@ -82,10 +87,10 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     leftPadding: 3
                     rightPadding: 3
-                    color: today ? "#8FBCBB"
-                         : month === monthGrid.month ? "#D8DEE9"
-                         : "#4C566A"
-                    font.family: "JetBrainsMono Nerd Font"
+                    color: today ? Style.textBodyHighlight
+                         : month === monthGrid.month ? Style.textBodyNormal
+                         : Style.textBodyLow
+                    font.family: Style.fontFamily
                     font.pointSize: 11
                     font.bold: today
                 }

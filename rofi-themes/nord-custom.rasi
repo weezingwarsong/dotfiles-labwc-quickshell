@@ -1,0 +1,85 @@
+/* Nord palette — matches quickshell Style.qml */
+* {
+    font:             "JetBrainsMono Nerd Font 10";
+    background-color: transparent;
+    text-color:       #D8DEE9;   /* Nord4  = textBodyNormal */
+}
+
+window {
+    background-color: rgba(59, 66, 82, 0.90);    /* Nord1 90% = rectMainBg */
+    border:           2px solid;
+    border-color:     rgba(76, 86, 106, 0.90);   /* Nord3 90% = rectMainBorder */
+    border-radius:    0;
+    width:            480px;
+}
+
+mainbox {
+    padding:  8px;
+    spacing:  6px;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    background-color: rgba(46, 52, 64, 0.90);    /* Nord0 90% = rectNormalBg */
+    border:           2px solid;
+    border-color:     rgba(59, 66, 82, 0.90);    /* Nord1 90% = rectNormalBorder */
+    padding:          6px 10px;
+    spacing:          8px;
+    children:         [ prompt, entry ];
+}
+
+prompt {
+    text-color: #8FBCBB;   /* Nord7 = textHeaderHighlight */
+    font:       "JetBrainsMono Nerd Font Bold 10";
+}
+
+entry {
+    text-color:        #D8DEE9;   /* Nord4 = textBodyNormal */
+    cursor-color:      #8FBCBB;   /* Nord7 = textHeaderHighlight */
+    placeholder:       "Search…";
+    placeholder-color: #4C566A;   /* Nord3 = textBodyLow */
+}
+
+listview {
+    background-color: transparent;
+    spacing:          2px;
+    lines:            8;
+    scrollbar:        false;
+}
+
+element {
+    background-color: transparent;
+    padding:          6px 10px;
+    spacing:          8px;
+    border-radius:    0;
+}
+
+element normal.normal,
+element alternate.normal {
+    background-color: transparent;
+    text-color:       #D8DEE9;   /* Nord4 = textBodyNormal */
+}
+
+element selected.normal {
+    background-color: #8FBCBB;   /* Nord7 = textHeaderHighlight */
+    text-color:       #2E3440;   /* Nord0 — dark text on teal */
+}
+
+element normal.urgent,
+element alternate.urgent {
+    text-color: #BF616A;   /* Nord11 = textBodyCritical */
+}
+
+element selected.urgent {
+    background-color: #BF616A;   /* Nord11 = rectMainCriticalBg */
+    text-color:       #ECEFF4;   /* Nord6  = textBright */
+}
+
+element-icon {
+    size:           1.2em;
+    vertical-align: 0.5;
+}
+
+element-text {
+    vertical-align: 0.5;
+}

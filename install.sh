@@ -18,6 +18,13 @@ echo "Installing labwc-quickshell..."
 link_dir labwc       labwc
 link_dir quickshell  quickshell
 link_dir scripts     scripts
+link_dir mako        mako
+link_dir rofi        rofi
+
+# rofi theme lives outside ~/.config
+mkdir -p "$HOME/.local/share/rofi/themes"
+ln -snf "$DOTFILES/rofi-themes/nord-custom.rasi" "$HOME/.local/share/rofi/themes/nord-custom.rasi"
+echo "  linked ~/.local/share/rofi/themes/nord-custom.rasi"
 
 # Build and install workspace watcher (requires gcc, pkg-config, wayland-scanner, wayland-protocols)
 for cmd in gcc pkg-config wayland-scanner; do
@@ -36,6 +43,23 @@ mkdir -p "$HOME/.local/bin"
 cp "$BUILD_DIR/qs-workspace-watcher" "$HOME/.local/bin/qs-workspace-watcher"
 echo "  installed qs-workspace-watcher → ~/.local/bin"
 
+# Build and install toplevel watcher
+echo "  building qs-toplevel-watcher..."
+BUILD_DIR="$DOTFILES/toplevel-watcher"
+WS_PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
+WLR_PROTO_XML="/usr/share/wlr-protocols/unstable/wlr-foreign-toplevel-management-unstable-v1.xml"
+wayland-scanner client-header "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.h"
+wayland-scanner private-code   "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.c"
+wayland-scanner client-header "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
+wayland-scanner private-code   "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c"
+gcc -O2 -o "$BUILD_DIR/qs-toplevel-watcher" \
+    "$BUILD_DIR/main.c" \
+    "$BUILD_DIR/ext-workspace-v1-client-protocol.c" \
+    "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c" \
+    $(pkg-config --cflags --libs wayland-client)
+cp "$BUILD_DIR/qs-toplevel-watcher" "$HOME/.local/bin/qs-toplevel-watcher"
+echo "  installed qs-toplevel-watcher → ~/.local/bin"
+
 # labwc menu icons — white variants installed to hicolor so labwc finds them by name
 HICOLOR="$HOME/.local/share/icons/hicolor"
 mkdir -p "$HICOLOR/22x22/apps" "$HICOLOR/22x22/actions"
@@ -48,4 +72,4 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
-echo "  Note: ensure ~/.local/bin is in your PATH for qs-workspace-watcher."
+echo "  Note: ensure ~/.local/bin is in your PATH for qs-workspace-watcher and qs-toplevel-watcher."

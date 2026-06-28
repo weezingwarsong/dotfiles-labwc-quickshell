@@ -1,0 +1,65 @@
+# Mako notification daemon config - Nordic theme
+
+# Font
+font=JetBrains Mono 10
+
+# Position
+anchor=top-right
+layer=overlay
+outer-margin=20
+margin=10
+
+# Geometry
+width=300
+height=150
+padding=10,14
+border-size=2
+border-radius=0
+
+# Colors (Nord1 bg as default)
+background-color=#3B4252E6
+text-color=#ECEE64E6
+border-color=#4C566AE6
+
+# Icons
+icons=1
+max-icon-size=32
+icon-location=left
+icon-path=/usr/share/icons/Papirus-Dark
+
+# Text
+markup=1
+format=<b>%s</b>\n%b
+text-alignment=left
+
+# Behaviour
+default-timeout=5000
+ignore-timeout=0
+max-visible=5
+sort=-time
+
+# Mouse bindings
+on-button-left=invoke-default-action
+on-button-right=dismiss
+on-touch=dismiss
+
+# Low urgency - subtle, dimmer (Nord0)
+[urgency=low]
+background-color=#2E3440E6
+text-color=#D8DEE9E6
+border-color=#3B4252E6
+default-timeout=3000
+
+# Normal urgency - standard (Nord1)
+[urgency=normal]
+background-color=#3B4252E6
+text-color=#ECEE64E6
+border-color=#4C566AE6
+default-timeout=5000
+
+# Critical urgency - Nord red, no timeout
+[urgency=critical]
+background-color=#BF616AE6
+text-color=#ECEE64E6
+border-color=#D08770E6
+default-timeout=0

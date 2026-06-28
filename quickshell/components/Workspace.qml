@@ -12,7 +12,9 @@ Item {
 
     Rectangle {
         id: box
-        color: "#3B4252"
+        color: Style.rectMainBg
+        border.width: Style.rectBorderWidth
+        border.color: Style.rectMainBorder
         width: parent.width
         height: 24
 
@@ -23,13 +25,13 @@ Item {
             Rectangle {
                 width: root.squareSize
                 height: root.squareSize
-                color: root.workspace === "1" ? "#8FBCBB" : "#4C566A"
+                color: root.workspace === "1" ? Style.textHeaderHighlight : Style.textHeaderLow
             }
 
             Rectangle {
                 width: root.squareSize
                 height: root.squareSize
-                color: root.workspace === "2" ? "#8FBCBB" : "#4C566A"
+                color: root.workspace === "2" ? Style.textHeaderHighlight : Style.textHeaderLow
             }
         }
     }

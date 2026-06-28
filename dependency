@@ -53,11 +53,16 @@ ttf-jetbrains-mono-nerd     # JetBrains Mono (Nerd Font patched)
 noto-fonts                  # Fallback font
 noto-fonts-emoji            # Emoji fallback
 
-# ── BUILD (workspace-watcher) ────────────────────────────────────────────────
+# ── NOTIFICATIONS ────────────────────────────────────────────────────────────
+mako                        # Wayland notification daemon (Nord-themed)
+
+# ── BUILD (workspace-watcher + toplevel-watcher) ──────────────────────────────
 gcc                         # C compiler
-pkgconf                     # pkg-config — wayland-client flags for watcher build
+pkgconf                     # pkg-config — wayland-client flags for watcher builds
 wayland                     # Provides wayland-scanner (generates protocol bindings)
 wayland-protocols           # Provides ext-workspace-v1.xml protocol definition
+wlr-protocols               # Provides wlr-foreign-toplevel-management-unstable-v1.xml
+wlrctl                      # CLI tool — used at runtime by window-switch focus action
 
 # ── OPTIONAL ─────────────────────────────────────────────────────────────────
 # kitty                     # Terminal — labwc/rc.xml and autostart reference this but won't break without it
@@ -70,13 +75,13 @@ wayland-protocols           # Provides ext-workspace-v1.xml protocol definition
 
 # ── pacman (official + CachyOS repos) ────────────────────────────────────────
 sudo pacman -S \
-    labwc rofi \
+    labwc rofi mako wlrctl \
     blueman \
     pipewire wireplumber pavucontrol-qt \
     gpu-screen-recorder qt6-multimedia grim slurp imv \
     xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
     btop \
-    gcc pkgconf wayland wayland-protocols \
+    gcc pkgconf wayland wayland-protocols wlr-protocols \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \

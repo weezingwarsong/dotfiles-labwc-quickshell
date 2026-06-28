@@ -2,17 +2,50 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import Quickshell.Io
+import Quickshell.Services.Mpris
 import "components"
 
 ShellRoot {
     id: root
 
-    // "time" | "workspace" | "recording" | "recordingSaved"
+    // "time" | "workspace" | "recording" | "recordingSaved" | "mpris" | "window"
     property string activeModule: "time"
     property string currentWorkspace: "1"
     property bool   isRecording: false
+    property MprisPlayer mprisPlayer: null   // player to display (kept during 1s pause window)
+    property bool   isMprisActive: false     // true only while actually playing
     property var    wallpapers: []
     property var    _wallpaperBuf: []
+    property var    ws1Windows: []
+    property var    ws2Windows: []
+    property string activeWindow: ""
+
+    // Drives where workspace/recording timers return to
+    readonly property string restingModule: isMprisActive ? "mpris" : "time"
+
+    function _syncMpris() {
+        var playing = null
+        var paused  = null
+        var players = Mpris.players.values
+        for (var i = 0; i < players.length; i++) {
+            var p = players[i]
+            if (p.playbackState === MprisPlaybackState.Playing && !playing) playing = p
+            else if (p.playbackState === MprisPlaybackState.Paused  && !paused)  paused  = p
+        }
+        var wasActive = root.isMprisActive
+        root.isMprisActive = (playing !== null)
+        if (playing !== null) {
+            mprisTimer.stop()
+            root.mprisPlayer = playing
+            if (!root.isRecording && root.activeModule !== "workspace" && root.activeModule !== "window")
+                root.activeModule = "mpris"
+        } else if (wasActive) {
+            if (paused !== null) root.mprisPlayer = paused
+            var comp = moduleLoader.item
+            if (root.activeModule === "mpris" && (!comp || !comp.hovered))
+                mprisTimer.restart()
+        }
+    }
 
     readonly property url currentWallpaper: {
         var idx = parseInt(currentWorkspace) - 1
@@ -29,22 +62,31 @@ ShellRoot {
         id: panel
         anchors.top: true
         color: "transparent"
-        exclusiveZone: 24
+        margins.top: 4
+        exclusiveZone: 28
 
         implicitWidth: Math.round(Screen.width * 0.10)
         implicitHeight: moduleLoader.implicitHeight
 
-        Behavior on implicitHeight {
-            NumberAnimation {
-                duration: 250
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: [0.22, 1.0, 0.36, 1.0, 1.0, 1.0]
-            }
-        }
+        WlrLayershell.keyboardFocus: root.activeModule === "window"
+            ? WlrKeyboardFocus.Exclusive
+            : WlrKeyboardFocus.None
 
         Item {
             anchors.fill: parent
             clip: true
+            focus: root.activeModule === "window"
+
+            Keys.onPressed: function(event) {
+                if (root.activeModule !== "window") return
+                if (event.key === Qt.Key_Escape) {
+                    root.activeModule = root.restingModule
+                    event.accepted = true
+                } else if (event.key === Qt.Key_Tab && (event.modifiers & Qt.MetaModifier)) {
+                    root.activeModule = root.restingModule
+                    event.accepted = true
+                }
+            }
 
             Loader {
                 id: moduleLoader
@@ -56,6 +98,10 @@ ShellRoot {
                         return Qt.resolvedUrl("components/Workspace.qml")
                     if (root.activeModule === "recording" || root.activeModule === "recordingSaved")
                         return Qt.resolvedUrl("components/RecordingStatus.qml")
+                    if (root.activeModule === "mpris")
+                        return Qt.resolvedUrl("components/Mpris.qml")
+                    if (root.activeModule === "window")
+                        return Qt.resolvedUrl("components/Window.qml")
                     return Qt.resolvedUrl("components/Time.qml")
                 }
                 onLoaded: {
@@ -63,23 +109,62 @@ ShellRoot {
                         item.workspace = Qt.binding(() => root.currentWorkspace)
                     if (root.activeModule === "recording" || root.activeModule === "recordingSaved")
                         item.saved = Qt.binding(() => root.activeModule === "recordingSaved")
+                    if (root.activeModule === "mpris") {
+                        item.player = Qt.binding(() => root.mprisPlayer)
+                        item.wantsDismiss.connect(function() {
+                            if (!root.isMprisActive && root.activeModule === "mpris")
+                                mprisTimer.restart()
+                        })
+                    }
+                    if (root.activeModule === "window") {
+                        item.ws1Windows = Qt.binding(() => root.ws1Windows)
+                        item.ws2Windows = Qt.binding(() => root.ws2Windows)
+                        item.activeWindow = Qt.binding(() => root.activeWindow)
+                        item.windowFocused.connect(function() {
+                            root.activeModule = root.restingModule
+                        })
+                    }
                 }
             }
         }
     }
 
-    // Return to time after workspace flash
+    // Return to resting module after workspace flash
     Timer {
         id: workspaceTimer
         interval: 1000
-        onTriggered: if (root.activeModule === "workspace") root.activeModule = "time"
+        onTriggered: if (root.activeModule === "workspace") root.activeModule = root.restingModule
     }
 
-    // Return to time after "RECORDING SAVED" flash
+    // Return to resting module after "RECORDING SAVED" flash
     Timer {
         id: recordingTimer
         interval: 1000
-        onTriggered: root.activeModule = "time"
+        onTriggered: root.activeModule = root.restingModule
+    }
+
+    // Return to time 1s after MPRIS stops playing; clear player ref after leaving
+    Timer {
+        id: mprisTimer
+        interval: 1000
+        onTriggered: {
+            if (root.activeModule === "mpris") root.activeModule = "time"
+            root.mprisPlayer = null
+        }
+    }
+
+    // Watch each player's playback state reactively
+    Instantiator {
+        model: Mpris.players
+        delegate: QtObject {
+            required property var modelData
+            property var _conn: Connections {
+                target: modelData
+                function onPlaybackStateChanged() { root._syncMpris() }
+            }
+        }
+        onObjectAdded: { root._syncMpris() }
+        onObjectRemoved: { root._syncMpris() }
     }
 
     // Poll recording state every second
@@ -104,6 +189,41 @@ ShellRoot {
                 root.isRecording = false
                 root.activeModule = "recordingSaved"
                 recordingTimer.restart()
+            }
+        }
+    }
+
+    // FIFO-based toggle for window-switch module — labwc W-Tab writes to this pipe
+    Process {
+        id: windowToggleReader
+        command: ["sh", "-c",
+            "rm -f /tmp/qs-window-toggle; mkfifo /tmp/qs-window-toggle; " +
+            "while true; do cat /tmp/qs-window-toggle; done"]
+        running: true
+        stdout: SplitParser {
+            onRead: function(line) {
+                if (line.trim() !== "toggle") return
+                if (root.activeModule === "window")
+                    root.activeModule = root.restingModule
+                else
+                    root.activeModule = "window"
+            }
+        }
+    }
+
+    // Persistent window tracker — emits JSON on every state change
+    Process {
+        id: toplevelWatcher
+        command: ["qs-toplevel-watcher"]
+        running: true
+        stdout: SplitParser {
+            onRead: function(line) {
+                try {
+                    var d = JSON.parse(line.trim())
+                    root.ws1Windows  = d.ws1    || []
+                    root.ws2Windows  = d.ws2    || []
+                    root.activeWindow = d.active || ""
+                } catch(e) {}
             }
         }
     }

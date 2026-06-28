@@ -27,32 +27,48 @@ A Wayland desktop built on [labwc](https://github.com/labwc/labwc) with [quicksh
 ```
 dotfiles-labwc-quickshell/
 ├── quickshell/
-│   ├── shell.qml                    # root — module switcher, workspace/recording state
-│   ├── qmldir                       # required for local subfolder imports
+│   ├── shell.qml                    # root — module switcher, IPC readers, state
 │   ├── components/
+│   │   ├── Style.qml                # singleton — all colours, fonts, spacing tokens
 │   │   ├── Time.qml                 # clock (HHmm) with slide-down calendar on hover
-│   │   ├── Workspace.qml            # dual-square workspace indicator
+│   │   ├── Workspace.qml            # dual-square workspace indicator (flashes on switch)
+│   │   ├── Mpris.qml                # MPRIS media player pill + player panel
 │   │   ├── RecordingStatus.qml      # recording state indicator (RECORDING / RECORDING SAVED)
-│   │   ├── WallpaperWindow.qml      # Background-layer wallpaper surface
+│   │   ├── Window.qml               # window switcher — flat list, filter, keyboard nav
+│   │   ├── WallpaperWindow.qml      # background-layer wallpaper surface
 │   │   └── qmldir
 │   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
 │
 ├── workspace-watcher/
-│   └── main.c                       # C watcher using ext-workspace-v1 Wayland protocol
+│   └── main.c                       # C binary — ext_workspace_manager_v1, emits active workspace name
+│
+├── toplevel-watcher/
+│   └── main.c                       # C binary — zwlr_foreign_toplevel_manager_v1 + ext_workspace_manager_v1
+│                                    #   emits JSON: {ws1:[...], ws2:[...], active:"..."} on every change
+│
+├── mako/
+│   └── config                       # mako notification daemon config (Nord, 90% opacity)
+│
+├── rofi/
+│   └── config.rasi                  # rofi config
+├── rofi-themes/
+│   └── nord-custom.rasi             # Nord theme matching the quickshell pill aesthetic
 │
 ├── scripts/                         # helper scripts (symlinked to ~/.config/scripts/)
 │   ├── record-toggle.sh             # start/stop gpu-screen-recorder via PID file
-│   └── README.md                    # script inventory — name, purpose, what references it
+│   ├── window-switch-toggle.sh      # writes "toggle" to /tmp/qs-window-toggle FIFO
+│   └── README.md                    # script inventory
 │
 ├── labwc/
 │   ├── icons/                       # white SVG icons for the right-click menu
-│   ├── autostart                    # starts quickshell, bluetooth, polkit agent
+│   ├── autostart                    # starts quickshell, mako, bluetooth, polkit agent
 │   ├── environment                  # QT_QPA_PLATFORMTHEME, TERMINAL
 │   ├── menu.xml                     # right-click root/client menu
 │   └── rc.xml                       # keybinds and window rules
 │
+├── DESIGN.md                        # style system — colour tokens, rectangle/text semantics
 ├── dependency                       # full package list with install commands
-├── install.sh                       # symlinks configs, builds and installs workspace-watcher
+├── install.sh                       # symlinks configs, builds and installs both C watchers
 └── .gitignore
 ```
 
@@ -60,17 +76,25 @@ dotfiles-labwc-quickshell/
 
 ## Features
 
-**Single-slot bar** — one small centered widget at the top. Only one module is visible at a time; modules swap based on context.
+**Single-slot bar** — one small pill at the top-center. Only one module is visible at a time; they swap based on context with a strict priority order (recording > workspace flash > MPRIS > time).
 
 **Time module** — shows the current time in `HHmm` format. Hovering slides down a calendar panel with the current month, today highlighted in Nord7.
 
-**Workspace module** — two filled squares representing workspaces 1 (left) and 2 (right). Active workspace is Nord7, inactive is Nord3. Flashes in for 1 second on switch then returns to the time module. Workspace switching while recording is suppressed — recording takes priority.
+**Workspace module** — two filled squares representing workspaces 1 and 2. Active is Nord7, inactive is Nord3. Flashes for 1 second on switch then returns to the resting module.
 
-**Recording module** — `Super+Shift+R` starts screen recording. The bar switches to "RECORDING" (Nord11 red). On stop, shows "RECORDING SAVED" (Nord14 green) for 1 second, then returns to time. Recordings saved to `~/Videos/`.
+**MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist. Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front. Dismisses 1 second after playback stops.
 
-**Wallpaper** — images dropped into `quickshell/wallpaper/` are sorted alphabetically and assigned to workspaces in order (first → workspace 1, second → workspace 2, etc.). The wallpaper surface uses the `ext-workspace-v1` Wayland protocol layer and passes all pointer input through to the compositor.
+**Window switcher** — `Super+Tab` opens a panel with all open windows grouped by workspace, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). The currently focused window is shown muted. Powered by a native C binary (`qs-toplevel-watcher`) that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
 
-**Native workspace detection** — a small C binary (`qs-workspace-watcher`) binds directly to labwc's `ext_workspace_manager_v1` Wayland protocol and emits the active workspace name on every state change. No polling, no file-based IPC.
+**Recording module** — `Super+Shift+R` starts screen recording. The bar switches to "RECORDING" (Nord11 red). On stop, shows "RECORDING SAVED" (Nord14 green) for 1 second, then returns to the resting module. Recordings saved to `~/Videos/`.
+
+**Wallpaper** — images dropped into `quickshell/wallpaper/` are sorted alphabetically and assigned to workspaces in order. Passes all pointer input through to the compositor.
+
+**Notifications** — mako handles desktop notifications with the Nord palette at 90% opacity, matching the quickshell aesthetic.
+
+**Native Wayland IPC** — no polling anywhere. Two small C binaries bind directly to compositor protocols:
+- `qs-workspace-watcher` → `ext_workspace_manager_v1` — emits active workspace name on change
+- `qs-toplevel-watcher` → `zwlr_foreign_toplevel_manager_v1` + `ext_workspace_manager_v1` — emits JSON window state on every change
 
 ---
 
@@ -93,7 +117,7 @@ dotfiles-labwc-quickshell/
 ### Windows
 | Key | Action |
 |---|---|
-| `Super + Tab` | Window switcher (native labwc) |
+| `Super + Tab` | Window switcher (quickshell) |
 | `Alt + Tab / Alt + Shift + Tab` | Cycle windows forward / backward |
 | `Super + Alt + X` / `Alt + F4` | Close window |
 | `Super + Alt + F` | Maximize |
@@ -133,13 +157,13 @@ dotfiles-labwc-quickshell/
 ```sh
 # pacman
 sudo pacman -S \
-    labwc rofi \
+    labwc rofi mako wlrctl \
     blueman \
     pipewire wireplumber pavucontrol-qt \
     gpu-screen-recorder qt6-multimedia grim slurp imv \
     xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
     btop \
-    gcc pkgconf wayland wayland-protocols \
+    gcc pkgconf wayland wayland-protocols wlr-protocols \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \
@@ -163,8 +187,9 @@ chmod +x install.sh
 ```
 
 `install.sh` will:
-- Symlink `labwc/` and `quickshell/` into `~/.config/`
-- Compile `workspace-watcher/main.c` and install the binary to `~/.local/bin/qs-workspace-watcher`
+- Symlink `labwc/`, `quickshell/`, `mako/`, `rofi/` and `scripts/` into `~/.config/`
+- Compile `workspace-watcher/main.c` → `~/.local/bin/qs-workspace-watcher`
+- Compile `toplevel-watcher/main.c` → `~/.local/bin/qs-toplevel-watcher`
 - Install labwc menu icons to `~/.local/share/icons/hicolor/`
 
 > Ensure `~/.local/bin` is in your `$PATH`.
