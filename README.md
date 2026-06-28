@@ -35,12 +35,14 @@ dotfiles-labwc-quickshell/
 │   │   ├── RecordingStatus.qml      # recording state indicator (RECORDING / RECORDING SAVED)
 │   │   ├── WallpaperWindow.qml      # Background-layer wallpaper surface
 │   │   └── qmldir
-│   ├── scripts/
-│   │   └── record-toggle.sh         # start/stop gpu-screen-recorder via PID file
 │   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
 │
 ├── workspace-watcher/
 │   └── main.c                       # C watcher using ext-workspace-v1 Wayland protocol
+│
+├── scripts/                         # helper scripts (symlinked to ~/.config/scripts/)
+│   ├── record-toggle.sh             # start/stop gpu-screen-recorder via PID file
+│   └── README.md                    # script inventory — name, purpose, what references it
 │
 ├── labwc/
 │   ├── icons/                       # white SVG icons for the right-click menu

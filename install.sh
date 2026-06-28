@@ -17,6 +17,7 @@ echo "Installing labwc-quickshell..."
 
 link_dir labwc       labwc
 link_dir quickshell  quickshell
+link_dir scripts     scripts
 
 # Build and install workspace watcher (requires gcc, pkg-config, wayland-scanner, wayland-protocols)
 for cmd in gcc pkg-config wayland-scanner; do
