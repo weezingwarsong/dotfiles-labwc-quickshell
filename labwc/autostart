@@ -1,4 +1,3 @@
-touch /tmp/qs-workspace
 quickshell &
 
 blueman-applet &

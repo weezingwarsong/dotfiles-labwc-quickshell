@@ -1,1 +1,5 @@
 .qmlls.ini
+workspace-watcher/ext-workspace-v1-client-protocol.h
+workspace-watcher/ext-workspace-v1-client-protocol.c
+workspace-watcher/qs-workspace-watcher
+quickshell/wallpaper/*

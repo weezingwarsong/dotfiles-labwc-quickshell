@@ -18,6 +18,20 @@ echo "Installing labwc-quickshell..."
 link_dir labwc       labwc
 link_dir quickshell  quickshell
 
+# Build and install workspace watcher
+echo "  building qs-workspace-watcher..."
+BUILD_DIR="$DOTFILES/workspace-watcher"
+PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
+wayland-scanner client-header "$PROTO_XML" "$BUILD_DIR/ext-workspace-v1-client-protocol.h"
+wayland-scanner private-code   "$PROTO_XML" "$BUILD_DIR/ext-workspace-v1-client-protocol.c"
+gcc -O2 -o "$BUILD_DIR/qs-workspace-watcher" \
+    "$BUILD_DIR/main.c" \
+    "$BUILD_DIR/ext-workspace-v1-client-protocol.c" \
+    $(pkg-config --cflags --libs wayland-client)
+mkdir -p "$HOME/.local/bin"
+cp "$BUILD_DIR/qs-workspace-watcher" "$HOME/.local/bin/qs-workspace-watcher"
+echo "  installed qs-workspace-watcher → ~/.local/bin"
+
 # labwc menu icons — white variants installed to hicolor so labwc finds them by name
 HICOLOR="$HOME/.local/share/icons/hicolor"
 mkdir -p "$HICOLOR/22x22/apps" "$HICOLOR/22x22/actions"
