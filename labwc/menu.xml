@@ -42,19 +42,19 @@
 
     <item label="Logout (_O)" icon="menu-logout">
       <action name="Execute">
-        <command>~/.config/scripts/logout.sh</command>
+        <command>~/.config/scripts/system-logout.sh</command>
       </action>
     </item>
 
     <item label="Reboot (_B)" icon="system-shutdown-panel-restart">
       <action name="Execute">
-        <command>~/.config/scripts/reboot.sh</command>
+        <command>~/.config/scripts/system-reboot.sh</command>
       </action>
     </item>
 
     <item label="Shutdown (_H)" icon="system-shutdown-panel">
       <action name="Execute">
-        <command>~/.config/scripts/shutdown.sh</command>
+        <command>~/.config/scripts/system-shutdown.sh</command>
       </action>
     </item>
 
