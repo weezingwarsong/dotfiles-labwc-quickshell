@@ -204,6 +204,12 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 ---
 
+## Roadmap / To-do
+
+- [ ] **Settings component** — a quickshell module (triggered by a keybind) for configuring user preferences at runtime without editing files. First candidate: the `focus-or-open.sh` app\_id mappings for `W-w` (browser) and `W-e` (file manager), so swapping browsers or file managers doesn't require touching rc.xml or the script. Settings would write to a small config file that the scripts and shell read.
+
+---
+
 ## Colour palette
 
 All colours are strict [Nord](https://www.nordtheme.com/docs/colors-and-palettes).
