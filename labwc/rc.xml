@@ -117,6 +117,12 @@
     <keybind key="W-t">
       <action name="Execute" command="sh -c &quot;$TERMINAL&quot;" />
     </keybind>
+    <keybind key="W-w">
+      <action name="Execute" command="~/.config/scripts/focus-or-open.sh microsoft-edge xdg-open https:" />
+    </keybind>
+    <keybind key="W-e">
+      <action name="Execute" command="~/.config/scripts/focus-or-open.sh pcmanfm-qt pcmanfm-qt" />
+    </keybind>
     <keybind key="W-h">
       <action name="Execute" command="sh -c &quot;$TERMINAL -e btop&quot;" />
     </keybind>

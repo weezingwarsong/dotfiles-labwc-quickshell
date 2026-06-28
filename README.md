@@ -130,6 +130,8 @@ dotfiles-labwc-quickshell/
 | Key | Action |
 |---|---|
 | `Super + T` | Terminal ($TERMINAL) |
+| `Super + W` | Focus browser or open default browser |
+| `Super + E` | Focus file manager or open pcmanfm-qt |
 | `Super + H` | btop |
 | `Super + V` | Volume control (pavucontrol-qt) |
 | `Super + R` / `Alt + F2` | Rofi launcher |
