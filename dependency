@@ -24,7 +24,8 @@ wireplumber                 # PipeWire session manager
 pavucontrol-qt              # Volume control GUI
 
 # ── SCREEN CAPTURE ───────────────────────────────────────────────────────────
-gpu-screen-recorder         # Screen recorder
+gpu-screen-recorder         # Screen recorder (W-S-r keybind)
+qt6-multimedia              # Qt6 multimedia backend — required for video wallpaper support
 grim                        # Screenshot tool
 slurp                       # Region selector for grim
 imv                         # Image viewer
@@ -52,6 +53,12 @@ ttf-jetbrains-mono-nerd     # JetBrains Mono (Nerd Font patched)
 noto-fonts                  # Fallback font
 noto-fonts-emoji            # Emoji fallback
 
+# ── BUILD (workspace-watcher) ────────────────────────────────────────────────
+gcc                         # C compiler
+pkgconf                     # pkg-config — wayland-client flags for watcher build
+wayland                     # Provides wayland-scanner (generates protocol bindings)
+wayland-protocols           # Provides ext-workspace-v1.xml protocol definition
+
 # ── OPTIONAL ─────────────────────────────────────────────────────────────────
 # kitty                     # Terminal — labwc/rc.xml and autostart reference this but won't break without it
 # pcmanfm-qt                # File manager — autostart and menu.xml reference this but won't break without it
@@ -66,9 +73,10 @@ sudo pacman -S \
     labwc rofi \
     blueman \
     pipewire wireplumber pavucontrol-qt \
-    gpu-screen-recorder grim slurp imv \
+    gpu-screen-recorder qt6-multimedia grim slurp imv \
     xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
     btop \
+    gcc pkgconf wayland wayland-protocols \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \

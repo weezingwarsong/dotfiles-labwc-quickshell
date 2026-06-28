@@ -18,7 +18,10 @@ echo "Installing labwc-quickshell..."
 link_dir labwc       labwc
 link_dir quickshell  quickshell
 
-# Build and install workspace watcher
+# Build and install workspace watcher (requires gcc, pkg-config, wayland-scanner, wayland-protocols)
+for cmd in gcc pkg-config wayland-scanner; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "  error: '$cmd' not found — install build dependencies (see dependency file)"; exit 1; }
+done
 echo "  building qs-workspace-watcher..."
 BUILD_DIR="$DOTFILES/workspace-watcher"
 PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
@@ -44,3 +47,4 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
+echo "  Note: ensure ~/.local/bin is in your PATH for qs-workspace-watcher."
