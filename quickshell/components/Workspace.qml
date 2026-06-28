@@ -13,8 +13,8 @@ Item {
     Rectangle {
         id: box
         color: "#3B4252"
-        width: root.squareSize * 2 + 3 + 16
-        height: root.squareSize + 8
+        width: parent.width
+        height: 24
 
         Row {
             anchors.centerIn: parent

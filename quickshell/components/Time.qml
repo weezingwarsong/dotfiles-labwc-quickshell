@@ -7,7 +7,7 @@ Item {
 
     property bool hovered: false
 
-    implicitWidth: calendarWidget.width
+    implicitWidth: parent ? parent.width : calendarWidget.width
     implicitHeight: hovered ? clockBox.height + calendarWidget.implicitHeight : clockBox.height
 
     MouseArea {
@@ -22,8 +22,8 @@ Item {
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
         color: "#3B4252"
-        width: clock.width + 16
-        height: clock.height + 8
+        width: parent.width
+        height: 24
 
         Text {
             id: clock

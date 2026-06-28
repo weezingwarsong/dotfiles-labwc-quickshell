@@ -4,13 +4,13 @@ Item {
     id: root
     property bool saved: false
 
-    implicitWidth: container.implicitWidth
-    implicitHeight: container.implicitHeight
+    implicitWidth: parent ? parent.width : label.implicitWidth + 12
+    implicitHeight: 24
 
     Rectangle {
         id: container
-        implicitWidth: label.implicitWidth + 12
-        implicitHeight: 24
+        width: parent.width
+        height: 24
         color: "#3B4252"
 
         Text {

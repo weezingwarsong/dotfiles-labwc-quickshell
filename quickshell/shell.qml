@@ -31,7 +31,7 @@ ShellRoot {
         color: "transparent"
         exclusiveZone: 24
 
-        implicitWidth: moduleLoader.implicitWidth
+        implicitWidth: Math.round(Screen.width * 0.10)
         implicitHeight: moduleLoader.implicitHeight
 
         Behavior on implicitHeight {
@@ -48,6 +48,7 @@ ShellRoot {
 
             Loader {
                 id: moduleLoader
+                width: parent.width
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 source: {
