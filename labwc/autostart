@@ -1,0 +1,13 @@
+touch /tmp/qs-workspace
+quickshell &
+
+blueman-applet &
+
+rofi-polkit-agent &
+
+# Mount NTFS data drive
+mount /media/DATA
+
+steam -silent &
+qbittorrent &
+(Discord --start-minimized) &

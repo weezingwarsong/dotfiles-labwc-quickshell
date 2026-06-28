@@ -1,0 +1,304 @@
+<?xml version="1.0"?>
+<labwc_config>
+  <core>
+    <decoration>server</decoration>
+    <gap>0</gap>
+  </core>
+  <focus>
+    <followMouse>no</followMouse>
+    <raiseOnFocus>yes</raiseOnFocus>
+  </focus>
+  <placement>
+    <policy>automatic</policy>
+  </placement>
+  <theme>
+    <name>nord-custom</name>
+    <icon>Papirus-Dark</icon>
+    <titlebar>
+      <layout>NDSLIMC</layout>
+    </titlebar>
+    <cornerRadius>0</cornerRadius>
+    <keepBorder>yes</keepBorder>
+    <font place="ActiveWindow">
+      <name>JetBrainsMono Nerd Font</name>
+      <size>10</size>
+      <weight>Bold</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="InactiveWindow">
+      <name>JetBrainsMono Nerd Font</name>
+      <size>10</size>
+      <weight>Normal</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="MenuHeader">
+      <name>JetBrainsMono Nerd Font</name>
+      <size>10</size>
+      <weight>Normal</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="MenuItem">
+      <name>JetBrainsMono Nerd Font</name>
+      <size>10</size>
+      <weight>Normal</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="OnScreenDisplay">
+      <name>JetBrainsMono Nerd Font</name>
+      <size>10</size>
+      <weight>Normal</weight>
+      <slant>Normal</slant>
+    </font>
+  </theme>
+
+  <desktops number="2">
+    <names>
+      <name>1</name>
+      <name>2</name>
+    </names>
+    <popupTime>200</popupTime>
+  </desktops>
+
+  <resize>
+    <popupShow>Nonpixel</popupShow>
+  </resize>
+
+  <keyboard>
+    <default />
+    <numlock>on</numlock>
+
+    <!-- Keybindings for desktop switching -->
+    <keybind key="W-F1">
+      <action name="GoToDesktop" to="1" />
+      <action name="Execute" command="sh -c 'echo 1 &gt; /tmp/qs-workspace'" />
+    </keybind>
+    <keybind key="W-F2">
+      <action name="GoToDesktop" to="2" />
+      <action name="Execute" command="sh -c 'echo 2 &gt; /tmp/qs-workspace'" />
+    </keybind>
+    <keybind key="W-d">
+      <action name="ToggleShowDesktop" />
+    </keybind>
+
+    <!-- Keybindings for windows -->
+    <keybind key="A-F4">
+      <action name="Close" />
+    </keybind>
+    <keybind key="W-A-x">
+      <action name="Close" />
+    </keybind>
+    <keybind key="W-Escape">
+      <action name="ShowMenu" menu="client-menu" />
+    </keybind>
+
+    <!-- Window switching -->
+    <keybind key="A-Tab">
+      <action name="NextWindow" />
+    </keybind>
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow" />
+    </keybind>
+
+    <keybind key="W-S-s">
+      <action name="Execute" command="sh -c 'mkdir -p ~/Screenshot &amp;&amp; grim -g &quot;$(slurp)&quot; ~/Screenshot/$(date +%Y-%m-%d-%T)-screenshot.png'" />
+    </keybind>
+    <keybind key="W-S-d">
+      <action name="Execute" command="sh -c 'sleep 1 &amp;&amp; grim ~/Screenshot/$(date +%Y-%m-%d-%T)-screenshot.png'" />
+    </keybind>
+
+
+    <keybind key="A-F2">
+      <action name="Execute" command="rofi -show drun" />
+    </keybind>
+    <keybind key="W-r">
+      <action name="Execute" command="rofi -show drun" />
+    </keybind>
+    <keybind key="W-t">
+      <action name="Execute" command="sh -c &quot;$TERMINAL&quot;" />
+    </keybind>
+    <keybind key="W-h">
+      <action name="Execute" command="sh -c &quot;$TERMINAL -e btop&quot;" />
+    </keybind>
+    <keybind key="W-v">
+      <action name="Execute" command="pavucontrol-qt" />
+    </keybind>
+
+    <keybind key="XF86AudioLowerVolume">
+      <action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-" />
+    </keybind>
+    <keybind key="XF86AudioRaiseVolume">
+      <action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+" />
+    </keybind>
+    <keybind key="XF86AudioMute">
+      <action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" />
+    </keybind>
+
+    <keybind key="W-Tab">
+      <action name="ShowMenu" menu="client-list-combined-menu" />
+    </keybind>
+    <keybind key="W-space">
+      <action name="ShowMenu" menu="root-menu" />
+    </keybind>
+
+    <!-- Snap to edges and corners -->
+    <keybind key="W-Left">
+      <action name="SnapToEdge" direction="left" />
+    </keybind>
+    <keybind key="W-Right">
+      <action name="SnapToEdge" direction="right" />
+    </keybind>
+    <keybind key="W-Up">
+      <action name="SnapToEdge" direction="up" />
+    </keybind>
+    <keybind key="W-Down">
+      <action name="SnapToEdge" direction="down" />
+    </keybind>
+    <keybind key="W-A-Up">
+      <action name="SnapToEdge" direction="up-left" />
+    </keybind>
+    <keybind key="W-A-Right">
+      <action name="SnapToEdge" direction="up-right" />
+    </keybind>
+    <keybind key="W-A-Down">
+      <action name="SnapToEdge" direction="down-right" />
+    </keybind>
+    <keybind key="W-A-Left">
+      <action name="SnapToEdge" direction="down-left" />
+    </keybind>
+
+
+    <keybind key="W-A-f">
+      <action name="ToggleMaximize" />
+    </keybind>
+    <keybind key="W-A-d">
+      <action name="Iconify" />
+    </keybind>
+    <keybind key="W-A-Escape">
+      <action name="ToggleDecorations" />
+    </keybind>
+
+  </keyboard>
+
+  <mouse>
+    <dragThreshold>10</dragThreshold>
+    <doubleClickTime>200</doubleClickTime>
+
+    <context name="Titlebar">
+      <mousebind button="Left" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Move" />
+      </mousebind>
+      <mousebind button="Left" action="DoubleClick">
+        <action name="ToggleMaximize" />
+      </mousebind>
+      <mousebind button="Right" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+        <action name="ShowMenu" menu="client-menu" />
+      </mousebind>
+    </context>
+
+    <context name="Top">
+      <mousebind button="Left" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Resize" />
+      </mousebind>
+    </context>
+    <context name="Left">
+      <mousebind button="Left" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Resize" />
+      </mousebind>
+    </context>
+    <context name="Right">
+      <mousebind button="Left" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Resize" />
+      </mousebind>
+    </context>
+    <context name="Bottom">
+      <mousebind button="Left" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Resize" />
+      </mousebind>
+    </context>
+
+    <context name="Client">
+      <mousebind button="Left" action="Press">
+        <action name="Focus" />
+        <action name="Raise" />
+      </mousebind>
+    </context>
+
+    <context name="Frame">
+      <mousebind button="W-Left" action="Drag">
+        <action name="Move" />
+      </mousebind>
+      <mousebind button="W-Right" action="Drag">
+        <action name="Resize" />
+      </mousebind>
+      <mousebind button="W-Middle" action="Click">
+        <action name="Close" />
+      </mousebind>
+      <mousebind direction="W-Up" action="Scroll">
+        <action name="GoToDesktop" to="1" wrap="no" />
+        <action name="Execute" command="sh -c 'echo 1 &gt; /tmp/qs-workspace'" />
+      </mousebind>
+      <mousebind direction="W-Down" action="Scroll">
+        <action name="GoToDesktop" to="2" wrap="no" />
+        <action name="Execute" command="sh -c 'echo 2 &gt; /tmp/qs-workspace'" />
+      </mousebind>
+      <mousebind direction="W-S-Up" action="Scroll">
+        <action name="SendToDesktop" to="1" follow="yes" wrap="no" />
+        <action name="Execute" command="sh -c 'echo 1 &gt; /tmp/qs-workspace'" />
+      </mousebind>
+      <mousebind direction="W-S-Down" action="Scroll">
+        <action name="SendToDesktop" to="2" follow="yes" wrap="no" />
+        <action name="Execute" command="sh -c 'echo 2 &gt; /tmp/qs-workspace'" />
+      </mousebind>
+    </context>
+
+    <context name="Root">
+      <mousebind button="Right" action="Press">
+        <action name="ShowMenu" menu="root-menu" />
+      </mousebind>
+      <mousebind button="Middle" action="Press">
+        <action name="ShowMenu" menu="client-list-combined-menu" />
+      </mousebind>
+      <mousebind direction="W-Up" action="Scroll">
+        <action name="GoToDesktop" to="1" wrap="no" />
+        <action name="Execute" command="sh -c 'echo 1 &gt; /tmp/qs-workspace'" />
+      </mousebind>
+      <mousebind direction="W-Down" action="Scroll">
+        <action name="GoToDesktop" to="2" wrap="no" />
+        <action name="Execute" command="sh -c 'echo 2 &gt; /tmp/qs-workspace'" />
+      </mousebind>
+    </context>
+  </mouse>
+
+  <!-- Window rules: replaces Openbox's <applications> block.
+       Your blanket "no decorations on anything" rule, translated. -->
+  <windowRules>
+    <windowRule identifier="*">
+      <action name="SetDecorations" decorations="border" />
+    </windowRule>
+    <windowRule identifier="Steam" serverDecoration="no" />
+    <windowRule identifier="imv" serverDecoration="yes" />
+    <windowRule identifier="imv-dir" serverDecoration="yes" />
+  </windowRules>
+</labwc_config>

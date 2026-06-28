@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openbox_menu xmlns="http://openbox.org/3.4/menu">
+
+  <!-- Main Desktop Menu -->
+  <menu id="root-menu" label="Openbox 3">
+
+    <!-- SECTION: APPLICATIONS -->
+    <separator label="Applications" />
+
+    <item label="_Web Browser (W)" icon="menu-web-browser">
+      <action name="Execute">
+        <command>xdg-open http://</command>
+      </action>
+    </item>
+
+    <item label="File Manager (_E)" icon="system-file-manager-panel">
+      <action name="Execute">
+        <command>xdg-open ~</command>
+      </action>
+    </item>
+
+    <item label="Run (_R)" icon="menu-run">
+      <action name="Execute">
+        <command>rofi -show drun</command>
+      </action>
+    </item>
+
+    <item label="Terminal (_T)" icon="menu-terminal">
+      <action name="Execute">
+        <command>sh -c &quot;$TERMINAL&quot;</command>
+      </action>
+    </item>
+
+    <item label="Steam (_S)" icon="menu-steam">
+      <action name="Execute">
+        <command>steam</command>
+      </action>
+    </item>
+
+    <!-- SECTION: SYSTEM -->
+    <separator label="System" />
+
+    <item label="Logout (_O)" icon="menu-logout">
+      <action name="Execute">
+        <command>~/.config/scripts/logout.sh</command>
+      </action>
+    </item>
+
+    <item label="Reboot (_B)" icon="system-shutdown-panel-restart">
+      <action name="Execute">
+        <command>~/.config/scripts/reboot.sh</command>
+      </action>
+    </item>
+
+    <item label="Shutdown (_H)" icon="system-shutdown-panel">
+      <action name="Execute">
+        <command>~/.config/scripts/shutdown.sh</command>
+      </action>
+    </item>
+
+  </menu>
+
+</openbox_menu>

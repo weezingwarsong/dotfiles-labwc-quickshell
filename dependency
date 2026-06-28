@@ -1,0 +1,82 @@
+# labwc + quickshell dependency list
+
+# ── COMPOSITOR ───────────────────────────────────────────────────────────────
+labwc                       # Wayland compositor (openbox-like, wlroots-based)
+
+# ── SHELL ────────────────────────────────────────────────────────────────────
+quickshell                  # Wayland shell (bar, notifications, widgets — QML-based)
+
+# ── LAUNCHER ─────────────────────────────────────────────────────────────────
+rofi                        # App launcher and window switcher
+
+# ── BROWSER ──────────────────────────────────────────────────────────────────
+xdg-utils                   # xdg-open for browser/file launch
+
+# ── BLUETOOTH ────────────────────────────────────────────────────────────────
+blueman                     # Bluetooth manager + systray applet (autostart)
+
+# ── POLKIT ───────────────────────────────────────────────────────────────────
+rofi-polkit-agent           # Polkit authentication agent using rofi (autostart)
+
+# ── AUDIO ────────────────────────────────────────────────────────────────────
+pipewire                    # Audio server
+wireplumber                 # PipeWire session manager
+pavucontrol-qt              # Volume control GUI
+
+# ── SCREEN CAPTURE ───────────────────────────────────────────────────────────
+gpu-screen-recorder         # Screen recorder
+grim                        # Screenshot tool
+slurp                       # Region selector for grim
+imv                         # Image viewer
+
+# ── XDG PORTAL ───────────────────────────────────────────────────────────────
+xdg-desktop-portal          # Base portal service
+xdg-desktop-portal-wlr      # Wayland/wlroots screencast backend (labwc)
+xdg-desktop-portal-gtk      # GTK fallback backend (file chooser etc.)
+
+# ── SYSTEM MONITOR ───────────────────────────────────────────────────────────
+btop                        # Resource monitor TUI
+
+# ── THEMING (GTK / Qt / Kvantum) ─────────────────────────────────────────────
+nordic-theme-git            # Nordic GTK theme (GTK3 + GTK4)
+kvantum                     # Kvantum theming engine for Qt (required by quickshell)
+kvantum-theme-nordic-git    # Nordic theme for Kvantum
+qt5ct                       # Qt5 appearance configuration
+qt6ct                       # Qt6 appearance configuration
+papirus-icon-theme          # Icon theme (Papirus-Dark)
+papirus-nord                # Nord colour variant for Papirus icons
+nordzy-cursors              # Nord cursor theme
+
+# ── FONTS ────────────────────────────────────────────────────────────────────
+ttf-jetbrains-mono-nerd     # JetBrains Mono (Nerd Font patched)
+noto-fonts                  # Fallback font
+noto-fonts-emoji            # Emoji fallback
+
+# ── OPTIONAL ─────────────────────────────────────────────────────────────────
+# kitty                     # Terminal — labwc/rc.xml and autostart reference this but won't break without it
+# pcmanfm-qt                # File manager — autostart and menu.xml reference this but won't break without it
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# INSTALLATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ── pacman (official + CachyOS repos) ────────────────────────────────────────
+sudo pacman -S \
+    labwc rofi \
+    blueman \
+    pipewire wireplumber pavucontrol-qt \
+    gpu-screen-recorder grim slurp imv \
+    xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
+    btop \
+    kvantum qt5ct qt6ct \
+    nordic-theme-git kvantum-theme-nordic-git \
+    papirus-icon-theme \
+    ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
+
+# ── AUR ──────────────────────────────────────────────────────────────────────
+yay -S \
+    quickshell \
+    nordzy-cursors \
+    papirus-nord \
+    rofi-polkit-agent
