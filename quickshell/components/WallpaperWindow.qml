@@ -20,7 +20,7 @@ PanelWindow {
     anchors.bottom: true
     anchors.left: true
     anchors.right: true
-    color: "#2E3440"
+    color: Style.nord0
     mask: Region {}
 
     AnimatedImage {

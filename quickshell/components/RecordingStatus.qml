@@ -20,7 +20,7 @@ Item {
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: "#2E3440"
+            shadowColor: Style.nord0
             shadowBlur: container.localHovered ? 0.55 : 0.25
             shadowVerticalOffset: container.localHovered ? 6 : 2
             shadowOpacity: container.localHovered ? 0.8 : 0.5

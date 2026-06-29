@@ -45,7 +45,7 @@ Item {
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: "#2E3440"
+            shadowColor: Style.nord0
             shadowBlur: pill.localHovered ? 0.55 : 0.25
             shadowVerticalOffset: pill.localHovered ? 6 : 2
             shadowOpacity: pill.localHovered ? 0.8 : 0.5
@@ -229,7 +229,7 @@ Item {
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     shadowEnabled: true
-                    shadowColor: "#2E3440"
+                    shadowColor: Style.nord0
                     shadowBlur: focusBtn.localHovered ? 0.55 : 0.25
                     shadowVerticalOffset: focusBtn.localHovered ? 6 : 2
                     shadowOpacity: focusBtn.localHovered ? 0.8 : 0.5

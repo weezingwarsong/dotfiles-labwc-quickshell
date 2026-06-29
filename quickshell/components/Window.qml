@@ -32,6 +32,37 @@ FocusScope {
         return sep >= 0 ? windowStr.substring(sep + 2) : windowStr
     }
 
+    function _appIdFor(windowStr) {
+        var sep = windowStr.indexOf(": ")
+        return sep >= 0 ? windowStr.substring(0, sep) : windowStr
+    }
+
+    function _glyphFor(appId) {
+        var id = appId.toLowerCase()
+        if (id === "kitty" || id === "alacritty" || id === "foot" ||
+            id === "wezterm" || id === "xterm" || id === "konsole" ||
+            id === "gnome-terminal" || id === "xfce4-terminal")  return ""  // >_
+        if (id === "firefox" || id === "librewolf" ||
+            id === "org.mozilla.firefox")                         return ""  // firefox
+        if (id === "google-chrome" || id === "chromium" ||
+            id === "chromium-browser" || id === "microsoft-edge" ||
+            id === "microsoft-edge-dev" || id === "brave-browser" ||
+            id === "brave")                                       return ""  // chrome
+        if (id === "pcmanfm-qt" || id === "pcmanfm" || id === "thunar" ||
+            id === "nautilus" || id === "dolphin" || id === "nemo") return "" // folder
+        if (id === "code" || id === "vscodium" || id === "codium") return "" // vscode
+        if (id === "nvim" || id === "neovim")                    return ""  // vim
+        if (id === "discord")                                    return ""  // chat
+        if (id === "steam" || id.indexOf("steam_app") === 0)    return ""  // steam
+        if (id === "qbittorrent")                                return ""  // download
+        if (id === "vlc" || id === "org.videolan.vlc" ||
+            id === "celluloid" || id === "mpv")                  return ""  // play
+        if (id === "imv" || id === "imv-wayland" || id === "eog") return "" // picture
+        if (id === "pavucontrol-qt" || id === "pavucontrol")    return ""  // volume
+        if (id === "btop")                                       return ""  // chart
+        return ""  // window-maximize fallback
+    }
+
     function focusSelected() {
         if (selectedFlat < filteredWs1.length) {
             _doFocus(filteredWs1[selectedFlat])
@@ -159,13 +190,33 @@ FocusScope {
                         }
 
                         Text {
+                            id: glyphCol
                             anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left;  anchors.leftMargin: 6
+                            anchors.left: parent.left; anchors.leftMargin: 6
+                            width: 14
+                            horizontalAlignment: Text.AlignHCenter
+                            text: root._glyphFor(root._appIdFor(modelData))
+                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyHighlight
+                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
+                        }
+
+                        Text {
+                            id: appNameCol
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: glyphCol.right; anchors.leftMargin: 6
+                            width: Math.round(parent.width * 0.25)
+                            text: root._appIdFor(modelData)
+                            color: isSelected ? Style.textOnHighlight : Style.textBodyLow
+                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: appNameCol.right; anchors.leftMargin: 6
                             anchors.right: parent.right; anchors.rightMargin: 6
                             text: root._titleFor(modelData)
-                            color: isSelected ? "#2E3440"
-                                 : isActive   ? Style.textBodyLow
-                                 :              Style.textBodyNormal
+                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyNormal
                             font.family: Style.fontFamily; font.pointSize: Style.fontSize
                             elide: Text.ElideRight
                         }
@@ -219,16 +270,37 @@ FocusScope {
                         }
 
                         Text {
+                            id: glyphCol
                             anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left;  anchors.leftMargin: 6
-                            anchors.right: parent.right; anchors.rightMargin: 6
-                            text: root._titleFor(modelData)
-                            color: isSelected ? "#2E3440"
-                                 : isActive   ? Style.textBodyLow
-                                 :              Style.textBodyNormal
+                            anchors.left: parent.left; anchors.leftMargin: 6
+                            width: 14
+                            horizontalAlignment: Text.AlignHCenter
+                            text: root._glyphFor(root._appIdFor(modelData))
+                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyHighlight
+                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
+                        }
+
+                        Text {
+                            id: appNameCol
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: glyphCol.right; anchors.leftMargin: 6
+                            width: Math.round(parent.width * 0.25)
+                            color: isSelected ? Style.textOnHighlight : Style.textBodyLow
+                            text: root._appIdFor(modelData)
                             font.family: Style.fontFamily; font.pointSize: Style.fontSize
                             elide: Text.ElideRight
                         }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: appNameCol.right; anchors.leftMargin: 6
+                            anchors.right: parent.right; anchors.rightMargin: 6
+                            text: root._titleFor(modelData)
+                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyNormal
+                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
+                            elide: Text.ElideRight
+                        }
+
                     }
                 }
             }

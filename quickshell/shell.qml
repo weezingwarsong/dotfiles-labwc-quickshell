@@ -65,7 +65,9 @@ ShellRoot {
         margins.top: 4
         exclusiveZone: 28
 
-        implicitWidth: Math.round(Screen.width * 0.10)
+        implicitWidth: root.activeModule === "window"
+            ? Math.round(Screen.width * 0.20)
+            : Math.round(Screen.width * 0.10)
         implicitHeight: moduleLoader.implicitHeight
 
         WlrLayershell.keyboardFocus: root.activeModule === "window"
@@ -211,10 +213,14 @@ ShellRoot {
         }
     }
 
-    // Persistent window tracker — emits JSON on every state change
+    // Persistent window tracker — reads from FIFO written by qs-toplevel-watcher
+    // (started via scripts/start-watchers.sh before quickshell in autostart).
+    // The while-loop restarts cat across the brief gap when the daemon restarts.
     Process {
         id: toplevelWatcher
-        command: ["qs-toplevel-watcher"]
+        command: ["sh", "-c",
+            "[ -p /tmp/qs-toplevels ] || mkfifo /tmp/qs-toplevels; " +
+            "while true; do cat /tmp/qs-toplevels; done"]
         running: true
         stdout: SplitParser {
             onRead: function(line) {
@@ -243,9 +249,12 @@ ShellRoot {
         }
     }
 
+    // Workspace tracker — reads from FIFO written by qs-workspace-watcher.
     Process {
         id: wsWatcher
-        command: ["qs-workspace-watcher"]
+        command: ["sh", "-c",
+            "[ -p /tmp/qs-workspace ] || mkfifo /tmp/qs-workspace; " +
+            "while true; do cat /tmp/qs-workspace; done"]
         running: true
         stdout: SplitParser {
             onRead: function(line) {
