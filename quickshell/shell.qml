@@ -190,12 +190,14 @@ ShellRoot {
     }
 
     // FIFO-based toggle for window-switch module — labwc W-Tab writes to this pipe.
-    // Kills any cat readers from previous quickshell sessions first so there is
-    // only one reader on the FIFO; otherwise Super+Tab would miss 1/(N readers).
+    // Saves its own PID so the next quickshell session can kill this sh wrapper
+    // (and its cat child) by exact PID, avoiding the pkill-matches-self trap.
     Process {
         id: windowToggleReader
         command: ["sh", "-c",
-            "pkill -f 'cat /tmp/qs-window-toggle' 2>/dev/null; sleep 0.1; " +
+            "P=/tmp/qs-toggle-reader.pid; " +
+            "if [ -f \"$P\" ]; then O=$(cat \"$P\"); pkill -P \"$O\" 2>/dev/null; kill \"$O\" 2>/dev/null; fi; " +
+            "echo $$ > \"$P\"; " +
             "rm -f /tmp/qs-window-toggle; mkfifo /tmp/qs-window-toggle; " +
             "while true; do cat /tmp/qs-window-toggle; done"]
         running: true
