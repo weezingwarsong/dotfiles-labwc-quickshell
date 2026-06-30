@@ -189,10 +189,13 @@ ShellRoot {
         }
     }
 
-    // FIFO-based toggle for window-switch module — labwc W-Tab writes to this pipe
+    // FIFO-based toggle for window-switch module — labwc W-Tab writes to this pipe.
+    // Kills any cat readers from previous quickshell sessions first so there is
+    // only one reader on the FIFO; otherwise Super+Tab would miss 1/(N readers).
     Process {
         id: windowToggleReader
         command: ["sh", "-c",
+            "pkill -f 'cat /tmp/qs-window-toggle' 2>/dev/null; sleep 0.1; " +
             "rm -f /tmp/qs-window-toggle; mkfifo /tmp/qs-window-toggle; " +
             "while true; do cat /tmp/qs-window-toggle; done"]
         running: true
@@ -207,14 +210,13 @@ ShellRoot {
         }
     }
 
-    // Unified watcher — reads from FIFO written by qs-watcher (started via
-    // scripts/start-watchers.sh before quickshell in autostart).
-    // Handles both window tracking and workspace transitions in one stream.
+    // qs-watcher is spawned directly so there are no orphaned FIFO readers.
+    // First launch kills any stray qs-watcher left from a previous quickshell
+    // session; exec replaces the sh wrapper so only one qs-watcher process runs.
+    // On exit (e.g. labwc --reconfigure), watcherRestartTimer respawns after 2 s.
     Process {
         id: watcherReader
-        command: ["sh", "-c",
-            "[ -p /tmp/qs-watcher ] || mkfifo /tmp/qs-watcher; " +
-            "while true; do cat /tmp/qs-watcher; done"]
+        command: ["sh", "-c", "pkill -x qs-watcher 2>/dev/null; sleep 0.3; exec qs-watcher"]
         running: true
         stdout: SplitParser {
             onRead: function(line) {
@@ -239,6 +241,16 @@ ShellRoot {
                     }
                 } catch(e) {}
             }
+        }
+        onExited: function(code, signal) { watcherRestartTimer.restart() }
+    }
+
+    Timer {
+        id: watcherRestartTimer
+        interval: 2000
+        onTriggered: {
+            watcherReader.command = ["qs-watcher"]
+            watcherReader.running = true
         }
     }
 

@@ -109,7 +109,7 @@ dotfiles-labwc-quickshell/
 - `zwlr_foreign_toplevel_manager_v1` — tracks all open windows and their state
 - `ext_workspace_manager_v1` — tracks the active workspace name
 
-Emits one compact JSON line per state change to a FIFO (`/tmp/qs-watcher`), consumed by quickshell.
+Emits one compact JSON line per state change to stdout. quickshell spawns `qs-watcher` directly as a child process so its output flows straight into the parser with no FIFO in the middle. `start-watchers.sh` (called from autostart before quickshell) evicts any leftover watcher from a previous session. If the compositor disconnects (e.g. `labwc --reconfigure`), the watcher exits and quickshell respawns it after 2 s.
 
 ---
 
