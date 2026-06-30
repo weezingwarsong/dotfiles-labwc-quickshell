@@ -194,20 +194,17 @@ ShellRoot {
             }
 
             // ── Squish transition overlay ─────────────────────────────────────
-            Item {
+            // Rectangle (not Item) so clip: true follows the rounded pill shape
+            // rather than a plain bounding box, keeping capsule corners throughout.
+            Rectangle {
                 id: squishOverlay
                 visible: root._inTransition
                 x: 0; y: 0
                 width: parent.width
                 height: Style.pillHeight
                 clip: true
-
-                // Background fill so the 2px gap between slots shows pill colour
-                // rather than the transparent compositor surface behind the window.
-                Rectangle {
-                    anchors.fill: parent
-                    color: Style.pillBg
-                }
+                color: "transparent"
+                radius: height / 2
 
                 // Slot geometry invariant (W = squishOverlay.width, p = _squishProgress):
                 //   outSlot.width = (1-p) * (W-2)
@@ -215,10 +212,11 @@ ShellRoot {
                 //   gap           =         2
                 //   total         = outSlot.width + 2 + inSlot.width = W  ✓
                 //
-                // Each Loader is full-width (W) but parked so its content appears at
-                // pill coordinate 0.  The slot's clip: true reveals only the visible
-                // slice.  The loader x trick: -(W - slotWidth) = -slot.x, which shifts
-                // the full-width content left by the slot's own x, landing it at 0.
+                // Each Loader fills its slot exactly (width: parent.width).  The module's
+                // pill Rectangle (radius: height/2) therefore shrinks/grows with the slot —
+                // Qt clamps radius to width/2 automatically at narrow widths, so both
+                // rounded caps stay visible throughout.  No per-loader x math needed;
+                // the squishOverlay's own rounded clip handles the outer pill corners.
 
                 // Outgoing (old) — shrinks toward the exit edge
                 Item {
@@ -226,13 +224,10 @@ ShellRoot {
                     x: root._squishDir > 0 ? 0 : inSlot.width + 2
                     width: (1.0 - root._squishProgress) * (squishOverlay.width - 2)
                     height: squishOverlay.height
-                    clip: true
 
                     Loader {
                         id: outLoader
-                        x: root._squishDir > 0 ? 0 : -(squishOverlay.width - outSlot.width)
-                        width: squishOverlay.width
-                        height: squishOverlay.height
+                        x: 0; width: parent.width; height: parent.height
                         onLoaded: root._bindSnapshot(outLoader, root._outgoingModule)
                     }
                 }
@@ -243,13 +238,10 @@ ShellRoot {
                     x: root._squishDir > 0 ? outSlot.width + 2 : 0
                     width: root._squishProgress * (squishOverlay.width - 2)
                     height: squishOverlay.height
-                    clip: true
 
                     Loader {
                         id: inLoader
-                        x: root._squishDir > 0 ? -(squishOverlay.width - inSlot.width) : 0
-                        width: squishOverlay.width
-                        height: squishOverlay.height
+                        x: 0; width: parent.width; height: parent.height
                         onLoaded: root._bindItem(inLoader, root.activeModule)
                     }
                 }

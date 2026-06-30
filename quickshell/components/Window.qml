@@ -74,6 +74,7 @@ FocusScope {
         width: parent.width; height: Style.pillHeight
         color: Style.pillBg
         border.width: Style.borderWidth; border.color: Style.pillBorder
+        radius: height / 2
 
         Text {
             anchors.centerIn: parent

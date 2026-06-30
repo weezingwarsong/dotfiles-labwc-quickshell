@@ -42,6 +42,7 @@ Item {
         color: Style.pillBg
         border.width: Style.borderWidth
         border.color: Style.pillBorder
+        radius: height / 2
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true

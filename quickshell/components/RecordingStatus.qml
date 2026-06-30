@@ -17,6 +17,7 @@ Item {
         color: root.saved ? Style.pillBg : Style.pillCriticalBg
         border.width: Style.borderWidth
         border.color: root.saved ? Style.pillBorder : Style.pillCriticalBorder
+        radius: height / 2
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true

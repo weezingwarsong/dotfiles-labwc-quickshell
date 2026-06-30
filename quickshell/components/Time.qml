@@ -25,6 +25,7 @@ Item {
         color: Style.pillBg
         border.width: Style.borderWidth
         border.color: Style.pillBorder
+        radius: height / 2
         width: parent.width
         height: Style.pillHeight
 
