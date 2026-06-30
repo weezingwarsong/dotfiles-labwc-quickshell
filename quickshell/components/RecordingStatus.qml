@@ -24,13 +24,7 @@ Item {
             shadowBlur: container.localHovered ? 0.55 : 0.25
             shadowVerticalOffset: container.localHovered ? 6 : 2
             shadowOpacity: container.localHovered ? 0.8 : 0.5
-            Behavior on shadowBlur { NumberAnimation { duration: 120 } }
-            Behavior on shadowVerticalOffset { NumberAnimation { duration: 120 } }
-            Behavior on shadowOpacity { NumberAnimation { duration: 120 } }
         }
-        Behavior on x { NumberAnimation { duration: 80 } }
-        Behavior on width { NumberAnimation { duration: 80 } }
-        Behavior on height { NumberAnimation { duration: 80 } }
 
         HoverHandler { onHoveredChanged: container.localHovered = hovered }
 

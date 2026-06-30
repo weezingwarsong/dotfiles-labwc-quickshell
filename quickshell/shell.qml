@@ -8,7 +8,7 @@ import "components"
 ShellRoot {
     id: root
 
-    // "time" | "workspace" | "recording" | "recordingSaved" | "mpris" | "window"
+    // priority: "time"=0 | "mpris"=1 | "workspace"=2 | "window"=3 | "recording"/"recordingSaved"=4
     property string activeModule: "time"
     property string currentWorkspace: "1"
     property bool   isRecording: false
@@ -18,8 +18,103 @@ ShellRoot {
     property var    _wallpaperBuf: []
     property var    windows: []
 
+    // ── Transition state ──────────────────────────────────────────────────────
+    property string _prevModule: ""
+    property string _outgoingModule: ""
+    property bool   _inTransition: false
+    property real   _squishProgress: 0.0
+    property int    _squishDir: 1  // +1 from right (higher priority), -1 from left
+
     // Drives where workspace/recording timers return to
     readonly property string restingModule: isMprisActive ? "mpris" : "time"
+
+    // Priority index for each module.  onActiveModuleChanged compares the old
+    // and new indices to set _squishDir: new > old → incoming from right (+1),
+    // new < old → incoming from left (-1).
+    readonly property var _modPriority: ({
+        "time": 0, "mpris": 1, "workspace": 2, "window": 3,
+        "recording": 4, "recordingSaved": 4
+    })
+
+    function _modSource(mod) {
+        if (mod === "workspace")                             return Qt.resolvedUrl("components/Workspace.qml")
+        if (mod === "recording" || mod === "recordingSaved") return Qt.resolvedUrl("components/RecordingStatus.qml")
+        if (mod === "mpris")                                 return Qt.resolvedUrl("components/Mpris.qml")
+        if (mod === "window")                                return Qt.resolvedUrl("components/Window.qml")
+        return Qt.resolvedUrl("components/Time.qml")
+    }
+
+    // Bind live Qt.binding() properties on a freshly loaded module item.
+    // Used for moduleLoader (persistent) and inLoader (incoming during transition).
+    function _bindItem(loader, mod) {
+        var item = loader.item
+        if (!item) return
+        if (mod === "workspace")
+            item.workspace = Qt.binding(() => root.currentWorkspace)
+        if (mod === "recording" || mod === "recordingSaved")
+            item.saved = Qt.binding(() => root.activeModule === "recordingSaved")
+        if (mod === "mpris") {
+            item.player = Qt.binding(() => root.mprisPlayer)
+            item.wantsDismiss.connect(function() {
+                if (!root.isMprisActive && root.activeModule === "mpris")
+                    mprisTimer.restart()
+            })
+        }
+        if (mod === "window") {
+            item.windows = Qt.binding(() => root.windows)
+            item.windowFocused.connect(function() {
+                root.activeModule = root.restingModule
+            })
+        }
+    }
+
+    // Set static snapshot values on outLoader (the exiting module).
+    // Plain assignment instead of Qt.binding() — the outgoing content is frozen
+    // for the ~180 ms it takes to animate off-screen, so live updates aren't needed.
+    function _bindSnapshot(loader, mod) {
+        var item = loader.item
+        if (!item) return
+        if (mod === "workspace")                             item.workspace = root.currentWorkspace
+        if (mod === "recording" || mod === "recordingSaved") item.saved = (mod === "recordingSaved")
+        if (mod === "mpris")                                 item.player = root.mprisPlayer
+        if (mod === "window")                                item.windows = root.windows.slice()
+    }
+
+    // Initial load: set moduleLoader source here rather than via a computed binding
+    // so that onActiveModuleChanged can treat an empty _prevModule as "not yet ready"
+    // and skip the transition.  (Children aren't created when the first property-change
+    // signal fires during ShellRoot initialisation, so moduleLoader wouldn't exist yet.)
+    Component.onCompleted: {
+        root._prevModule = root.activeModule
+        moduleLoader.source = root._modSource(root.activeModule)
+    }
+
+    // Transition sequencing:
+    //   1. Capture outgoing source into outLoader before moduleLoader changes.
+    //   2. Load the new module into inLoader so both can animate simultaneously.
+    //   3. squishAnim drives _squishProgress 0→1; slot widths derive from it.
+    //   4. squishAnim.onFinished swaps moduleLoader to the new source and tears
+    //      down the transition loaders.
+    // moduleLoader.source is intentionally NOT updated here — it stays on the old
+    // module so outLoader can copy it.  The swap happens in squishAnim.onFinished.
+    onActiveModuleChanged: {
+        var prev = root._prevModule
+        root._prevModule = root.activeModule
+
+        if (!prev) return  // initial state handled by Component.onCompleted
+
+        var prevIdx = root._modPriority[prev]          !== undefined ? root._modPriority[prev]          : 0
+        var newIdx  = root._modPriority[root.activeModule] !== undefined ? root._modPriority[root.activeModule] : 0
+        root._squishDir = newIdx >= prevIdx ? 1 : -1
+
+        root._outgoingModule = prev
+        outLoader.source = moduleLoader.source
+        inLoader.source  = root._modSource(root.activeModule)
+
+        root._inTransition = true
+        root._squishProgress = 0
+        squishAnim.restart()
+    }
 
     function _syncMpris() {
         var playing = null
@@ -64,7 +159,9 @@ ShellRoot {
         exclusiveZone: 28
 
         implicitWidth: Math.round(Screen.width * 0.10)
-        implicitHeight: moduleLoader.implicitHeight
+        // Clamp to pill height during transitions so expanded panels (MPRIS,
+        // window switcher) don't flash open at full height mid-squish.
+        implicitHeight: root._inTransition ? Style.pillHeight : moduleLoader.implicitHeight
 
         WlrLayershell.keyboardFocus: root.activeModule === "window"
             ? WlrKeyboardFocus.Exclusive
@@ -86,42 +183,96 @@ ShellRoot {
                 }
             }
 
+            // ── Persistent loader (shown when not transitioning) ──────────────
             Loader {
                 id: moduleLoader
                 width: parent.width
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
-                source: {
-                    if (root.activeModule === "workspace")
-                        return Qt.resolvedUrl("components/Workspace.qml")
-                    if (root.activeModule === "recording" || root.activeModule === "recordingSaved")
-                        return Qt.resolvedUrl("components/RecordingStatus.qml")
-                    if (root.activeModule === "mpris")
-                        return Qt.resolvedUrl("components/Mpris.qml")
-                    if (root.activeModule === "window")
-                        return Qt.resolvedUrl("components/Window.qml")
-                    return Qt.resolvedUrl("components/Time.qml")
+                visible: !root._inTransition
+                onLoaded: root._bindItem(moduleLoader, root.activeModule)
+            }
+
+            // ── Squish transition overlay ─────────────────────────────────────
+            Item {
+                id: squishOverlay
+                visible: root._inTransition
+                x: 0; y: 0
+                width: parent.width
+                height: Style.pillHeight
+                clip: true
+
+                // Background fill so the 2px gap between slots shows pill colour
+                // rather than the transparent compositor surface behind the window.
+                Rectangle {
+                    anchors.fill: parent
+                    color: Style.pillBg
                 }
-                onLoaded: {
-                    if (root.activeModule === "workspace")
-                        item.workspace = Qt.binding(() => root.currentWorkspace)
-                    if (root.activeModule === "recording" || root.activeModule === "recordingSaved")
-                        item.saved = Qt.binding(() => root.activeModule === "recordingSaved")
-                    if (root.activeModule === "mpris") {
-                        item.player = Qt.binding(() => root.mprisPlayer)
-                        item.wantsDismiss.connect(function() {
-                            if (!root.isMprisActive && root.activeModule === "mpris")
-                                mprisTimer.restart()
-                        })
+
+                // Slot geometry invariant (W = squishOverlay.width, p = _squishProgress):
+                //   outSlot.width = (1-p) * (W-2)
+                //   inSlot.width  =    p  * (W-2)
+                //   gap           =         2
+                //   total         = outSlot.width + 2 + inSlot.width = W  ✓
+                //
+                // Each Loader is full-width (W) but parked so its content appears at
+                // pill coordinate 0.  The slot's clip: true reveals only the visible
+                // slice.  The loader x trick: -(W - slotWidth) = -slot.x, which shifts
+                // the full-width content left by the slot's own x, landing it at 0.
+
+                // Outgoing (old) — shrinks toward the exit edge
+                Item {
+                    id: outSlot
+                    x: root._squishDir > 0 ? 0 : inSlot.width + 2
+                    width: (1.0 - root._squishProgress) * (squishOverlay.width - 2)
+                    height: squishOverlay.height
+                    clip: true
+
+                    Loader {
+                        id: outLoader
+                        x: root._squishDir > 0 ? 0 : -(squishOverlay.width - outSlot.width)
+                        width: squishOverlay.width
+                        height: squishOverlay.height
+                        onLoaded: root._bindSnapshot(outLoader, root._outgoingModule)
                     }
-                    if (root.activeModule === "window") {
-                        item.windows = Qt.binding(() => root.windows)
-                        item.windowFocused.connect(function() {
-                            root.activeModule = root.restingModule
-                        })
+                }
+
+                // Incoming (new) — grows in from the entry edge
+                Item {
+                    id: inSlot
+                    x: root._squishDir > 0 ? outSlot.width + 2 : 0
+                    width: root._squishProgress * (squishOverlay.width - 2)
+                    height: squishOverlay.height
+                    clip: true
+
+                    Loader {
+                        id: inLoader
+                        x: root._squishDir > 0 ? -(squishOverlay.width - inSlot.width) : 0
+                        width: squishOverlay.width
+                        height: squishOverlay.height
+                        onLoaded: root._bindItem(inLoader, root.activeModule)
                     }
                 }
             }
+        }
+    }
+
+    // Drives the squish: animates _squishProgress 0→1, from which all slot widths
+    // and loader positions are derived.  On finish, swap moduleLoader to the new
+    // module (triggering _bindItem via onLoaded), then clear the transition loaders
+    // and drop the overlay.
+    NumberAnimation {
+        id: squishAnim
+        target: root
+        property: "_squishProgress"
+        from: 0; to: 1
+        duration: Style.transitionDuration
+        easing.type: Style.transitionEasing
+        onFinished: {
+            moduleLoader.source = root._modSource(root.activeModule)
+            outLoader.source = ""
+            inLoader.source  = ""
+            root._inTransition = false
         }
     }
 

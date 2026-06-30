@@ -31,6 +31,14 @@ QtObject {
     // ── Shared ───────────────────────────────────────────────────────────────
     readonly property int borderWidth: 2
 
+    // ── Animation ─────────────────────────────────────────────────────────────
+    // Used by the squish push transition in shell.qml.  When the active module
+    // changes, the outgoing content squishes toward its exit edge while the
+    // incoming content grows in from the opposite edge.  Direction is determined
+    // by comparing _modPriority indices: higher priority enters from the right.
+    readonly property int transitionDuration: 180  // ms; bump to 1000 for slow-motion testing
+    readonly property int transitionEasing:   Easing.OutCubic
+
     // ── Pill (the always-visible 24 px bar element) ───────────────────────────
     readonly property int   pillHeight: 24
     readonly property color pillBg:     Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)

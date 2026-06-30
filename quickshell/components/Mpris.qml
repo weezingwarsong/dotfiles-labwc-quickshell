@@ -49,13 +49,7 @@ Item {
             shadowBlur: pill.localHovered ? 0.55 : 0.25
             shadowVerticalOffset: pill.localHovered ? 6 : 2
             shadowOpacity: pill.localHovered ? 0.8 : 0.5
-            Behavior on shadowBlur { NumberAnimation { duration: 120 } }
-            Behavior on shadowVerticalOffset { NumberAnimation { duration: 120 } }
-            Behavior on shadowOpacity { NumberAnimation { duration: 120 } }
         }
-        Behavior on x { NumberAnimation { duration: 80 } }
-        Behavior on width { NumberAnimation { duration: 80 } }
-        Behavior on height { NumberAnimation { duration: 80 } }
 
         HoverHandler { onHoveredChanged: pill.localHovered = hovered }
 
@@ -233,14 +227,7 @@ Item {
                     shadowBlur: focusBtn.localHovered ? 0.55 : 0.25
                     shadowVerticalOffset: focusBtn.localHovered ? 6 : 2
                     shadowOpacity: focusBtn.localHovered ? 0.8 : 0.5
-                    Behavior on shadowBlur { NumberAnimation { duration: 120 } }
-                    Behavior on shadowVerticalOffset { NumberAnimation { duration: 120 } }
-                    Behavior on shadowOpacity { NumberAnimation { duration: 120 } }
                 }
-                Behavior on x { NumberAnimation { duration: 80 } }
-                Behavior on y { NumberAnimation { duration: 80 } }
-                Behavior on width { NumberAnimation { duration: 80 } }
-                Behavior on height { NumberAnimation { duration: 80 } }
 
                 HoverHandler { onHoveredChanged: focusBtn.localHovered = hovered }
 
