@@ -226,6 +226,8 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 - [ ] **Wallpaper management** — add a wallpaper panel/module to the settings component so wallpapers can be browsed and assigned to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames. Also: the wallpaper module is currently broken and needs investigation.
 
+- [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to match the pill's capsule aesthetic, but vertically: panel grows/shrinks in height with rounded ends, mirroring the horizontal squish transition of the pill.
+
 ---
 
 ## Colour palette
