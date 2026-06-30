@@ -12,11 +12,11 @@ Item {
 
     Rectangle {
         id: box
-        color: Style.rectMainBg
-        border.width: Style.rectBorderWidth
-        border.color: Style.rectMainBorder
+        color: Style.pillBg
+        border.width: Style.borderWidth
+        border.color: Style.pillBorder
         width: parent.width
-        height: 24
+        height: Style.pillHeight
 
         Row {
             anchors.centerIn: parent
@@ -25,13 +25,13 @@ Item {
             Rectangle {
                 width: root.squareSize
                 height: root.squareSize
-                color: root.workspace === "1" ? Style.textHeaderHighlight : Style.textHeaderLow
+                color: root.workspace === "1" ? Style.textPillHighlight : Style.textPillLow
             }
 
             Rectangle {
                 width: root.squareSize
                 height: root.squareSize
-                color: root.workspace === "2" ? Style.textHeaderHighlight : Style.textHeaderLow
+                color: root.workspace === "2" ? Style.textPillHighlight : Style.textPillLow
             }
         }
     }

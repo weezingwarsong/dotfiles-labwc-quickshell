@@ -16,9 +16,7 @@ ShellRoot {
     property bool   isMprisActive: false     // true only while actually playing
     property var    wallpapers: []
     property var    _wallpaperBuf: []
-    property var    ws1Windows: []
-    property var    ws2Windows: []
-    property string activeWindow: ""
+    property var    windows: []
 
     // Drives where workspace/recording timers return to
     readonly property string restingModule: isMprisActive ? "mpris" : "time"
@@ -65,9 +63,7 @@ ShellRoot {
         margins.top: 4
         exclusiveZone: 28
 
-        implicitWidth: root.activeModule === "window"
-            ? Math.round(Screen.width * 0.20)
-            : Math.round(Screen.width * 0.10)
+        implicitWidth: Math.round(Screen.width * 0.10)
         implicitHeight: moduleLoader.implicitHeight
 
         WlrLayershell.keyboardFocus: root.activeModule === "window"
@@ -119,9 +115,7 @@ ShellRoot {
                         })
                     }
                     if (root.activeModule === "window") {
-                        item.ws1Windows = Qt.binding(() => root.ws1Windows)
-                        item.ws2Windows = Qt.binding(() => root.ws2Windows)
-                        item.activeWindow = Qt.binding(() => root.activeWindow)
+                        item.windows = Qt.binding(() => root.windows)
                         item.windowFocused.connect(function() {
                             root.activeModule = root.restingModule
                         })
@@ -213,22 +207,36 @@ ShellRoot {
         }
     }
 
-    // Persistent window tracker — reads from FIFO written by qs-toplevel-watcher
-    // (started via scripts/start-watchers.sh before quickshell in autostart).
-    // The while-loop restarts cat across the brief gap when the daemon restarts.
+    // Unified watcher — reads from FIFO written by qs-watcher (started via
+    // scripts/start-watchers.sh before quickshell in autostart).
+    // Handles both window tracking and workspace transitions in one stream.
     Process {
-        id: toplevelWatcher
+        id: watcherReader
         command: ["sh", "-c",
-            "[ -p /tmp/qs-toplevels ] || mkfifo /tmp/qs-toplevels; " +
-            "while true; do cat /tmp/qs-toplevels; done"]
+            "[ -p /tmp/qs-watcher ] || mkfifo /tmp/qs-watcher; " +
+            "while true; do cat /tmp/qs-watcher; done"]
         running: true
         stdout: SplitParser {
             onRead: function(line) {
                 try {
                     var d = JSON.parse(line.trim())
-                    root.ws1Windows  = d.ws1    || []
-                    root.ws2Windows  = d.ws2    || []
-                    root.activeWindow = d.active || ""
+                    var rawWins = d.windows || []
+                    var wins = []
+                    for (var i = 0; i < rawWins.length; i++) {
+                        var w = rawWins[i]
+                        wins.push({ app_id: w.app_id || "", title: w.title || "",
+                                    states: w.states || {} })
+                    }
+                    root.windows = wins
+
+                    var wsName = d.active_ws_name || ""
+                    if (wsName && wsName !== root.currentWorkspace) {
+                        root.currentWorkspace = wsName
+                        if (!root.isRecording) {
+                            root.activeModule = "workspace"
+                            workspaceTimer.restart()
+                        }
+                    }
                 } catch(e) {}
             }
         }
@@ -249,24 +257,4 @@ ShellRoot {
         }
     }
 
-    // Workspace tracker — reads from FIFO written by qs-workspace-watcher.
-    Process {
-        id: wsWatcher
-        command: ["sh", "-c",
-            "[ -p /tmp/qs-workspace ] || mkfifo /tmp/qs-workspace; " +
-            "while true; do cat /tmp/qs-workspace; done"]
-        running: true
-        stdout: SplitParser {
-            onRead: function(line) {
-                var ws = line.trim()
-                if (ws !== "") {
-                    root.currentWorkspace = ws
-                    if (!root.isRecording) {
-                        root.activeModule = "workspace"
-                        workspaceTimer.restart()
-                    }
-                }
-            }
-        }
-    }
 }

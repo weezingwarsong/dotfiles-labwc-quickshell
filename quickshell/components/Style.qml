@@ -28,37 +28,44 @@ QtObject {
     readonly property string fontFamily: "JetBrainsMono Nerd Font"
     readonly property int    fontSize:   10
 
-    // ── Rectangle: Main (top-level pill in bar) ───────────────────────────────
-    readonly property color rectMainBg:     Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
-    readonly property color rectMainBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
-    readonly property int   rectBorderWidth: 2
+    // ── Shared ───────────────────────────────────────────────────────────────
+    readonly property int borderWidth: 2
 
-    // ── Rectangle: Main Critical (pill in alert/recording state) ──────────────
-    readonly property color rectMainCriticalBg:     Qt.rgba(nord11.r, nord11.g, nord11.b, 0.9)
-    readonly property color rectMainCriticalBorder: Qt.rgba(nord12.r, nord12.g, nord12.b, 0.9)
+    // ── Pill (the always-visible 24 px bar element) ───────────────────────────
+    readonly property int   pillHeight: 24
+    readonly property color pillBg:     Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
+    readonly property color pillBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
 
-    // ── Rectangle: Normal (expanded panels spawned below the pill) ────────────
-    readonly property color rectNormalBg:     Qt.rgba(nord0.r, nord0.g, nord0.b, 0.9)
-    readonly property color rectNormalBorder: Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
+    // ── Pill: Critical variant (recording / alert state) ─────────────────────
+    readonly property color pillCriticalBg:     Qt.rgba(nord11.r, nord11.g, nord11.b, 0.9)
+    readonly property color pillCriticalBorder: Qt.rgba(nord12.r, nord12.g, nord12.b, 0.9)
 
-    // ── Rectangle: Button (interactive button inside a panel) ─────────────────
-    readonly property color rectButtonBg:     Qt.rgba(nord2.r, nord2.g, nord2.b, 0.9)
-    readonly property color rectButtonBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
+    // ── Panel (spawned below the pill on demand or hover) ─────────────────────
+    readonly property color panelBg:     Qt.rgba(nord0.r, nord0.g, nord0.b, 0.9)
+    readonly property color panelBorder: Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
 
-    // ── Text: Header (inside the 24px main pill) ──────────────────────────────
-    readonly property color textHeaderLow:       nord3   // dimmed / inactive
-    readonly property color textHeaderNormal:    nord4   // standard label
-    readonly property color textHeaderHighlight: nord7   // accent / primary info
-    readonly property color textHeaderCritical:  nord11  // alert on normal bg
+    // ── Panel: Button (interactive element inside a panel) ────────────────────
+    readonly property color panelButtonBg:     Qt.rgba(nord2.r, nord2.g, nord2.b, 0.9)
+    readonly property color panelButtonBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
 
-    // ── Text: Body (inside expanded panels) ───────────────────────────────────
-    readonly property color textBodyLow:         nord3   // dimmed / disabled
-    readonly property color textBodyNormal:      nord4   // standard content
-    readonly property color textBodyHighlight:   nord7   // accent / interactive / selection background
-    readonly property color textBodyCritical:    nord11  // inline alert in panel
-    readonly property color textOnHighlight:     nord0   // text on a nord7 highlighted background
+    // ── Text: Pill ────────────────────────────────────────────────────────────
+    readonly property color textPillLow:       nord3   // dimmed / inactive
+    readonly property color textPillNormal:    nord4   // standard label
+    readonly property color textPillHighlight: nord7   // accent / primary info
+    readonly property color textPillCritical:  nord11  // alert on normal bg
+
+    // ── Text: Panel ───────────────────────────────────────────────────────────
+    readonly property color textPanelLow:         nord3   // dimmed / disabled
+    readonly property color textPanelNormal:      nord4   // standard content
+    readonly property color textPanelHighlight:   nord7   // accent / interactive
+    readonly property color textPanelCritical:    nord11  // inline alert in panel
+    readonly property color textPanelOnHighlight: nord0   // text on a highlighted row
+
+    // ── Text: Panel glyphs (Nerd Font icons) ──────────────────────────────────
+    readonly property color textPanelGlyphNormal:      nord7  // icon at rest
+    readonly property color textPanelGlyphOnHighlight: nord0  // icon on selected row
 
     // ── Text: Special ─────────────────────────────────────────────────────────
-    readonly property color textBright:  nord6   // high contrast — use on colored backgrounds
+    readonly property color textBright:  nord6   // high contrast — use on coloured backgrounds
     readonly property color textSuccess: nord14  // completion / success state
 }

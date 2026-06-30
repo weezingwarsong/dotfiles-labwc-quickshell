@@ -22,6 +22,22 @@ A Wayland desktop built on [labwc](https://github.com/labwc/labwc) with [quicksh
 
 ---
 
+## UI terminology
+
+| Term | Definition |
+|---|---|
+| **Module** | A single view loaded into the main pill — e.g. *time*, *workspace indicator*, *MPRIS*, *window switcher*, *recording status*. Only one module is active at a time. |
+| **Main pill** | The always-visible `Style.pillHeight` (24 px) bar element at the top-centre. Swaps its module based on context (recording > workspace flash > MPRIS > time) or on demand (window switcher via `Super+Tab`). |
+| **Panel** | A container that spawns below the main pill on demand or on hover — e.g. the window list, the MPRIS player panel, the calendar. Panels are dismissed when the module changes or the user presses Escape. |
+
+These names are also reflected in `Style.qml` token prefixes:
+- `pill*` — background, border, height for the main pill
+- `panel*` — background, border for spawned panels; `panelButton*` for interactive rows inside panels
+- `textPill*` — text colours inside the main pill
+- `textPanel*` — text colours inside spawned panels
+
+---
+
 ## What's in the repo
 
 ```
@@ -39,12 +55,9 @@ dotfiles-labwc-quickshell/
 │   │   └── qmldir
 │   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
 │
-├── workspace-watcher/
-│   └── main.c                       # C binary — ext_workspace_manager_v1, emits active workspace name
-│
-├── toplevel-watcher/
-│   └── main.c                       # C binary — zwlr_foreign_toplevel_manager_v1 + ext_workspace_manager_v1
-│                                    #   emits JSON: {ws1:[...], ws2:[...], active:"..."} on every change
+├── helper/watcher/
+│   └── main.c                       # C binary (qs-watcher) — zwlr_foreign_toplevel_manager_v1 +
+│                                    #   ext_workspace_manager_v1; emits JSON: {windows:[...], active_ws_name:"..."}
 │
 ├── mako/
 │   └── config                       # mako notification daemon config (Nord, 90% opacity)
@@ -84,7 +97,7 @@ dotfiles-labwc-quickshell/
 
 **MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist. Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front. Dismisses 1 second after playback stops.
 
-**Window switcher** — `Super+Tab` opens a panel with all open windows grouped by workspace, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). The currently focused window is shown muted. Powered by a native C binary (`qs-toplevel-watcher`) that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
+**Window switcher** — `Super+Tab` opens a panel with all open windows in a flat list, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). The currently focused window is shown muted. Powered by `qs-watcher`, a native C binary that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
 
 **Recording module** — `Super+Shift+R` starts screen recording. The bar switches to "RECORDING" (Nord11 red). On stop, shows "RECORDING SAVED" (Nord14 green) for 1 second, then returns to the resting module. Recordings saved to `~/Videos/`.
 
@@ -92,9 +105,11 @@ dotfiles-labwc-quickshell/
 
 **Notifications** — mako handles desktop notifications with the Nord palette at 90% opacity, matching the quickshell aesthetic.
 
-**Native Wayland IPC** — no polling anywhere. Two small C binaries bind directly to compositor protocols:
-- `qs-workspace-watcher` → `ext_workspace_manager_v1` — emits active workspace name on change
-- `qs-toplevel-watcher` → `zwlr_foreign_toplevel_manager_v1` + `ext_workspace_manager_v1` — emits JSON window state on every change
+**Native Wayland IPC** — no polling anywhere. A single C binary (`qs-watcher`) binds directly to compositor protocols:
+- `zwlr_foreign_toplevel_manager_v1` — tracks all open windows and their state
+- `ext_workspace_manager_v1` — tracks the active workspace name
+
+Emits one compact JSON line per state change to a FIFO (`/tmp/qs-watcher`), consumed by quickshell.
 
 ---
 
@@ -190,8 +205,7 @@ chmod +x install.sh
 
 `install.sh` will:
 - Symlink `labwc/`, `quickshell/`, `mako/`, `rofi/` and `scripts/` into `~/.config/`
-- Compile `workspace-watcher/main.c` → `~/.local/bin/qs-workspace-watcher`
-- Compile `toplevel-watcher/main.c` → `~/.local/bin/qs-toplevel-watcher`
+- Compile `helper/watcher/main.c` → `~/.local/bin/qs-watcher`
 - Install labwc menu icons to `~/.local/share/icons/hicolor/`
 
 > Ensure `~/.local/bin` is in your `$PATH`.
@@ -207,6 +221,10 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 ## Roadmap / To-do
 
 - [ ] **Settings component** — a quickshell module (triggered by a keybind) for configuring user preferences at runtime without editing files. First candidate: the `focus-or-open.sh` app\_id mappings for `W-w` (browser) and `W-e` (file manager), so swapping browsers or file managers doesn't require touching rc.xml or the script. Settings would write to a small config file that the scripts and shell read.
+
+- [ ] **Default apps** (under Settings) — replace hardcoded app references (e.g. `kitty` as terminal) with `xdg-open` and XDG MIME defaults so the system respects the user's preferred apps rather than baking names into scripts and keybinds.
+
+- [ ] **Wallpaper management** — add a wallpaper panel/module to the settings component so wallpapers can be browsed and assigned to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames. Also: the wallpaper module is currently broken and needs investigation.
 
 ---
 

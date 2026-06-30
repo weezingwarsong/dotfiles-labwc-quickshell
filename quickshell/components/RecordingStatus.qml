@@ -13,10 +13,10 @@ Item {
         property bool localHovered: false
         x: localHovered ? -2 : 0
         width: localHovered ? parent.width + 4 : parent.width
-        height: localHovered ? 26 : 24
-        color: root.saved ? Style.rectMainBg : Style.rectMainCriticalBg
-        border.width: Style.rectBorderWidth
-        border.color: root.saved ? Style.rectMainBorder : Style.rectMainCriticalBorder
+        height: localHovered ? 26 : Style.pillHeight
+        color: root.saved ? Style.pillBg : Style.pillCriticalBg
+        border.width: Style.borderWidth
+        border.color: root.saved ? Style.pillBorder : Style.pillCriticalBorder
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true

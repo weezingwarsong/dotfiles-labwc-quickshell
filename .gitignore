@@ -3,4 +3,9 @@ DESIGN.md
 workspace-watcher/ext-workspace-v1-client-protocol.h
 workspace-watcher/ext-workspace-v1-client-protocol.c
 workspace-watcher/qs-workspace-watcher
+helper/watcher/ext-workspace-v1-client-protocol.h
+helper/watcher/ext-workspace-v1-client-protocol.c
+helper/watcher/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h
+helper/watcher/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c
+helper/watcher/qs-watcher
 quickshell/wallpaper/*

@@ -4,44 +4,37 @@ import Quickshell.Io
 FocusScope {
     id: root
 
-    property var    ws1Windows:  []
-    property var    ws2Windows:  []
-    property string activeWindow: ""
-    property int    selectedFlat: 0
+    property var windows: []   // [{app_id, title, states}]
+    property int selectedFlat: 0
 
     signal windowFocused()
 
     readonly property int _gap: Math.round(Screen.height * 0.01)
 
-    readonly property var filteredWs1: ws1Windows.filter(function(w) {
-        return filterInput.text === "" || w.toLowerCase().indexOf(filterInput.text.toLowerCase()) >= 0
-    })
-    readonly property var filteredWs2: ws2Windows.filter(function(w) {
-        return filterInput.text === "" || w.toLowerCase().indexOf(filterInput.text.toLowerCase()) >= 0
-    })
+    readonly property var filteredWindows: {
+        var result = []
+        for (var i = 0; i < windows.length; i++) {
+            var w = windows[i]
+            if (filterInput.text === "" ||
+                    (w.app_id + " " + w.title).toLowerCase()
+                        .indexOf(filterInput.text.toLowerCase()) >= 0)
+                result.push(w)
+        }
+        return result
+    }
 
-    readonly property int totalSelectable: filteredWs1.length + filteredWs2.length
+    readonly property int totalSelectable: filteredWindows.length
 
     implicitWidth: parent ? parent.width : 0
-    implicitHeight: 24 + _gap + switchPanel.implicitHeight
+    implicitHeight: Style.pillHeight + _gap + switchPanel.implicitHeight
 
     Component.onCompleted: Qt.callLater(function() { filterInput.forceActiveFocus() })
-
-    function _titleFor(windowStr) {
-        var sep = windowStr.indexOf(": ")
-        return sep >= 0 ? windowStr.substring(sep + 2) : windowStr
-    }
-
-    function _appIdFor(windowStr) {
-        var sep = windowStr.indexOf(": ")
-        return sep >= 0 ? windowStr.substring(0, sep) : windowStr
-    }
 
     function _glyphFor(appId) {
         var id = appId.toLowerCase()
         if (id === "kitty" || id === "alacritty" || id === "foot" ||
             id === "wezterm" || id === "xterm" || id === "konsole" ||
-            id === "gnome-terminal" || id === "xfce4-terminal")  return ""  // >_
+            id === "gnome-terminal" || id === "xfce4-terminal")  return ""  // terminal
         if (id === "firefox" || id === "librewolf" ||
             id === "org.mozilla.firefox")                         return ""  // firefox
         if (id === "google-chrome" || id === "chromium" ||
@@ -49,35 +42,28 @@ FocusScope {
             id === "microsoft-edge-dev" || id === "brave-browser" ||
             id === "brave")                                       return ""  // chrome
         if (id === "pcmanfm-qt" || id === "pcmanfm" || id === "thunar" ||
-            id === "nautilus" || id === "dolphin" || id === "nemo") return "" // folder
+            id === "nautilus" || id === "dolphin" || id === "nemo") return "" // folder
         if (id === "code" || id === "vscodium" || id === "codium") return "" // vscode
         if (id === "nvim" || id === "neovim")                    return ""  // vim
-        if (id === "discord")                                    return ""  // chat
+        if (id === "discord")                                    return ""  // discord
         if (id === "steam" || id.indexOf("steam_app") === 0)    return ""  // steam
         if (id === "qbittorrent")                                return ""  // download
         if (id === "vlc" || id === "org.videolan.vlc" ||
             id === "celluloid" || id === "mpv")                  return ""  // play
         if (id === "imv" || id === "imv-wayland" || id === "eog") return "" // picture
         if (id === "pavucontrol-qt" || id === "pavucontrol")    return ""  // volume
-        if (id === "btop")                                       return ""  // chart
+        if (id === "btop")                                       return ""  // chart
         return ""  // window-maximize fallback
     }
 
     function focusSelected() {
-        if (selectedFlat < filteredWs1.length) {
-            _doFocus(filteredWs1[selectedFlat])
-        } else {
-            var i = selectedFlat - filteredWs1.length
-            if (i < filteredWs2.length) _doFocus(filteredWs2[i])
-        }
+        if (selectedFlat >= 0 && selectedFlat < filteredWindows.length)
+            _doFocus(filteredWindows[selectedFlat])
     }
 
-    function _doFocus(windowStr) {
-        var sep = windowStr.indexOf(": ")
-        var appId = sep >= 0 ? windowStr.substring(0, sep) : windowStr
-        var title = sep >= 0 ? windowStr.substring(sep + 2) : ""
+    function _doFocus(w) {
         focusProcess.command = ["wlrctl", "toplevel", "focus",
-                                "app_id:" + appId, "title:" + title]
+                                "app_id:" + w.app_id, "title:" + w.title]
         focusProcess.running = true
         root.windowFocused()
     }
@@ -85,14 +71,14 @@ FocusScope {
     // ── Pill ────────────────────────────────────────────────────────────────
     Rectangle {
         id: pill
-        width: parent.width; height: 24
-        color: Style.rectMainBg
-        border.width: Style.rectBorderWidth; border.color: Style.rectMainBorder
+        width: parent.width; height: Style.pillHeight
+        color: Style.pillBg
+        border.width: Style.borderWidth; border.color: Style.pillBorder
 
         Text {
             anchors.centerIn: parent
             text: "Window"
-            color: Style.textHeaderHighlight
+            color: Style.textPillHighlight
             font.family: Style.fontFamily; font.pointSize: Style.fontSize
         }
     }
@@ -102,8 +88,8 @@ FocusScope {
         id: switchPanel
         anchors.top: pill.bottom; anchors.topMargin: root._gap
         width: parent.width
-        color: Style.rectNormalBg
-        border.width: Style.rectBorderWidth; border.color: Style.rectNormalBorder
+        color: Style.panelBg
+        border.width: Style.borderWidth; border.color: Style.panelBorder
         implicitHeight: col.implicitHeight + 16
 
         Column {
@@ -117,14 +103,14 @@ FocusScope {
             // Filter input
             Rectangle {
                 width: parent.width; height: 28
-                color: Style.rectButtonBg
-                border.width: Style.rectBorderWidth; border.color: Style.rectButtonBorder
+                color: Style.panelButtonBg
+                border.width: Style.borderWidth; border.color: Style.panelButtonBorder
 
                 Text {
                     anchors.fill: parent; anchors.leftMargin: 8
                     verticalAlignment: Text.AlignVCenter
                     text: "Filter…"
-                    color: Style.textBodyLow
+                    color: Style.textPanelLow
                     font.family: Style.fontFamily; font.pointSize: Style.fontSize
                     visible: filterInput.text.length === 0
                 }
@@ -134,9 +120,9 @@ FocusScope {
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
                     verticalAlignment: TextInput.AlignVCenter
                     focus: true
-                    color: Style.textBodyNormal
+                    color: Style.textPanelNormal
                     font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                    selectionColor: Style.textBodyHighlight
+                    selectionColor: Style.textPanelHighlight
 
                     onTextChanged: root.selectedFlat = 0
 
@@ -147,160 +133,60 @@ FocusScope {
                 }
             }
 
-            // ── Workspace 1 group ──────────────────────────────────────────
-            Column {
-                width: parent.width
-                spacing: 0
-                visible: root.filteredWs1.length > 0
+            // ── Window list ────────────────────────────────────────────────
+            Repeater {
+                model: root.filteredWindows
+                Rectangle {
+                    id: winItem
+                    required property var modelData   // {app_id, title, states}
+                    required property int index
+                    property bool isHovered: false
+                    readonly property bool isActive: modelData.states && modelData.states.activated
+                    readonly property bool isSelected: root.selectedFlat === index
 
-                Item {
-                    width: parent.width; height: 20
-                    Rectangle {
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter
-                        height: 1; color: Style.rectMainBorder
+                    width: col.width; height: 22
+                    color: isSelected ? Style.textPanelHighlight
+                         : isHovered  ? Style.panelButtonBg
+                         :              "transparent"
+
+                    MouseArea {
+                        anchors.fill: parent; hoverEnabled: true
+                        onEntered: { parent.isHovered = true; root.selectedFlat = parent.index }
+                        onExited:  parent.isHovered = false
+                        onClicked: root._doFocus(parent.modelData)
                     }
+
                     Text {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: "1"
-                        color: Style.textBodyLow
+                        id: glyphCol
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left; anchors.leftMargin: 6
+                        width: 18
+                        horizontalAlignment: Text.AlignHCenter
+                        renderType: Text.NativeRendering
+                        text: root._glyphFor(winItem.modelData.app_id)
+                        color: isSelected ? Style.textPanelGlyphOnHighlight : isActive ? Style.textPanelLow : Style.textPanelGlyphNormal
                         font.family: Style.fontFamily; font.pointSize: Style.fontSize
                     }
-                }
 
-                Repeater {
-                    model: root.filteredWs1
-                    Rectangle {
-                        required property string modelData
-                        required property int index
-                        property bool isHovered: false
-                        readonly property bool isActive: modelData === root.activeWindow
-                        readonly property bool isSelected: root.selectedFlat === index
-
-                        width: parent.width; height: 22
-                        color: isSelected ? Style.textBodyHighlight
-                             : isHovered  ? Style.rectButtonBg
-                             :              "transparent"
-
-                        MouseArea {
-                            anchors.fill: parent; hoverEnabled: true
-                            onEntered: { parent.isHovered = true; root.selectedFlat = index }
-                            onExited:  parent.isHovered = false
-                            onClicked: root._doFocus(modelData)
-                        }
-
-                        Text {
-                            id: glyphCol
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left; anchors.leftMargin: 6
-                            width: 14
-                            horizontalAlignment: Text.AlignHCenter
-                            text: root._glyphFor(root._appIdFor(modelData))
-                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyHighlight
-                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                        }
-
-                        Text {
-                            id: appNameCol
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: glyphCol.right; anchors.leftMargin: 6
-                            width: Math.round(parent.width * 0.25)
-                            text: root._appIdFor(modelData)
-                            color: isSelected ? Style.textOnHighlight : Style.textBodyLow
-                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                            elide: Text.ElideRight
-                        }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: appNameCol.right; anchors.leftMargin: 6
-                            anchors.right: parent.right; anchors.rightMargin: 6
-                            text: root._titleFor(modelData)
-                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyNormal
-                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
-            }
-
-            // ── Workspace 2 group ──────────────────────────────────────────
-            Column {
-                width: parent.width
-                spacing: 0
-                visible: root.filteredWs2.length > 0
-
-                Item {
-                    width: parent.width; height: 20
-                    Rectangle {
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter
-                        height: 1; color: Style.rectMainBorder
-                    }
                     Text {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: "2"
-                        color: Style.textBodyLow
+                        id: appNameCol
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: glyphCol.right; anchors.leftMargin: 6
+                        width: Math.round(parent.width * 0.25)
+                        text: winItem.modelData.app_id
+                        color: isSelected ? Style.textPanelOnHighlight : isActive ? Style.textPanelLow : Style.textPanelNormal
                         font.family: Style.fontFamily; font.pointSize: Style.fontSize
+                        elide: Text.ElideRight
                     }
-                }
 
-                Repeater {
-                    model: root.filteredWs2
-                    Rectangle {
-                        required property string modelData
-                        required property int index
-                        property bool isHovered: false
-                        readonly property bool isActive: modelData === root.activeWindow
-                        readonly property bool isSelected: root.selectedFlat === root.filteredWs1.length + index
-
-                        width: parent.width; height: 22
-                        color: isSelected ? Style.textBodyHighlight
-                             : isHovered  ? Style.rectButtonBg
-                             :              "transparent"
-
-                        MouseArea {
-                            anchors.fill: parent; hoverEnabled: true
-                            onEntered: {
-                                parent.isHovered = true
-                                root.selectedFlat = root.filteredWs1.length + index
-                            }
-                            onExited:  parent.isHovered = false
-                            onClicked: root._doFocus(modelData)
-                        }
-
-                        Text {
-                            id: glyphCol
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left; anchors.leftMargin: 6
-                            width: 14
-                            horizontalAlignment: Text.AlignHCenter
-                            text: root._glyphFor(root._appIdFor(modelData))
-                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyHighlight
-                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                        }
-
-                        Text {
-                            id: appNameCol
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: glyphCol.right; anchors.leftMargin: 6
-                            width: Math.round(parent.width * 0.25)
-                            color: isSelected ? Style.textOnHighlight : Style.textBodyLow
-                            text: root._appIdFor(modelData)
-                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                            elide: Text.ElideRight
-                        }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: appNameCol.right; anchors.leftMargin: 6
-                            anchors.right: parent.right; anchors.rightMargin: 6
-                            text: root._titleFor(modelData)
-                            color: isSelected ? Style.textOnHighlight : isActive ? Style.textBodyLow : Style.textBodyNormal
-                            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-                            elide: Text.ElideRight
-                        }
-
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: appNameCol.right; anchors.leftMargin: 6
+                        anchors.right: parent.right; anchors.rightMargin: 6
+                        text: winItem.modelData.title
+                        color: isSelected ? Style.textPanelOnHighlight : isActive ? Style.textPanelLow : Style.textPanelNormal
+                        font.family: Style.fontFamily; font.pointSize: Style.fontSize
+                        elide: Text.ElideRight
                     }
                 }
             }

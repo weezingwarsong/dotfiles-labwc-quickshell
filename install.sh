@@ -26,39 +26,26 @@ mkdir -p "$HOME/.local/share/rofi/themes"
 ln -snf "$DOTFILES/rofi-themes/nord-custom.rasi" "$HOME/.local/share/rofi/themes/nord-custom.rasi"
 echo "  linked ~/.local/share/rofi/themes/nord-custom.rasi"
 
-# Build and install workspace watcher (requires gcc, pkg-config, wayland-scanner, wayland-protocols)
+# Build and install unified watcher (requires gcc, pkg-config, wayland-scanner, wayland-protocols)
 for cmd in gcc pkg-config wayland-scanner; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "  error: '$cmd' not found — install build dependencies (see dependency file)"; exit 1; }
 done
-echo "  building qs-workspace-watcher..."
-BUILD_DIR="$DOTFILES/workspace-watcher"
-PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
-wayland-scanner client-header "$PROTO_XML" "$BUILD_DIR/ext-workspace-v1-client-protocol.h"
-wayland-scanner private-code   "$PROTO_XML" "$BUILD_DIR/ext-workspace-v1-client-protocol.c"
-gcc -O2 -o "$BUILD_DIR/qs-workspace-watcher" \
-    "$BUILD_DIR/main.c" \
-    "$BUILD_DIR/ext-workspace-v1-client-protocol.c" \
-    $(pkg-config --cflags --libs wayland-client)
-mkdir -p "$HOME/.local/bin"
-cp "$BUILD_DIR/qs-workspace-watcher" "$HOME/.local/bin/qs-workspace-watcher"
-echo "  installed qs-workspace-watcher → ~/.local/bin"
-
-# Build and install toplevel watcher
-echo "  building qs-toplevel-watcher..."
-BUILD_DIR="$DOTFILES/toplevel-watcher"
+echo "  building qs-watcher..."
+BUILD_DIR="$DOTFILES/helper/watcher"
 WS_PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
 WLR_PROTO_XML="/usr/share/wlr-protocols/unstable/wlr-foreign-toplevel-management-unstable-v1.xml"
 wayland-scanner client-header "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.h"
 wayland-scanner private-code   "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.c"
 wayland-scanner client-header "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 wayland-scanner private-code   "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c"
-gcc -O2 -o "$BUILD_DIR/qs-toplevel-watcher" \
+gcc -O2 -o "$BUILD_DIR/qs-watcher" \
     "$BUILD_DIR/main.c" \
     "$BUILD_DIR/ext-workspace-v1-client-protocol.c" \
     "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c" \
     $(pkg-config --cflags --libs wayland-client)
-cp "$BUILD_DIR/qs-toplevel-watcher" "$HOME/.local/bin/qs-toplevel-watcher"
-echo "  installed qs-toplevel-watcher → ~/.local/bin"
+mkdir -p "$HOME/.local/bin"
+cp "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
+echo "  installed qs-watcher → ~/.local/bin"
 
 # labwc menu icons — white variants installed to hicolor so labwc finds them by name
 HICOLOR="$HOME/.local/share/icons/hicolor"
@@ -72,4 +59,4 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
-echo "  Note: ensure ~/.local/bin is in your PATH for qs-workspace-watcher and qs-toplevel-watcher."
+echo "  Note: ensure ~/.local/bin is in your PATH for qs-watcher."

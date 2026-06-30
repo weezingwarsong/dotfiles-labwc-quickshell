@@ -22,7 +22,7 @@ Item {
     readonly property string _iconNext:  String.fromCharCode(0xf051)
 
     implicitWidth: parent ? parent.width : 0
-    implicitHeight: hovered ? 24 + _gap + playerPanel.implicitHeight : 24
+    implicitHeight: hovered ? Style.pillHeight + _gap + playerPanel.implicitHeight : Style.pillHeight
 
     HoverHandler {
         onHoveredChanged: {
@@ -38,10 +38,10 @@ Item {
         property bool localHovered: false
         x: localHovered ? -2 : 0
         width: localHovered ? parent.width + 4 : parent.width
-        height: localHovered ? 26 : 24
-        color: Style.rectMainBg
-        border.width: Style.rectBorderWidth
-        border.color: Style.rectMainBorder
+        height: localHovered ? 26 : Style.pillHeight
+        color: Style.pillBg
+        border.width: Style.borderWidth
+        border.color: Style.pillBorder
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
@@ -76,7 +76,7 @@ Item {
             anchors.leftMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             text: root.player && root.player.playbackState === MprisPlaybackState.Playing ? root._iconPause : root._iconPlay
-            color: Style.textHeaderHighlight
+            color: Style.textPillHighlight
             font.family: Style.fontFamily
             font.pointSize: Style.fontSize
         }
@@ -93,7 +93,7 @@ Item {
                 var title  = root.player.trackTitle  || ""
                 return artist ? artist + " – " + title : title
             }
-            color: Style.textHeaderNormal
+            color: Style.textPillNormal
             font.family: Style.fontFamily
             font.pointSize: Style.fontSize
             elide: Text.ElideRight
@@ -107,9 +107,9 @@ Item {
         anchors.topMargin: root._gap
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width
-        color: Style.rectNormalBg
-        border.width: Style.rectBorderWidth
-        border.color: Style.rectNormalBorder
+        color: Style.panelBg
+        border.width: Style.borderWidth
+        border.color: Style.panelBorder
         implicitHeight: col.implicitHeight + 16
 
         Column {
@@ -128,7 +128,7 @@ Item {
             Rectangle {
                 width: parent.width
                 height: parent.width
-                color: Style.textBodyLow
+                color: Style.textPanelLow
 
                 Image {
                     anchors.fill: parent
@@ -155,7 +155,7 @@ Item {
             Text {
                 width: parent.width
                 text: root.player ? (root.player.trackArtist || "") : ""
-                color: Style.textBodyHighlight
+                color: Style.textPanelHighlight
                 font.family: Style.fontFamily
                 font.pointSize: Style.fontSize
                 horizontalAlignment: Text.AlignHCenter
@@ -165,7 +165,7 @@ Item {
             // Controls: prev / play-pause / next
             Item {
                 width: parent.width
-                height: 24
+                height: Style.pillHeight
 
                 Row {
                     anchors.centerIn: parent
@@ -173,7 +173,7 @@ Item {
 
                     Text {
                         text: root._iconPrev
-                        color: root.player && root.player.canGoPrevious ? Style.textBodyNormal : Style.textBodyLow
+                        color: root.player && root.player.canGoPrevious ? Style.textPanelNormal : Style.textPanelLow
                         font.family: Style.fontFamily
                         font.pointSize: 14
                         MouseArea {
@@ -184,7 +184,7 @@ Item {
 
                     Text {
                         text: root.player && root.player.playbackState === MprisPlaybackState.Playing ? root._iconPause : root._iconPlay
-                        color: Style.textBodyNormal
+                        color: Style.textPanelNormal
                         font.family: Style.fontFamily
                         font.pointSize: 14
                         MouseArea {
@@ -201,7 +201,7 @@ Item {
 
                     Text {
                         text: root._iconNext
-                        color: root.player && root.player.canGoNext ? Style.textBodyNormal : Style.textBodyLow
+                        color: root.player && root.player.canGoNext ? Style.textPanelNormal : Style.textPanelLow
                         font.family: Style.fontFamily
                         font.pointSize: 14
                         MouseArea {
@@ -215,17 +215,17 @@ Item {
             // Focus source window — wrapper keeps Column layout stable during hover expansion
             Item {
                 width: parent.width
-                height: 24
+                height: Style.pillHeight
             Rectangle {
                 id: focusBtn
                 property bool localHovered: false
                 x: localHovered ? -2 : 0
                 y: localHovered ? -2 : 0
                 width: localHovered ? parent.width + 4 : parent.width
-                height: localHovered ? 28 : 24
-                color: Style.rectButtonBg
-                border.width: Style.rectBorderWidth
-                border.color: Style.rectButtonBorder
+                height: localHovered ? 28 : Style.pillHeight
+                color: Style.panelButtonBg
+                border.width: Style.borderWidth
+                border.color: Style.panelButtonBorder
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     shadowEnabled: true
@@ -256,7 +256,7 @@ Item {
                     anchors.leftMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     text: String.fromCharCode(0xf2d0)
-                    color: Style.textBodyHighlight
+                    color: Style.textPanelHighlight
                     font.family: Style.fontFamily
                     font.pointSize: Style.fontSize
                 }
@@ -268,7 +268,7 @@ Item {
                     anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.player ? (root.player.identity || root.player.desktopEntry || "") : ""
-                    color: Style.textBodyHighlight
+                    color: Style.textPanelHighlight
                     font.family: Style.fontFamily
                     font.pointSize: Style.fontSize
                     elide: Text.ElideRight

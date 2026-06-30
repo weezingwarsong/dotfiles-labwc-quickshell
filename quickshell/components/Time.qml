@@ -22,17 +22,17 @@ Item {
         id: clockBox
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        color: Style.rectMainBg
-        border.width: Style.rectBorderWidth
-        border.color: Style.rectMainBorder
+        color: Style.pillBg
+        border.width: Style.borderWidth
+        border.color: Style.pillBorder
         width: parent.width
-        height: 24
+        height: Style.pillHeight
 
         Text {
             id: clock
             anchors.centerIn: parent
             text: Qt.formatTime(new Date(), "HHmm")
-            color: Style.textHeaderHighlight
+            color: Style.textPillHighlight
             font.family: Style.fontFamily
             font.pointSize: Style.fontSize
         }
@@ -44,9 +44,9 @@ Item {
         anchors.topMargin: root.calendarGap
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width
-        color: Style.rectNormalBg
-        border.width: Style.rectBorderWidth
-        border.color: Style.rectNormalBorder
+        color: Style.panelBg
+        border.width: Style.borderWidth
+        border.color: Style.panelBorder
         implicitHeight: calendarLayout.implicitHeight + 16
 
         ColumnLayout {
@@ -66,7 +66,7 @@ Item {
                     required property string shortName
                     text: shortName
                     horizontalAlignment: Text.AlignHCenter
-                    color: Style.textBodyHighlight
+                    color: Style.textPanelHighlight
                     font.family: Style.fontFamily
                     font.pointSize: 11
                 }
@@ -87,9 +87,9 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     leftPadding: 3
                     rightPadding: 3
-                    color: today ? Style.textBodyHighlight
-                         : month === monthGrid.month ? Style.textBodyNormal
-                         : Style.textBodyLow
+                    color: today ? Style.textPanelHighlight
+                         : month === monthGrid.month ? Style.textPanelNormal
+                         : Style.textPanelLow
                     font.family: Style.fontFamily
                     font.pointSize: 11
                     font.bold: today
