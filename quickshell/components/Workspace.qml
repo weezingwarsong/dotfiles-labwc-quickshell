@@ -3,7 +3,8 @@ import QtQuick
 Item {
     id: root
 
-    property string workspace: "1"
+    property string workspace:     "1"
+    property var    workspaceList: []
 
     readonly property int squareSize: 14
 
@@ -23,16 +24,13 @@ Item {
             anchors.centerIn: parent
             spacing: 3
 
-            Rectangle {
-                width: root.squareSize
-                height: root.squareSize
-                color: root.workspace === "1" ? Style.textPillHighlight : Style.textPillLow
-            }
-
-            Rectangle {
-                width: root.squareSize
-                height: root.squareSize
-                color: root.workspace === "2" ? Style.textPillHighlight : Style.textPillLow
+            Repeater {
+                model: root.workspaceList
+                Rectangle {
+                    width: root.squareSize
+                    height: root.squareSize
+                    color: modelData === root.workspace ? Style.textPillHighlight : Style.textPillLow
+                }
             }
         }
     }

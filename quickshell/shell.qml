@@ -11,6 +11,7 @@ ShellRoot {
     // priority: "time"=0 | "mpris"=1 | "workspace"=2 | "window"=3 | "recording"/"recordingSaved"=4
     property string activeModule: "time"
     property string currentWorkspace: "1"
+    property var    workspaceList:    []
     property bool   isRecording: false
     property MprisPlayer mprisPlayer: null   // player to display (kept during 1s pause window)
     property bool   isMprisActive: false     // true only while actually playing
@@ -49,8 +50,10 @@ ShellRoot {
     function _bindItem(loader, mod) {
         var item = loader.item
         if (!item) return
-        if (mod === "workspace")
-            item.workspace = Qt.binding(() => root.currentWorkspace)
+        if (mod === "workspace") {
+            item.workspace      = Qt.binding(() => root.currentWorkspace)
+            item.workspaceList  = Qt.binding(() => root.workspaceList)
+        }
         if (mod === "recording" || mod === "recordingSaved")
             item.saved = Qt.binding(() => root.activeModule === "recordingSaved")
         if (mod === "mpris") {
@@ -74,7 +77,10 @@ ShellRoot {
     function _bindSnapshot(loader, mod) {
         var item = loader.item
         if (!item) return
-        if (mod === "workspace")                             item.workspace = root.currentWorkspace
+        if (mod === "workspace") {
+            item.workspace     = root.currentWorkspace
+            item.workspaceList = root.workspaceList.slice()
+        }
         if (mod === "recording" || mod === "recordingSaved") item.saved = (mod === "recordingSaved")
         if (mod === "mpris")                                 item.player = root.mprisPlayer
         if (mod === "window")                                item.windows = root.windows.slice()
@@ -375,6 +381,9 @@ ShellRoot {
                                     states: w.states || {} })
                     }
                     root.windows = wins
+
+                    var wsList = d.workspaces || []
+                    if (wsList.length > 0) root.workspaceList = wsList
 
                     var wsName = d.active_ws_name || ""
                     if (wsName && wsName !== root.currentWorkspace) {

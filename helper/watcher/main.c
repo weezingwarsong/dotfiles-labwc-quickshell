@@ -15,7 +15,8 @@
  *     {"app_id": "kitty", "title": "~", "states": {"maximized":false,
  *      "minimized":false, "activated":true, "fullscreen":false}}
  *   ],
- *   "active_ws_name": "1"
+ *   "active_ws_name": "2",
+ *   "workspaces": ["1", "2"]   -- all workspace names, sorted by coordinate
  * }
  */
 
@@ -82,7 +83,24 @@ static void emit_state(void) {
     }
     printf("],\"active_ws_name\":");
     json_str(active_ws_name ? active_ws_name : "");
-    printf("}\n");
+
+    /* Workspace list sorted by first coordinate — name is the labwc workspace
+       label ("1", "2", …); coords give the canonical ordering. */
+    int order[MAX_WS], n = 0;
+    for (int i = 0; i < MAX_WS; i++)
+        if (workspaces[i].handle && workspaces[i].name) order[n++] = i;
+    for (int i = 0; i < n - 1; i++)
+        for (int j = i + 1; j < n; j++) {
+            uint32_t ca = workspaces[order[i]].coords_len ? workspaces[order[i]].coords[0] : 0;
+            uint32_t cb = workspaces[order[j]].coords_len ? workspaces[order[j]].coords[0] : 0;
+            if (ca > cb) { int tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
+        }
+    printf(",\"workspaces\":[");
+    for (int i = 0; i < n; i++) {
+        if (i) putchar(',');
+        json_str(workspaces[order[i]].name);
+    }
+    printf("]}\n");
     fflush(stdout);
 }
 
