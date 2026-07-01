@@ -1,7 +1,10 @@
 singleton Style 1.0 Style.qml
 Window 1.0 Window.qml
 Time 1.0 Time.qml
-Workspace 1.0 Workspace.qml
 WallpaperWindow 1.0 WallpaperWindow.qml
-RecordingStatus 1.0 RecordingStatus.qml
 Mpris 1.0 Mpris.qml
+TimePill 1.0 TimePill.qml
+MprisPill 1.0 MprisPill.qml
+WorkspacePill 1.0 WorkspacePill.qml
+WindowPill 1.0 WindowPill.qml
+RecordingPill 1.0 RecordingPill.qml

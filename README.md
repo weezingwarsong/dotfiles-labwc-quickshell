@@ -43,14 +43,17 @@ These names are also reflected in `Style.qml` token prefixes:
 ```
 dotfiles-labwc-quickshell/
 ├── quickshell/
-│   ├── shell.qml                    # root — module switcher, IPC readers, state
+│   ├── shell.qml                    # root — rigid bar + vertical roll transition, IPC readers, state
 │   ├── components/
 │   │   ├── Style.qml                # singleton — all colours, fonts, spacing tokens
-│   │   ├── Time.qml                 # clock (HHmm) with slide-down calendar on hover
-│   │   ├── Workspace.qml            # dual-square workspace indicator (flashes on switch)
-│   │   ├── Mpris.qml                # MPRIS media player pill + player panel
-│   │   ├── RecordingStatus.qml      # recording state indicator (RECORDING / RECORDING SAVED)
-│   │   ├── Window.qml               # window switcher — flat list, filter, keyboard nav
+│   │   ├── TimePill.qml             # bar content — clock (HHmm)
+│   │   ├── Time.qml                 # calendar panel, opens on TimePill hover
+│   │   ├── WorkspacePill.qml        # bar content — dual-square workspace indicator (flashes on switch)
+│   │   ├── MprisPill.qml            # bar content — MPRIS play/pause icon + track text
+│   │   ├── Mpris.qml                # MPRIS player panel, opens on MprisPill hover
+│   │   ├── RecordingPill.qml        # bar content — recording state (RECORDING / RECORDING SAVED)
+│   │   ├── WindowPill.qml           # bar content — static "Window" label
+│   │   ├── Window.qml               # window switcher panel — flat list, filter, keyboard nav
 │   │   ├── WallpaperWindow.qml      # background-layer wallpaper surface
 │   │   └── qmldir
 │   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
@@ -89,7 +92,7 @@ dotfiles-labwc-quickshell/
 
 ## Features
 
-**Single-slot bar** — one small pill at the top-center. Only one module is visible at a time; they swap based on context with a strict priority order (recording > workspace flash > MPRIS > time).
+**Single-slot bar** — one rigid rectangular bar at the top-center. The bar itself never moves or resizes; only one module's content is shown at a time, and switching between them rolls the outgoing text/icon out one edge while the incoming one rolls in from the other — like text printed on a cylinder rotating behind the bar. Priority order: recording > workspace flash > MPRIS > time.
 
 **Time module** — shows the current time in `HHmm` format. Hovering slides down a calendar panel with the current month, today highlighted in Nord7.
 
@@ -226,7 +229,7 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 - [ ] **Wallpaper management** — add a wallpaper panel/module to the settings component so wallpapers can be browsed and assigned to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames. Also: the wallpaper module is currently broken and needs investigation.
 
-- [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to match the pill's capsule aesthetic, but vertically: panel grows/shrinks in height with rounded ends, mirroring the horizontal squish transition of the pill.
+- [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to grow/shrink in height when they open/close, mirroring the bar's vertical roll transition instead of popping open instantly.
 
 ---
 

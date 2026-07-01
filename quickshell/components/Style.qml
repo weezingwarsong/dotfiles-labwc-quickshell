@@ -32,15 +32,20 @@ QtObject {
     readonly property int borderWidth: 2
 
     // ── Animation ─────────────────────────────────────────────────────────────
-    // Used by the squish push transition in shell.qml.  When the active module
-    // changes, the outgoing content squishes toward its exit edge while the
-    // incoming content grows in from the opposite edge.  Direction is determined
-    // by comparing _modPriority indices: higher priority enters from the right.
-    readonly property int transitionDuration: 350  // ms; bump to 1000 for slow-motion testing
-    readonly property int transitionEasing:   Easing.OutCubic
+    // Used by the rolling-text transition in shell.qml.  The bar itself is a
+    // rigid rectangle that never moves; when the active module changes, the
+    // outgoing content rolls out (translate + squash toward the edge it exits
+    // through) while the incoming content rolls in (translate + squash from 0)
+    // — as if content were printed on a cylinder rotating behind the bar's
+    // clipped window.  Direction is determined by comparing _modPriority
+    // indices: higher priority rolls in from the bottom.
+    readonly property int rollDuration:        350  // ms; bump to 1000 for slow-motion testing
+    readonly property int rollTranslateEasing: Easing.InOutCubic
+    readonly property int rollScaleEasing:     Easing.InOutQuad
 
     // ── Pill (the always-visible 24 px bar element) ───────────────────────────
     readonly property int   pillHeight: 24
+    readonly property int   pillRadius: 0  // sharp rectangle, not a capsule
     readonly property color pillBg:     Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
     readonly property color pillBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
 

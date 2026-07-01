@@ -2,6 +2,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+// Panel-only: the pill row itself lives in TimePill.qml, rolled by the
+// shared bar in shell.qml.  This component is just the expanded calendar
+// panel, anchored directly below the bar; `hovered` is fed in externally
+// from TimePill's own hover state (shell.qml wires the two together).
 Item {
     id: root
 
@@ -9,39 +13,11 @@ Item {
 
     implicitWidth: parent ? parent.width : 0
     readonly property int calendarGap: Math.round(Screen.height * 0.01)
-    implicitHeight: hovered ? clockBox.height + calendarGap + calendarWidget.implicitHeight : clockBox.height
-
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        onEntered: root.hovered = true
-        onExited: root.hovered = false
-    }
-
-    Rectangle {
-        id: clockBox
-        anchors.top: parent.top
-        anchors.horizontalCenter: parent.horizontalCenter
-        color: Style.pillBg
-        border.width: Style.borderWidth
-        border.color: Style.pillBorder
-        radius: height / 2
-        width: parent.width
-        height: Style.pillHeight
-
-        Text {
-            id: clock
-            anchors.centerIn: parent
-            text: Qt.formatTime(new Date(), "HHmm")
-            color: Style.textPillHighlight
-            font.family: Style.fontFamily
-            font.pointSize: Style.fontSize
-        }
-    }
+    implicitHeight: hovered ? calendarGap + calendarWidget.implicitHeight : 0
 
     Rectangle {
         id: calendarWidget
-        anchors.top: clockBox.bottom
+        anchors.top: parent.top
         anchors.topMargin: root.calendarGap
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width
@@ -97,12 +73,5 @@ Item {
                 }
             }
         }
-    }
-
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: clock.text = Qt.formatTime(new Date(), "HHmm")
     }
 }

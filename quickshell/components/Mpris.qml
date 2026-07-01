@@ -3,12 +3,14 @@ import QtQuick.Effects
 import Quickshell.Io
 import Quickshell.Services.Mpris
 
+// Panel-only: the pill row itself lives in MprisPill.qml, rolled by the
+// shared bar in shell.qml.  This component is just the expanded player
+// panel, anchored directly below the bar; `hovered` is fed in externally
+// from the MprisPill's own hover state (shell.qml wires the two together).
 Item {
     id: root
     property MprisPlayer player: null
     property bool hovered: false
-
-    signal wantsDismiss()
 
     readonly property int    _gap:       Math.round(Screen.height * 0.01)
     readonly property string _focusAppId: {
@@ -22,83 +24,12 @@ Item {
     readonly property string _iconNext:  String.fromCharCode(0xf051)
 
     implicitWidth: parent ? parent.width : 0
-    implicitHeight: hovered ? Style.pillHeight + _gap + playerPanel.implicitHeight : Style.pillHeight
-
-    HoverHandler {
-        onHoveredChanged: {
-            root.hovered = hovered
-            if (!hovered && (!root.player || root.player.playbackState !== MprisPlaybackState.Playing))
-                root.wantsDismiss()
-        }
-    }
-
-    // ── Pill (rectangle-main) ────────────────────────────────────────────────
-    Rectangle {
-        id: pill
-        property bool localHovered: false
-        x: localHovered ? -2 : 0
-        width: localHovered ? parent.width + 4 : parent.width
-        height: localHovered ? 26 : Style.pillHeight
-        color: Style.pillBg
-        border.width: Style.borderWidth
-        border.color: Style.pillBorder
-        radius: height / 2
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Style.nord0
-            shadowBlur: pill.localHovered ? 0.55 : 0.25
-            shadowVerticalOffset: pill.localHovered ? 6 : 2
-            shadowOpacity: pill.localHovered ? 0.8 : 0.5
-        }
-
-        HoverHandler { onHoveredChanged: pill.localHovered = hovered }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {
-                if (!root.player) return
-                if (root.player.playbackState === MprisPlaybackState.Playing)
-                    root.player.pause()
-                else
-                    root.player.play()
-            }
-        }
-
-        Text {
-            id: pillIcon
-            anchors.left: parent.left
-            anchors.leftMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.player && root.player.playbackState === MprisPlaybackState.Playing ? root._iconPause : root._iconPlay
-            color: Style.textPillHighlight
-            font.family: Style.fontFamily
-            font.pointSize: Style.fontSize
-        }
-
-        Text {
-            anchors.left: pillIcon.right
-            anchors.leftMargin: 6
-            anchors.right: parent.right
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: {
-                if (!root.player) return ""
-                var artist = root.player.trackArtist || ""
-                var title  = root.player.trackTitle  || ""
-                return artist ? artist + " – " + title : title
-            }
-            color: Style.textPillNormal
-            font.family: Style.fontFamily
-            font.pointSize: Style.fontSize
-            elide: Text.ElideRight
-        }
-    }
+    implicitHeight: hovered ? _gap + playerPanel.implicitHeight : 0
 
     // ── Expanded player panel (rectangle-normal) ─────────────────────────────
     Rectangle {
         id: playerPanel
-        anchors.top: pill.bottom
+        anchors.top: parent.top
         anchors.topMargin: root._gap
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width

@@ -1,6 +1,9 @@
 import QtQuick
 import Quickshell.Io
 
+// Panel-only: the pill row itself lives in WindowPill.qml, rolled by the
+// shared bar in shell.qml.  This component is just the expanded switch
+// panel, anchored directly below the bar.
 FocusScope {
     id: root
 
@@ -26,7 +29,7 @@ FocusScope {
     readonly property int totalSelectable: filteredWindows.length
 
     implicitWidth: parent ? parent.width : 0
-    implicitHeight: Style.pillHeight + _gap + switchPanel.implicitHeight
+    implicitHeight: _gap + switchPanel.implicitHeight
 
     Component.onCompleted: Qt.callLater(function() { filterInput.forceActiveFocus() })
 
@@ -68,26 +71,10 @@ FocusScope {
         root.windowFocused()
     }
 
-    // ── Pill ────────────────────────────────────────────────────────────────
-    Rectangle {
-        id: pill
-        width: parent.width; height: Style.pillHeight
-        color: Style.pillBg
-        border.width: Style.borderWidth; border.color: Style.pillBorder
-        radius: height / 2
-
-        Text {
-            anchors.centerIn: parent
-            text: "Window"
-            color: Style.textPillHighlight
-            font.family: Style.fontFamily; font.pointSize: Style.fontSize
-        }
-    }
-
     // ── Switch panel ────────────────────────────────────────────────────────
     Rectangle {
         id: switchPanel
-        anchors.top: pill.bottom; anchors.topMargin: root._gap
+        anchors.top: parent.top; anchors.topMargin: root._gap
         width: parent.width
         color: Style.panelBg
         border.width: Style.borderWidth; border.color: Style.panelBorder

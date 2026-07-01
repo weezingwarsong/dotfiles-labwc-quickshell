@@ -23,31 +23,42 @@ ShellRoot {
     property string _prevModule: ""
     property string _outgoingModule: ""
     property bool   _inTransition: false
-    property real   _squishProgress: 0.0
-    property int    _squishDir: 1  // +1 from right (higher priority), -1 from left
+    property real   _rollProgress: 0.0       // drives y + opacity (InOutCubic)
+    property real   _rollScaleProgress: 0.0  // drives the squash scaleY (InOutQuad)
+    property int    _rollDir: 1  // +1 = incoming rolls up from below, -1 = down from above
 
     // Drives where workspace/recording timers return to
     readonly property string restingModule: isMprisActive ? "mpris" : "time"
 
     // Priority index for each module.  onActiveModuleChanged compares the old
-    // and new indices to set _squishDir: new > old → incoming from right (+1),
-    // new < old → incoming from left (-1).
+    // and new indices to set _rollDir: new >= old → incoming rolls in from
+    // below (+1), new < old → incoming rolls in from above (-1).
     readonly property var _modPriority: ({
         "time": 0, "mpris": 1, "workspace": 2, "window": 3,
         "recording": 4, "recordingSaved": 4
     })
 
-    function _modSource(mod) {
-        if (mod === "workspace")                             return Qt.resolvedUrl("components/Workspace.qml")
-        if (mod === "recording" || mod === "recordingSaved") return Qt.resolvedUrl("components/RecordingStatus.qml")
-        if (mod === "mpris")                                 return Qt.resolvedUrl("components/Mpris.qml")
-        if (mod === "window")                                return Qt.resolvedUrl("components/Window.qml")
-        return Qt.resolvedUrl("components/Time.qml")
+    // The bar's rolling content — a lightweight icon+text component per module,
+    // with no Rectangle/border of its own (the shared `bar` draws that once).
+    function _pillSource(mod) {
+        if (mod === "workspace")                             return Qt.resolvedUrl("components/WorkspacePill.qml")
+        if (mod === "recording" || mod === "recordingSaved") return Qt.resolvedUrl("components/RecordingPill.qml")
+        if (mod === "mpris")                                 return Qt.resolvedUrl("components/MprisPill.qml")
+        if (mod === "window")                                return Qt.resolvedUrl("components/WindowPill.qml")
+        return Qt.resolvedUrl("components/TimePill.qml")
     }
 
-    // Bind live Qt.binding() properties on a freshly loaded module item.
-    // Used for moduleLoader (persistent) and inLoader (incoming during transition).
-    function _bindItem(loader, mod) {
+    // The expanded panel anchored below the bar. Workspace/recording have none.
+    function _panelSource(mod) {
+        if (mod === "mpris")  return Qt.resolvedUrl("components/Mpris.qml")
+        if (mod === "window") return Qt.resolvedUrl("components/Window.qml")
+        if (mod === "time")   return Qt.resolvedUrl("components/Time.qml")
+        return ""
+    }
+
+    // Bind live Qt.binding() properties on a freshly loaded pill item.
+    // Used for pillLoader (persistent) and inLoader (incoming during a roll).
+    function _bindPill(loader, mod) {
         var item = loader.item
         if (!item) return
         if (mod === "workspace") {
@@ -63,18 +74,12 @@ ShellRoot {
                     mprisTimer.restart()
             })
         }
-        if (mod === "window") {
-            item.windows = Qt.binding(() => root.windows)
-            item.windowFocused.connect(function() {
-                root.activeModule = root.restingModule
-            })
-        }
     }
 
-    // Set static snapshot values on outLoader (the exiting module).
+    // Set static snapshot values on outLoader (the exiting pill).
     // Plain assignment instead of Qt.binding() — the outgoing content is frozen
-    // for the ~180 ms it takes to animate off-screen, so live updates aren't needed.
-    function _bindSnapshot(loader, mod) {
+    // for the roll-out, so live updates aren't needed.
+    function _bindPillSnapshot(loader, mod) {
         var item = loader.item
         if (!item) return
         if (mod === "workspace") {
@@ -83,26 +88,40 @@ ShellRoot {
         }
         if (mod === "recording" || mod === "recordingSaved") item.saved = (mod === "recordingSaved")
         if (mod === "mpris")                                 item.player = root.mprisPlayer
-        if (mod === "window")                                item.windows = root.windows.slice()
     }
 
-    // Initial load: set moduleLoader source here rather than via a computed binding
-    // so that onActiveModuleChanged can treat an empty _prevModule as "not yet ready"
-    // and skip the transition.  (Children aren't created when the first property-change
-    // signal fires during ShellRoot initialisation, so moduleLoader wouldn't exist yet.)
+    // Bind the expanded panel below the bar. `hovered` is relayed from
+    // whichever pill is currently loaded for this module (pillLoader.source
+    // tracks activeModule the same tick moduleLoader.source does, so this
+    // never reads a stale pill instance).
+    function _bindPanel(loader, mod) {
+        var item = loader.item
+        if (!item) return
+        if (mod === "mpris" || mod === "time")
+            item.hovered = Qt.binding(() => pillLoader.item ? pillLoader.item.hovered : false)
+        if (mod === "mpris")
+            item.player = Qt.binding(() => root.mprisPlayer)
+        if (mod === "window") {
+            item.windows = Qt.binding(() => root.windows)
+            item.windowFocused.connect(function() {
+                root.activeModule = root.restingModule
+            })
+        }
+    }
+
     Component.onCompleted: {
         root._prevModule = root.activeModule
-        moduleLoader.source = root._modSource(root.activeModule)
     }
 
     // Transition sequencing:
-    //   1. Capture outgoing source into outLoader before moduleLoader changes.
-    //   2. Load the new module into inLoader so both can animate simultaneously.
-    //   3. squishAnim drives _squishProgress 0→1; slot widths derive from it.
-    //   4. squishAnim.onFinished swaps moduleLoader to the new source and tears
-    //      down the transition loaders.
-    // moduleLoader.source is intentionally NOT updated here — it stays on the old
-    // module so outLoader can copy it.  The swap happens in squishAnim.onFinished.
+    //   1. Capture outgoing pill source (from the module we're leaving) into outLoader.
+    //   2. Load the incoming pill source into inLoader so both can animate simultaneously.
+    //   3. rollAnim drives _rollProgress/_rollScaleProgress 0→1; slot y/opacity/scale derive from them.
+    //   4. rollAnim.onFinished tears down the transition loaders.
+    // pillLoader.source and moduleLoader.source are plain bindings on activeModule
+    // (declared where they're used below) — they update immediately, but pillLoader
+    // stays invisible (visible: !_inTransition) until the roll finishes, so there's
+    // no premature flash of the new content.
     onActiveModuleChanged: {
         var prev = root._prevModule
         root._prevModule = root.activeModule
@@ -111,15 +130,16 @@ ShellRoot {
 
         var prevIdx = root._modPriority[prev]          !== undefined ? root._modPriority[prev]          : 0
         var newIdx  = root._modPriority[root.activeModule] !== undefined ? root._modPriority[root.activeModule] : 0
-        root._squishDir = newIdx >= prevIdx ? 1 : -1
+        root._rollDir = newIdx >= prevIdx ? 1 : -1
 
         root._outgoingModule = prev
-        outLoader.source = moduleLoader.source
-        inLoader.source  = root._modSource(root.activeModule)
+        outLoader.source = root._pillSource(prev)
+        inLoader.source  = root._pillSource(root.activeModule)
 
         root._inTransition = true
-        root._squishProgress = 0
-        squishAnim.restart()
+        root._rollProgress = 0
+        root._rollScaleProgress = 0
+        rollAnim.restart()
     }
 
     function _syncMpris() {
@@ -165,9 +185,9 @@ ShellRoot {
         exclusiveZone: 28
 
         implicitWidth: Math.round(Screen.width * 0.10)
-        // Clamp to pill height during transitions so expanded panels (MPRIS,
-        // window switcher) don't flash open at full height mid-squish.
-        implicitHeight: root._inTransition ? Style.pillHeight : moduleLoader.implicitHeight
+        // Panels are no longer part of the roll transition, so their height
+        // always tracks the panel content directly — no clamping needed.
+        implicitHeight: Style.pillHeight + moduleLoader.implicitHeight
 
         WlrLayershell.keyboardFocus: root.activeModule === "window"
             ? WlrKeyboardFocus.Exclusive
@@ -189,85 +209,112 @@ ShellRoot {
                 }
             }
 
-            // ── Persistent loader (shown when not transitioning) ──────────────
-            Loader {
-                id: moduleLoader
-                width: parent.width
-                anchors.top: parent.top
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: !root._inTransition
-                onLoaded: root._bindItem(moduleLoader, root.activeModule)
-            }
-
-            // ── Squish transition overlay ─────────────────────────────────────
-            // Rectangle (not Item) so clip: true follows the rounded pill shape
-            // rather than a plain bounding box, keeping capsule corners throughout.
+            // ── Bar: a rigid rectangle that never moves or resizes. Content
+            // rolls vertically inside it between modules, as if printed on a
+            // cylinder rotating behind the bar's clipped window. ─────────────
             Rectangle {
-                id: squishOverlay
-                visible: root._inTransition
-                x: 0; y: 0
+                id: bar
                 width: parent.width
                 height: Style.pillHeight
                 clip: true
-                color: "transparent"
-                radius: height / 2
+                radius: Style.pillRadius
+                border.width: Style.borderWidth
+                color: root.activeModule === "recording" ? Style.pillCriticalBg : Style.pillBg
+                border.color: root.activeModule === "recording" ? Style.pillCriticalBorder : Style.pillBorder
+                Behavior on color        { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
+                Behavior on border.color { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
 
-                // Slot geometry invariant (W = squishOverlay.width, p = _squishProgress):
-                //   outSlot.width = (1-p) * (W-2)
-                //   inSlot.width  =    p  * (W-2)
-                //   gap           =         2
-                //   total         = outSlot.width + 2 + inSlot.width = W  ✓
-                //
-                // Each Loader fills its slot exactly (width: parent.width).  The module's
-                // pill Rectangle (radius: height/2) therefore shrinks/grows with the slot —
-                // Qt clamps radius to width/2 automatically at narrow widths, so both
-                // rounded caps stay visible throughout.  No per-loader x math needed;
-                // the squishOverlay's own rounded clip handles the outer pill corners.
-
-                // Outgoing (old) — shrinks toward the exit edge
-                Item {
-                    id: outSlot
-                    x: root._squishDir > 0 ? 0 : inSlot.width + 2
-                    width: (1.0 - root._squishProgress) * (squishOverlay.width - 2)
-                    height: squishOverlay.height
-
-                    Loader {
-                        id: outLoader
-                        x: 0; width: parent.width; height: parent.height
-                        onLoaded: root._bindSnapshot(outLoader, root._outgoingModule)
-                    }
+                // ── Persistent pill content (shown when not rolling) ───────
+                Loader {
+                    id: pillLoader
+                    anchors.fill: parent
+                    visible: !root._inTransition
+                    source: root._pillSource(root.activeModule)
+                    onLoaded: root._bindPill(pillLoader, root.activeModule)
                 }
 
-                // Incoming (new) — grows in from the entry edge
+                // ── Roll overlay (shown only mid-transition) ────────────────
                 Item {
-                    id: inSlot
-                    x: root._squishDir > 0 ? outSlot.width + 2 : 0
-                    width: root._squishProgress * (squishOverlay.width - 2)
-                    height: squishOverlay.height
+                    anchors.fill: parent
+                    visible: root._inTransition
 
-                    Loader {
-                        id: inLoader
-                        x: 0; width: parent.width; height: parent.height
-                        onLoaded: root._bindItem(inLoader, root.activeModule)
+                    // Outgoing — rolls out toward the exit edge, squashing
+                    // toward that same edge as it goes.
+                    Item {
+                        id: outItem
+                        width: parent.width
+                        height: parent.height
+                        y: root._rollDir > 0 ? -root._rollProgress * Style.pillHeight
+                                              :  root._rollProgress * Style.pillHeight
+                        opacity: 1 - root._rollProgress
+                        transform: Scale {
+                            yScale: 1 - root._rollScaleProgress * 0.9
+                            origin.y: root._rollDir > 0 ? 0 : outItem.height
+                        }
+
+                        Loader {
+                            id: outLoader
+                            anchors.fill: parent
+                            onLoaded: root._bindPillSnapshot(outLoader, root._outgoingModule)
+                        }
+                    }
+
+                    // Incoming — rolls in from the entry edge, growing from 0
+                    // as if emerging from behind that edge.
+                    Item {
+                        id: inItem
+                        width: parent.width
+                        height: parent.height
+                        y: root._rollDir > 0 ? (1 - root._rollProgress) * Style.pillHeight
+                                              : -(1 - root._rollProgress) * Style.pillHeight
+                        opacity: root._rollProgress
+                        transform: Scale {
+                            yScale: 0.1 + root._rollScaleProgress * 0.9
+                            origin.y: root._rollDir > 0 ? inItem.height : 0
+                        }
+
+                        Loader {
+                            id: inLoader
+                            anchors.fill: parent
+                            onLoaded: root._bindPill(inLoader, root.activeModule)
+                        }
                     }
                 }
+            }
+
+            // ── Expanded panel (MPRIS player, window switcher, calendar) ───
+            // Anchored directly below the now-static bar; unaffected by the
+            // roll transition above — opens/closes instantly, as before.
+            Loader {
+                id: moduleLoader
+                width: parent.width
+                anchors.top: bar.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                source: root._panelSource(root.activeModule)
+                onLoaded: root._bindPanel(moduleLoader, root.activeModule)
             }
         }
     }
 
-    // Drives the squish: animates _squishProgress 0→1, from which all slot widths
-    // and loader positions are derived.  On finish, swap moduleLoader to the new
-    // module (triggering _bindItem via onLoaded), then clear the transition loaders
-    // and drop the overlay.
-    NumberAnimation {
-        id: squishAnim
-        target: root
-        property: "_squishProgress"
-        from: 0; to: 1
-        duration: Style.transitionDuration
-        easing.type: Style.transitionEasing
+    // Drives the roll: animates _rollProgress (translate/opacity, InOutCubic)
+    // and _rollScaleProgress (squash, InOutQuad) 0→1 in parallel, from which
+    // outItem/inItem's y/opacity/scale are derived.  On finish, tear down the
+    // transition loaders — pillLoader (already on the new source) takes over.
+    ParallelAnimation {
+        id: rollAnim
+        NumberAnimation {
+            target: root; property: "_rollProgress"
+            from: 0; to: 1
+            duration: Style.rollDuration
+            easing.type: Style.rollTranslateEasing
+        }
+        NumberAnimation {
+            target: root; property: "_rollScaleProgress"
+            from: 0; to: 1
+            duration: Style.rollDuration
+            easing.type: Style.rollScaleEasing
+        }
         onFinished: {
-            moduleLoader.source = root._modSource(root.activeModule)
             outLoader.source = ""
             inLoader.source  = ""
             root._inTransition = false
