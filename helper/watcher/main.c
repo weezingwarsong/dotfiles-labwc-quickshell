@@ -53,6 +53,13 @@ static struct workspace workspaces[MAX_WS];
 static char *active_ws_name = NULL;
 static bool dirty = false;
 
+/* ---------- Helpers ---------- */
+static char *xstrdup(const char *s) {
+    char *r = strdup(s);
+    if (!r) { perror("qs-watcher: strdup"); exit(1); }
+    return r;
+}
+
 /* ---------- JSON helpers ---------- */
 static void json_str(const char *s) {
     putchar('"');
@@ -106,10 +113,10 @@ static void emit_state(void) {
 
 /* ---------- Toplevel listeners ---------- */
 static void tl_title(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, const char *v) {
-    struct toplevel *t = d; free(t->title); t->title = strdup(v); dirty = true;
+    struct toplevel *t = d; free(t->title); t->title = xstrdup(v); dirty = true;
 }
 static void tl_app_id(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, const char *v) {
-    struct toplevel *t = d; free(t->app_id); t->app_id = strdup(v); dirty = true;
+    struct toplevel *t = d; free(t->app_id); t->app_id = xstrdup(v); dirty = true;
 }
 static void tl_output_enter(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, struct wl_output *o) {
     dirty = true;
@@ -157,9 +164,10 @@ static void ftmgr_toplevel(void *d, struct zwlr_foreign_toplevel_manager_v1 *m,
         if (!toplevels[i].handle) {
             toplevels[i].handle = h;
             zwlr_foreign_toplevel_handle_v1_add_listener(h, &tl_listener, &toplevels[i]);
-            break;
+            return;
         }
     }
+    zwlr_foreign_toplevel_handle_v1_destroy(h); /* table full — release proxy */
 }
 static void ftmgr_finished(void *d, struct zwlr_foreign_toplevel_manager_v1 *m) { exit(0); }
 
@@ -170,10 +178,10 @@ static const struct zwlr_foreign_toplevel_manager_v1_listener ftmgr_listener = {
 
 /* ---------- Workspace listeners ---------- */
 static void ws_id(void *d, struct ext_workspace_handle_v1 *h, const char *v) {
-    struct workspace *ws = d; free(ws->id); ws->id = strdup(v);
+    struct workspace *ws = d; free(ws->id); ws->id = xstrdup(v);
 }
 static void ws_name(void *d, struct ext_workspace_handle_v1 *h, const char *v) {
-    struct workspace *ws = d; free(ws->name); ws->name = strdup(v);
+    struct workspace *ws = d; free(ws->name); ws->name = xstrdup(v);
 }
 static void ws_coordinates(void *d, struct ext_workspace_handle_v1 *h, struct wl_array *arr) {
     struct workspace *ws = d; ws->coords_len = 0;
@@ -207,9 +215,10 @@ static void wsmgr_workspace(void *d, struct ext_workspace_manager_v1 *m,
         if (!workspaces[i].handle) {
             workspaces[i].handle = h;
             ext_workspace_handle_v1_add_listener(h, &ws_listener, &workspaces[i]);
-            break;
+            return;
         }
     }
+    ext_workspace_handle_v1_destroy(h); /* table full — release proxy */
 }
 
 static void grp_capabilities(void *d, struct ext_workspace_group_handle_v1 *g, uint32_t c) {}
@@ -243,7 +252,7 @@ static void wsmgr_done(void *d, struct ext_workspace_manager_v1 *m) {
                          : (workspaces[i].id ? workspaces[i].id : "");
         if (!active_ws_name || strcmp(active_ws_name, name) != 0) {
             free(active_ws_name);
-            active_ws_name = strdup(name);
+            active_ws_name = xstrdup(name);
             dirty = true;
         }
         break;

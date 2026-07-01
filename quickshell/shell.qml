@@ -147,7 +147,7 @@ ShellRoot {
     }
 
     readonly property url currentWallpaper: {
-        var idx = parseInt(currentWorkspace) - 1
+        var idx = root.workspaceList.indexOf(root.currentWorkspace)
         if (idx >= 0 && idx < wallpapers.length)
             return "file://" + wallpapers[idx]
         return ""
