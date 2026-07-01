@@ -1,2 +1,3 @@
+PATH=/home/rauf/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
 QT_QPA_PLATFORMTHEME=qt6ct
 TERMINAL=kitty

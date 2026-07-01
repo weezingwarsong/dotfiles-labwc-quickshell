@@ -75,13 +75,13 @@ dotfiles-labwc-quickshell/
 ├── labwc/
 │   ├── icons/                       # white SVG icons for the right-click menu
 │   ├── autostart                    # starts quickshell, mako, bluetooth, polkit agent
-│   ├── environment                  # QT_QPA_PLATFORMTHEME, TERMINAL
+│   ├── environment                  # PATH (includes ~/.local/bin), QT_QPA_PLATFORMTHEME, TERMINAL
 │   ├── menu.xml                     # right-click root/client menu
 │   └── rc.xml                       # keybinds and window rules
 │
 ├── DESIGN.md                        # style system — colour tokens, rectangle/text semantics
 ├── dependency                       # full package list with install commands
-├── install.sh                       # symlinks configs, builds and installs both C watchers
+├── install.sh                       # symlinks configs, builds and installs qs-watcher
 └── .gitignore
 ```
 
@@ -208,7 +208,7 @@ chmod +x install.sh
 - Compile `helper/watcher/main.c` → `~/.local/bin/qs-watcher`
 - Install labwc menu icons to `~/.local/share/icons/hicolor/`
 
-> Ensure `~/.local/bin` is in your `$PATH`.
+> `~/.local/bin` is added to `PATH` via `labwc/environment` so `qs-watcher` is found by quickshell. No manual PATH setup required.
 
 ### 3 — Wallpapers
 

@@ -47,6 +47,27 @@ mkdir -p "$HOME/.local/bin"
 cp "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
 echo "  installed qs-watcher → ~/.local/bin"
 
+# Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find qs-watcher.
+# labwc reads this file before launching child processes; the user's shell PATH is not inherited.
+LOCAL_BIN="$HOME/.local/bin"
+ENV_FILE="$DOTFILES/labwc/environment"
+if ! grep -q "^PATH=.*$LOCAL_BIN" "$ENV_FILE" 2>/dev/null; then
+    printf "\n  ~/.local/bin is not in labwc/environment PATH.\n"
+    printf "  quickshell needs this to find qs-watcher at runtime.\n"
+    printf "  Add it automatically? [Y/n] "
+    read -r _answer
+    if [ "${_answer:-y}" != "n" ] && [ "${_answer:-y}" != "N" ]; then
+        if grep -q "^PATH=" "$ENV_FILE" 2>/dev/null; then
+            sed -i "s|^PATH=|PATH=$LOCAL_BIN:|" "$ENV_FILE"
+        else
+            printf "PATH=%s:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl\n" "$LOCAL_BIN" >> "$ENV_FILE"
+        fi
+        echo "  added ~/.local/bin to PATH in labwc/environment"
+    else
+        echo "  skipped — add PATH=~/.local/bin:\$PATH to labwc/environment manually or qs-watcher won't be found"
+    fi
+fi
+
 # labwc menu icons — white variants installed to hicolor so labwc finds them by name
 HICOLOR="$HOME/.local/share/icons/hicolor"
 mkdir -p "$HICOLOR/22x22/apps" "$HICOLOR/22x22/actions"
