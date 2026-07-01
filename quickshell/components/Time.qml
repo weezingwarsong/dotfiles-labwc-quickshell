@@ -4,16 +4,21 @@ import QtQuick.Layouts
 
 // Panel-only: the pill row itself lives in TimePill.qml, rolled by the
 // shared bar in shell.qml.  This component is just the expanded calendar
-// panel, anchored directly below the bar; `hovered` is fed in externally
-// from TimePill's own hover state (shell.qml wires the two together).
+// panel, anchored directly below the bar. `hovered` and `pinned` are fed in
+// externally from shell.qml's root-level combined-region hover/pin state
+// (not local to this instance, since it gets destroyed/recreated whenever
+// another module briefly takes over the bar).
 Item {
     id: root
 
     property bool hovered: false
+    property bool pinned: false
+
+    signal dismissRequested()
 
     implicitWidth: parent ? parent.width : 0
     readonly property int calendarGap: Math.round(Screen.height * 0.01)
-    implicitHeight: hovered ? calendarGap + calendarWidget.implicitHeight : 0
+    implicitHeight: (hovered || pinned) ? calendarGap + calendarWidget.implicitHeight : 0
 
     Rectangle {
         id: calendarWidget
@@ -35,6 +40,18 @@ Item {
                 margins: 8
             }
             spacing: 4
+
+            // Always reserved so pinning doesn't resize the panel — only the
+            // button's own visibility toggles within this constant-height row.
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 22
+
+                PinButton {
+                    visible: root.pinned
+                    onClicked: root.dismissRequested()
+                }
+            }
 
             DayOfWeekRow {
                 Layout.fillWidth: true

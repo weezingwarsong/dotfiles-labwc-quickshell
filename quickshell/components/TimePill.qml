@@ -2,14 +2,10 @@ import QtQuick
 
 Item {
     id: root
-    property bool hovered: false
+    property bool hovered: false  // unused; present so every Pill shares the same interface
 
     implicitWidth: parent ? parent.width : 0
     implicitHeight: Style.pillHeight
-
-    HoverHandler {
-        onHoveredChanged: root.hovered = hovered
-    }
 
     Text {
         id: clock

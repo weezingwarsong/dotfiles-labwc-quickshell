@@ -4,23 +4,13 @@ import Quickshell.Services.Mpris
 Item {
     id: root
     property MprisPlayer player: null
-    property bool hovered: false
-
-    signal wantsDismiss()
+    property bool hovered: false  // unused; present so every Pill shares the same interface
 
     readonly property string _iconPlay:  String.fromCharCode(0xf04b)
     readonly property string _iconPause: String.fromCharCode(0xf04c)
 
     implicitWidth: parent ? parent.width : 0
     implicitHeight: Style.pillHeight
-
-    HoverHandler {
-        onHoveredChanged: {
-            root.hovered = hovered
-            if (!hovered && (!root.player || root.player.playbackState !== MprisPlaybackState.Playing))
-                root.wantsDismiss()
-        }
-    }
 
     MouseArea {
         anchors.fill: parent

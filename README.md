@@ -94,11 +94,11 @@ dotfiles-labwc-quickshell/
 
 **Single-slot bar** — one rigid rectangular bar at the top-center. The bar itself never moves or resizes; only one module's content is shown at a time, and switching between them rolls the outgoing text/icon out one edge while the incoming one rolls in from the other — like text printed on a cylinder rotating behind the bar. Priority order: recording > workspace flash > MPRIS > time.
 
-**Time module** — shows the current time in `HHmm` format. Hovering slides down a calendar panel with the current month, today highlighted in Nord7.
+**Time module** — shows the current time in `HHmm` format. Hovering slides down a calendar panel with the current month, today highlighted in Nord7; the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` toggles it open/closed directly, independent of hover.
 
 **Workspace module** — two filled squares representing workspaces 1 and 2. Active is Nord7, inactive is Nord3. Flashes for 1 second on switch then returns to the resting module.
 
-**MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist. Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front. Dismisses 1 second after playback stops.
+**MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist. Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front; the panel stays open across the whole pill+panel region, not just the pill. Dismisses 1 second after playback stops, unless hovering continuously for 30s has pinned it open permanently (thumbtack button to unpin), which overrides the auto-dismiss.
 
 **Window switcher** — `Super+Tab` opens a panel with all open windows in a flat list, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). The currently focused window is shown muted. Powered by `qs-watcher`, a native C binary that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
 
@@ -136,6 +136,7 @@ Emits one compact JSON line per state change to stdout. quickshell spawns `qs-wa
 | Key | Action |
 |---|---|
 | `Super + Tab` | Window switcher (quickshell) |
+| `Super + 1` | Toggle calendar panel (quickshell) |
 | `Alt + Tab / Alt + Shift + Tab` | Cycle windows forward / backward |
 | `Super + Alt + X` / `Alt + F4` | Close window |
 | `Super + Alt + F` | Maximize |

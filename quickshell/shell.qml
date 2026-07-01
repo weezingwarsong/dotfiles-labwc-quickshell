@@ -19,6 +19,17 @@ ShellRoot {
     property var    _wallpaperBuf: []
     property var    windows: []
 
+    // ── Hover-panel state (calendar, MPRIS player) ────────────────────────────
+    // `_panelHovered` tracks the mouse over the combined bar+panel region (see
+    // the HoverHandler below) — not just the bar itself — so moving from the
+    // pill down into its panel doesn't count as leaving. The `*Pinned` flags
+    // live here (not on the Time.qml/Mpris.qml panel instances) so they survive
+    // the panel being destroyed/recreated during brief interruptions (workspace
+    // flash, recording) while that module isn't the active one.
+    property bool _panelHovered: false
+    property bool _calendarPinned: false
+    property bool _mprisPinned: false
+
     // ── Transition state ──────────────────────────────────────────────────────
     property string _prevModule: ""
     property string _outgoingModule: ""
@@ -67,13 +78,8 @@ ShellRoot {
         }
         if (mod === "recording" || mod === "recordingSaved")
             item.saved = Qt.binding(() => root.activeModule === "recordingSaved")
-        if (mod === "mpris") {
+        if (mod === "mpris")
             item.player = Qt.binding(() => root.mprisPlayer)
-            item.wantsDismiss.connect(function() {
-                if (!root.isMprisActive && root.activeModule === "mpris")
-                    mprisTimer.restart()
-            })
-        }
     }
 
     // Set static snapshot values on outLoader (the exiting pill).
@@ -90,23 +96,55 @@ ShellRoot {
         if (mod === "mpris")                                 item.player = root.mprisPlayer
     }
 
-    // Bind the expanded panel below the bar. `hovered` is relayed from
-    // whichever pill is currently loaded for this module (pillLoader.source
-    // tracks activeModule the same tick moduleLoader.source does, so this
-    // never reads a stale pill instance).
+    // Bind the expanded panel below the bar. Time's and MPRIS's `hovered`/
+    // `pinned` both come from the root-level combined-region hover and pin
+    // state (see _panelHovered above), since each panel's hover area spans
+    // pill+gap+panel, not just the pill.
     function _bindPanel(loader, mod) {
         var item = loader.item
         if (!item) return
-        if (mod === "mpris" || mod === "time")
-            item.hovered = Qt.binding(() => pillLoader.item ? pillLoader.item.hovered : false)
-        if (mod === "mpris")
-            item.player = Qt.binding(() => root.mprisPlayer)
+        if (mod === "mpris") {
+            item.hovered = Qt.binding(() => root._panelHovered)
+            item.pinned  = Qt.binding(() => root._mprisPinned)
+            item.player  = Qt.binding(() => root.mprisPlayer)
+            item.dismissRequested.connect(function() {
+                root._mprisPinned = false
+                // Re-arm the countdown if still hovering — see the "time" branch below.
+                root._updatePanelPinTimer()
+            })
+        }
+        if (mod === "time") {
+            item.hovered = Qt.binding(() => root._panelHovered)
+            item.pinned  = Qt.binding(() => root._calendarPinned)
+            item.dismissRequested.connect(function() {
+                root._calendarPinned = false
+                // Dismissing happens while still hovering (you just clicked a
+                // button on the panel) — no hover transition occurs to restart
+                // the countdown on its own, so re-arm it explicitly here.
+                root._updatePanelPinTimer()
+            })
+        }
         if (mod === "window") {
             item.windows = Qt.binding(() => root.windows)
             item.windowFocused.connect(function() {
                 root.activeModule = root.restingModule
             })
         }
+    }
+
+    // Starts/stops the 30s "make it permanent" countdown for whichever
+    // hover-panel module is currently active; called whenever the combined
+    // region's hover state or activeModule changes.
+    function _updatePanelPinTimer() {
+        if (root._panelHovered && root.activeModule === "time")
+            calendarPinTimer.restart()
+        else
+            calendarPinTimer.stop()
+
+        if (root._panelHovered && root.activeModule === "mpris")
+            mprisPinTimer.restart()
+        else
+            mprisPinTimer.stop()
     }
 
     Component.onCompleted: {
@@ -140,6 +178,8 @@ ShellRoot {
         root._rollProgress = 0
         root._rollScaleProgress = 0
         rollAnim.restart()
+
+        root._updatePanelPinTimer()
     }
 
     function _syncMpris() {
@@ -161,7 +201,7 @@ ShellRoot {
         } else if (wasActive) {
             if (paused !== null) root.mprisPlayer = paused
             var comp = moduleLoader.item
-            if (root.activeModule === "mpris" && (!comp || !comp.hovered))
+            if (root.activeModule === "mpris" && !root._mprisPinned && (!comp || !comp.hovered))
                 mprisTimer.restart()
         }
     }
@@ -206,6 +246,24 @@ ShellRoot {
                 } else if (event.key === Qt.Key_Tab && (event.modifiers & Qt.MetaModifier)) {
                     root.activeModule = root.restingModule
                     event.accepted = true
+                }
+            }
+
+            // Tracks the mouse over the combined bar+panel region — this Item's
+            // bounds already equal Style.pillHeight + moduleLoader.implicitHeight
+            // (it fills the PanelWindow, which is sized to exactly that), so this
+            // naturally grows to cover a panel the moment it opens. Only consumed
+            // when the active module actually has a hover-based panel (time,
+            // mpris); harmless no-op otherwise.
+            HoverHandler {
+                onHoveredChanged: {
+                    root._panelHovered = hovered
+                    root._updatePanelPinTimer()
+                    // MPRIS auto-returns to time 1s after you stop hovering it,
+                    // unless it's playing (isMprisActive) or pinned permanent.
+                    if (!hovered && root.activeModule === "mpris" &&
+                            !root._mprisPinned && !root.isMprisActive)
+                        mprisTimer.restart()
                 }
             }
 
@@ -321,6 +379,20 @@ ShellRoot {
         }
     }
 
+    // Fire once the combined bar+panel region has been continuously hovered
+    // for 30s while that module is active, making its panel permanent until
+    // dismissed (and, for MPRIS, overriding the auto-return-on-stop below).
+    Timer {
+        id: calendarPinTimer
+        interval: 30000
+        onTriggered: root._calendarPinned = true
+    }
+    Timer {
+        id: mprisPinTimer
+        interval: 30000
+        onTriggered: root._mprisPinned = true
+    }
+
     // Return to resting module after workspace flash
     Timer {
         id: workspaceTimer
@@ -404,6 +476,33 @@ ShellRoot {
                     root.activeModule = root.restingModule
                 else
                     root.activeModule = "window"
+            }
+        }
+    }
+
+    // FIFO-based toggle for the calendar panel — labwc W-1 writes to this pipe.
+    // Same self-kill-by-PID pattern as windowToggleReader above. Toggling on
+    // forces the bar to "time" and pins the calendar open (permanent, same as
+    // the 30s-hover pin); toggling off unpins it and returns to restingModule.
+    Process {
+        id: calendarToggleReader
+        command: ["sh", "-c",
+            "P=/tmp/qs-calendar-toggle-reader.pid; " +
+            "if [ -f \"$P\" ]; then O=$(cat \"$P\"); pkill -P \"$O\" 2>/dev/null; kill \"$O\" 2>/dev/null; fi; " +
+            "echo $$ > \"$P\"; " +
+            "rm -f /tmp/qs-calendar-toggle; mkfifo /tmp/qs-calendar-toggle; " +
+            "while true; do cat /tmp/qs-calendar-toggle; done"]
+        running: true
+        stdout: SplitParser {
+            onRead: function(line) {
+                if (line.trim() !== "toggle") return
+                if (root.activeModule === "time" && root._calendarPinned) {
+                    root._calendarPinned = false
+                    root.activeModule = root.restingModule
+                } else {
+                    root.activeModule = "time"
+                    root._calendarPinned = true
+                }
             }
         }
     }
