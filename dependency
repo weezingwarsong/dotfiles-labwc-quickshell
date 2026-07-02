@@ -56,6 +56,12 @@ noto-fonts-emoji            # Emoji fallback
 # ── NOTIFICATIONS ────────────────────────────────────────────────────────────
 mako                        # Wayland notification daemon (Nord-themed)
 
+# ── CALENDAR (Google Calendar sync — helper/calendar/gcal_fetch.py) ──────────
+python-google-api-python-client  # Calendar API client
+python-google-auth-oauthlib      # OAuth consent flow (InstalledAppFlow)
+python-google-auth-httplib2      # AuthorizedHttp — lets us set a request timeout
+python-cryptography              # required by google-auth's crypt backend
+
 # ── BUILD (workspace-watcher + toplevel-watcher) ──────────────────────────────
 gcc                         # C compiler
 pkgconf                     # pkg-config — wayland-client flags for watcher builds
@@ -85,7 +91,9 @@ sudo pacman -S \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \
-    ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
+    ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji \
+    python-google-api-python-client python-google-auth-oauthlib \
+    python-google-auth-httplib2 python-cryptography
 
 # ── AUR ──────────────────────────────────────────────────────────────────────
 yay -S \

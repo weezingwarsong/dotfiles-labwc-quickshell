@@ -9,3 +9,4 @@ helper/watcher/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h
 helper/watcher/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c
 helper/watcher/qs-watcher
 quickshell/wallpaper/*
+helper/calendar/__pycache__/

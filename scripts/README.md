@@ -12,3 +12,4 @@ Helper scripts used by quickshell and labwc. Symlinked to `~/.config/scripts/` b
 | `system-logout.sh` | Sends a cancellable `notify-send` confirmation, then runs `labwc --exit` if not cancelled. | `labwc/menu.xml` — Logout item |
 | `system-reboot.sh` | Sends a cancellable `notify-send` confirmation, then runs `systemctl reboot` if not cancelled. | `labwc/menu.xml` — Reboot item |
 | `system-shutdown.sh` | Sends a cancellable `notify-send` confirmation, then runs `systemctl poweroff` if not cancelled. | `labwc/menu.xml` — Shutdown item |
+| `gcal-notify.sh` | Thin `notify-send` wrapper (app name/icon in one place). Usage: `gcal-notify.sh <urgency> <summary> <body>` | `helper/calendar/gcal_fetch.py` — reports lock conflicts and re-auth-required state |

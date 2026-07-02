@@ -58,9 +58,14 @@ dotfiles-labwc-quickshell/
 │   │   └── qmldir
 │   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
 │
-├── helper/watcher/
-│   └── main.c                       # C binary (qs-watcher) — zwlr_foreign_toplevel_manager_v1 +
-│                                    #   ext_workspace_manager_v1; emits JSON: {windows:[...], active_ws_name:"..."}
+├── helper/
+│   ├── watcher/
+│   │   └── main.c                   # C binary (qs-watcher) — zwlr_foreign_toplevel_manager_v1 +
+│   │                                #   ext_workspace_manager_v1; emits JSON: {windows:[...], active_ws_name:"..."}
+│   └── calendar/
+│       └── gcal_fetch.py            # Google Calendar sync — prints {"events":[...]} JSON. Fetch mode (default,
+│                                    #   for quickshell) never opens a browser; `--auth` does the OAuth consent
+│                                    #   flow by hand. Credentials live outside the repo, see below.
 │
 ├── mako/
 │   └── config                       # mako notification daemon config (Nord, 90% opacity)
@@ -188,7 +193,9 @@ sudo pacman -S \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \
-    ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
+    ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji \
+    python-google-api-python-client python-google-auth-oauthlib \
+    python-google-auth-httplib2 python-cryptography
 
 # AUR
 yay -S \
@@ -224,11 +231,16 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 ## Roadmap / To-do
 
+- [ ] **Proper calendar panel** — redesign the calendar panel (currently a placeholder `MonthGrid`): today's agenda list on the left, month view + weather on the right, button rail (settings / open-in-browser / TBD), pin button top-right.
+  - [x] `helper/calendar/gcal_fetch.py` pulls events from Google Calendar and prints `{"events":[...]}` JSON. Installed as `gcal-fetch` on PATH via `install.sh` (symlinked, so repo edits are live immediately). Fetch mode (default, for quickshell) never opens a browser; on auth failure it notifies via `scripts/gcal-notify.sh` (`notify-send` wrapper) and exits instead. `gcal-fetch --auth` does the OAuth consent flow by hand — needed for initial setup and, while the OAuth consent screen stays in "Testing" publishing status, roughly every 7 days (Google's refresh-token expiry for unverified apps — publish the app in Cloud Console to remove this).
+  - [ ] OAuth credentials (`~/.config/gcal-quickshell/credentials.json`, downloaded from Google Cloud Console) and the cached `token.json` live outside the repo — this repo is public on GitHub, so they must never be committed. Not part of `install.sh`; set up manually per-machine.
+  - [ ] Wire `gcal-fetch` into `shell.qml` as a periodic `Process` (same pattern as the wallpaper scanner/`qs-watcher`), then build the panel layout in `Time.qml`.
+
 - [ ] **Settings component** — a quickshell module (triggered by a keybind) for configuring user preferences at runtime without editing files. First candidate: the `focus-or-open.sh` app\_id mappings for `W-w` (browser) and `W-e` (file manager), so swapping browsers or file managers doesn't require touching rc.xml or the script. Settings would write to a small config file that the scripts and shell read.
 
 - [ ] **Default apps** (under Settings) — replace hardcoded app references (e.g. `kitty` as terminal) with `xdg-open` and XDG MIME defaults so the system respects the user's preferred apps rather than baking names into scripts and keybinds.
 
-- [ ] **Wallpaper management** — add a wallpaper panel/module to the settings component so wallpapers can be browsed and assigned to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames. Also: the wallpaper module is currently broken and needs investigation.
+- [ ] **Wallpaper management** — add a wallpaper panel/module to the settings component so wallpapers can be browsed and assigned to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames.
 
 - [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to grow/shrink in height when they open/close, mirroring the bar's vertical roll transition instead of popping open instantly.
 

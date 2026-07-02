@@ -44,8 +44,16 @@ gcc -O2 -o "$BUILD_DIR/qs-watcher" \
     "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c" \
     $(pkg-config --cflags --libs wayland-client)
 mkdir -p "$HOME/.local/bin"
-cp "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
+# mv (not cp) — an atomic rename swaps the directory entry instead of writing
+# into the target inode, so it can't collide with a running qs-watcher
+# instance (quickshell respawns it within 2s of exit, so this is a real race).
+mv "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
 echo "  installed qs-watcher → ~/.local/bin"
+
+# gcal_fetch.py is symlinked (not copied) — it's a plain script, so edits in
+# the repo take effect immediately without rerunning install.sh.
+ln -snf "$DOTFILES/helper/calendar/gcal_fetch.py" "$HOME/.local/bin/gcal-fetch"
+echo "  linked gcal-fetch → ~/.local/bin"
 
 # Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find qs-watcher.
 # labwc reads this file before launching child processes; the user's shell PATH is not inherited.
@@ -53,7 +61,7 @@ LOCAL_BIN="$HOME/.local/bin"
 ENV_FILE="$DOTFILES/labwc/environment"
 if ! grep -q "^PATH=.*$LOCAL_BIN" "$ENV_FILE" 2>/dev/null; then
     printf "\n  ~/.local/bin is not in labwc/environment PATH.\n"
-    printf "  quickshell needs this to find qs-watcher at runtime.\n"
+    printf "  quickshell needs this to find qs-watcher/gcal-fetch at runtime.\n"
     printf "  Add it automatically? [Y/n] "
     read -r _answer
     if [ "${_answer:-y}" != "n" ] && [ "${_answer:-y}" != "N" ]; then
@@ -64,7 +72,7 @@ if ! grep -q "^PATH=.*$LOCAL_BIN" "$ENV_FILE" 2>/dev/null; then
         fi
         echo "  added ~/.local/bin to PATH in labwc/environment"
     else
-        echo "  skipped — add PATH=~/.local/bin:\$PATH to labwc/environment manually or qs-watcher won't be found"
+        echo "  skipped — add PATH=~/.local/bin:\$PATH to labwc/environment manually or qs-watcher/gcal-fetch won't be found"
     fi
 fi
 
@@ -80,4 +88,6 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
-echo "  Note: ensure ~/.local/bin is in your PATH for qs-watcher."
+echo "  Note: ensure ~/.local/bin is in your PATH for qs-watcher/gcal-fetch."
+echo "  Note: gcal-fetch needs ~/.config/gcal-quickshell/credentials.json (Google OAuth client, not in this repo)."
+echo "        Run 'gcal-fetch --auth' once to complete the consent flow."
