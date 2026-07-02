@@ -119,12 +119,15 @@ def get_credentials(interactive):
     return creds
 
 
-def fetch_events(creds, days_ahead=7, max_results=20):
+def fetch_events(creds, days_back=90, days_ahead=730, max_results=250):
+    # Window covers roughly -3 months to +24 months so the calendar panel's
+    # month-navigation UI can color/tooltip event days by filtering this
+    # already-cached list client-side, instead of re-fetching per click.
     authed_http = AuthorizedHttp(creds, http=httplib2.Http(timeout=HTTP_TIMEOUT_SECS))
     service = build("calendar", "v3", http=authed_http, cache_discovery=False)
 
     now = datetime.datetime.now(datetime.timezone.utc)
-    time_min = now.isoformat()
+    time_min = (now - datetime.timedelta(days=days_back)).isoformat()
     time_max = (now + datetime.timedelta(days=days_ahead)).isoformat()
 
     result = service.events().list(

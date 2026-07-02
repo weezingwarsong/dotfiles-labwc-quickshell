@@ -1,5 +1,7 @@
 singleton Style 1.0 Style.qml
 PinButton 1.0 PinButton.qml
+PanelIconButton 1.0 PanelIconButton.qml
+PanelToolTip 1.0 PanelToolTip.qml
 Window 1.0 Window.qml
 Time 1.0 Time.qml
 WallpaperWindow 1.0 WallpaperWindow.qml

@@ -47,14 +47,18 @@ dotfiles-labwc-quickshell/
 │   ├── components/
 │   │   ├── Style.qml                # singleton — all colours, fonts, spacing tokens
 │   │   ├── TimePill.qml             # bar content — clock (HHmm)
-│   │   ├── Time.qml                 # calendar panel, opens on TimePill hover
+│   │   ├── Time.qml                 # calendar panel, opens on TimePill hover — agenda, navigable
+│   │   │                            #   month grid + picker, weather placeholder, button rail
 │   │   ├── WorkspacePill.qml        # bar content — dual-square workspace indicator (flashes on switch)
-│   │   ├── MprisPill.qml            # bar content — MPRIS play/pause icon + track text
-│   │   ├── Mpris.qml                # MPRIS player panel, opens on MprisPill hover
+│   │   ├── MprisPill.qml            # bar content — MPRIS play/pause icon + marquee-scrolling track text
+│   │   ├── Mpris.qml                # MPRIS player panel, opens on MprisPill hover — marquee title too
 │   │   ├── RecordingPill.qml        # bar content — recording state (RECORDING / RECORDING SAVED)
 │   │   ├── WindowPill.qml           # bar content — static "Window" label
 │   │   ├── Window.qml               # window switcher panel — flat list, filter, keyboard nav
 │   │   ├── WallpaperWindow.qml      # background-layer wallpaper surface
+│   │   ├── PinButton.qml            # shared — thumbtack button that docks to a panel's top-right corner
+│   │   ├── PanelIconButton.qml      # shared — square hover-grow icon button, Layout-safe (fixed footprint)
+│   │   ├── PanelToolTip.qml         # shared — Nord-styled tooltip; instantiate directly, drive visible/text
 │   │   └── qmldir
 │   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
 │
@@ -66,6 +70,9 @@ dotfiles-labwc-quickshell/
 │       └── gcal_fetch.py            # Google Calendar sync — prints {"events":[...]} JSON. Fetch mode (default,
 │                                    #   for quickshell) never opens a browser; `--auth` does the OAuth consent
 │                                    #   flow by hand. Credentials live outside the repo, see below.
+│
+├── design/
+│   └── sketches/                    # hand-drawn UI mockups referenced during implementation
 │
 ├── mako/
 │   └── config                       # mako notification daemon config (Nord, 90% opacity)
@@ -99,11 +106,17 @@ dotfiles-labwc-quickshell/
 
 **Single-slot bar** — one rigid rectangular bar at the top-center. The bar itself never moves or resizes; only one module's content is shown at a time, and switching between them rolls the outgoing text/icon out one edge while the incoming one rolls in from the other — like text printed on a cylinder rotating behind the bar. Priority order: recording > workspace flash > MPRIS > time.
 
-**Time module** — shows the current time in `HHmm` format. Hovering slides down a calendar panel with the current month, today highlighted in Nord7; the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` toggles it open/closed directly, independent of hover.
+**Time module** — shows the current time in `HHmm` format. Hovering slides down a wide calendar panel (independent panel width — see `_panelWidthFrac` in `shell.qml`; the pill itself never resizes); the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` toggles it open/closed directly, independent of hover.
+- **Agenda** (left) — today's events pulled from `gcal-fetch`, split into all-day and timed, with tooltips on truncated titles.
+- **Month view** (middle) — navigable via prev/next triangle buttons or a month/year picker (click the month/year label; it inline-swaps to a year+month grid rather than a floating popup, since a fixed-size Wayland layer-shell surface has no "outside the window" for an overlay to render into). Days with events are highlighted with a tooltip listing them; today gets a hover-grow button treatment and, when the picker is open, the label becomes a "Today" shortcut back to the current month.
+- **Weather** (below month view) — placeholder only, not wired to a data source yet.
+- **Button rail** (right) — settings (inert, pending the Settings roadmap item), open-in-browser (`xdg-open` to Google Calendar), and a reserved placeholder.
 
 **Workspace module** — two filled squares representing workspaces 1 and 2. Active is Nord7, inactive is Nord3. Flashes for 1 second on switch then returns to the resting module.
 
-**MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist. Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front; the panel stays open across the whole pill+panel region, not just the pill. Dismisses 1 second after playback stops, unless hovering continuously for 30s has pinned it open permanently (thumbtack button to unpin), which overrides the auto-dismiss.
+**MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist, both marquee-scrolling when too long to fit (pill: continuous one-way scroll-and-snap; panel: pause/scroll/pause/reverse). Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front; the panel stays open across the whole pill+panel region, not just the pill. Dismisses 1 second after playback stops, unless hovering continuously for 30s has pinned it open permanently (thumbtack button to unpin), which overrides the auto-dismiss.
+
+**Calendar sync** — `helper/calendar/gcal_fetch.py` (installed as `gcal-fetch` on `PATH`) pulls Google Calendar events via OAuth and prints JSON; quickshell polls it every 5 minutes and caches the result client-side (window: -3 months to +24 months), so month navigation in the Time module never triggers a network call. Fetch mode never opens a browser — on auth failure it notifies (currently via `scripts/gcal-notify.sh`, a `notify-send` wrapper) and exits; re-auth is `gcal-fetch --auth`, run by hand. Credentials (`~/.config/gcal-quickshell/credentials.json` + cached `token.json`) live outside the repo, since it's public on GitHub.
 
 **Window switcher** — `Super+Tab` opens a panel with all open windows in a flat list, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). The currently focused window is shown muted. Powered by `qs-watcher`, a native C binary that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
 
@@ -231,10 +244,10 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 ## Roadmap / To-do
 
-- [ ] **Proper calendar panel** — redesign the calendar panel (currently a placeholder `MonthGrid`): today's agenda list on the left, month view + weather on the right, button rail (settings / open-in-browser / TBD), pin button top-right.
-  - [x] `helper/calendar/gcal_fetch.py` pulls events from Google Calendar and prints `{"events":[...]}` JSON. Installed as `gcal-fetch` on PATH via `install.sh` (symlinked, so repo edits are live immediately). Fetch mode (default, for quickshell) never opens a browser; on auth failure it notifies via `scripts/gcal-notify.sh` (`notify-send` wrapper) and exits instead. `gcal-fetch --auth` does the OAuth consent flow by hand — needed for initial setup and, while the OAuth consent screen stays in "Testing" publishing status, roughly every 7 days (Google's refresh-token expiry for unverified apps — publish the app in Cloud Console to remove this).
-  - [ ] OAuth credentials (`~/.config/gcal-quickshell/credentials.json`, downloaded from Google Cloud Console) and the cached `token.json` live outside the repo — this repo is public on GitHub, so they must never be committed. Not part of `install.sh`; set up manually per-machine.
-  - [ ] Wire `gcal-fetch` into `shell.qml` as a periodic `Process` (same pattern as the wallpaper scanner/`qs-watcher`), then build the panel layout in `Time.qml`.
+- [x] **Calendar panel** — see the "Time module" and "Calendar sync" entries under Features above for the full shape of what's built: agenda, navigable month view + inline picker, event highlighting/tooltips, button rail, and the `gcal-fetch` backend wired into `shell.qml` as a periodic `Process`.
+  > OAuth credentials (`~/.config/gcal-quickshell/credentials.json`, from Google Cloud Console) and the cached `token.json` live outside the repo — it's public on GitHub — so they're never committed and aren't part of `install.sh`; set up by hand per-machine with `gcal-fetch --auth`.
+  - [ ] Weather box is still a placeholder — no data source wired up.
+  - [ ] Settings button in the panel's button rail is inert — wire it once the Settings component (below) exists.
 
 - [ ] **Settings component** — a quickshell module (triggered by a keybind) for configuring user preferences at runtime without editing files. First candidate: the `focus-or-open.sh` app\_id mappings for `W-w` (browser) and `W-e` (file manager), so swapping browsers or file managers doesn't require touching rc.xml or the script. Settings would write to a small config file that the scripts and shell read.
 

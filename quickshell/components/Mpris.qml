@@ -83,15 +83,54 @@ Item {
                 }
             }
 
-            // Title
-            Text {
+            // Title — marquee-scrolls when too long to fit; otherwise
+            // stays static and centered like before.
+            Item {
+                id: titleClip
                 width: parent.width
-                text: root.player ? (root.player.trackTitle || "") : ""
-                color: Style.textBright
-                font.family: Style.fontFamily
-                font.pointSize: Style.fontSize
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
+                height: titleText.implicitHeight
+                clip: true
+
+                readonly property real overflowPx: Math.max(0, titleText.implicitWidth - titleClip.width)
+
+                Text {
+                    id: titleText
+                    text: root.player ? (root.player.trackTitle || "") : ""
+                    color: Style.textBright
+                    font.family: Style.fontFamily
+                    font.pointSize: Style.fontSize
+                    horizontalAlignment: Text.AlignHCenter
+                    // Static case: box == parent width, centered by
+                    // horizontalAlignment, x stays 0. Overflow case: box
+                    // shrinks to its natural (wider) size and the animation
+                    // below drives x instead — no competing binding on x.
+                    width: titleClip.overflowPx > 0 ? implicitWidth : titleClip.width
+
+                    SequentialAnimation {
+                        // Gate on hovered/pinned too — this Item isn't
+                        // destroyed while the panel is collapsed (just
+                        // zero-height), so without this it'd keep animating
+                        // in the background for no visible benefit.
+                        running: titleClip.overflowPx > 0 && (root.hovered || root.pinned)
+                        loops: Animation.Infinite
+                        onRunningChanged: if (!running) titleText.x = 0
+
+                        PauseAnimation { duration: 1200 }
+                        NumberAnimation {
+                            target: titleText; property: "x"
+                            to: -titleClip.overflowPx
+                            duration: Math.max(1500, titleClip.overflowPx * 25)
+                            easing.type: Easing.InOutQuad
+                        }
+                        PauseAnimation { duration: 1200 }
+                        NumberAnimation {
+                            target: titleText; property: "x"
+                            to: 0
+                            duration: Math.max(1500, titleClip.overflowPx * 25)
+                            easing.type: Easing.InOutQuad
+                        }
+                    }
+                }
             }
 
             // Artist

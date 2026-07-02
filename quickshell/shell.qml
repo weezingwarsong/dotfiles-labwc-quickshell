@@ -18,6 +18,7 @@ ShellRoot {
     property var    wallpapers: []
     property var    _wallpaperBuf: []
     property var    windows: []
+    property var    calendarEvents: []
 
     // ── Hover-panel state (calendar, MPRIS player) ────────────────────────────
     // `_panelHovered` tracks the mouse over the combined bar+panel region (see
@@ -65,6 +66,15 @@ ShellRoot {
         if (mod === "window") return Qt.resolvedUrl("components/Window.qml")
         if (mod === "time")   return Qt.resolvedUrl("components/Time.qml")
         return ""
+    }
+
+    // Fraction of screen width for the panel *window* (bar + its panel).
+    // The bar itself stays a fixed small pill regardless (see `bar.width` in
+    // the PanelWindow below) — only the panel content area below it grows.
+    // Calendar is a wide dashboard layout; everything else keeps the
+    // original narrow width.
+    function _panelWidthFrac(mod) {
+        return mod === "time" ? 0.20 : 0.10
     }
 
     // Bind live Qt.binding() properties on a freshly loaded pill item.
@@ -116,6 +126,7 @@ ShellRoot {
         if (mod === "time") {
             item.hovered = Qt.binding(() => root._panelHovered)
             item.pinned  = Qt.binding(() => root._calendarPinned)
+            item.events  = Qt.binding(() => root.calendarEvents)
             item.dismissRequested.connect(function() {
                 root._calendarPinned = false
                 // Dismissing happens while still hovering (you just clicked a
@@ -224,7 +235,7 @@ ShellRoot {
         margins.top: 4
         exclusiveZone: 28
 
-        implicitWidth: Math.round(Screen.width * 0.10)
+        implicitWidth: Math.round(Screen.width * root._panelWidthFrac(root.activeModule))
         // Panels are no longer part of the roll transition, so their height
         // always tracks the panel content directly — no clamping needed.
         implicitHeight: Style.pillHeight + moduleLoader.implicitHeight
@@ -272,7 +283,12 @@ ShellRoot {
             // cylinder rotating behind the bar's clipped window. ─────────────
             Rectangle {
                 id: bar
-                width: parent.width
+                // Fixed to the narrow width regardless of which module is
+                // active — only the panel window itself (and moduleLoader
+                // below) grows for wide panels like the calendar. Without
+                // this, the always-visible pill would stretch to match.
+                width: Math.round(Screen.width * 0.10)
+                anchors.horizontalCenter: parent.horizontalCenter
                 height: Style.pillHeight
                 clip: true
                 radius: Style.pillRadius
@@ -567,6 +583,35 @@ ShellRoot {
         onExited: function(code, signal) {
             root.wallpapers = root._wallpaperBuf.slice()
         }
+    }
+
+    // Polls gcal-fetch (helper/calendar/gcal_fetch.py) on a timer — it's a
+    // one-shot script (OAuth + network round trip), not a resident daemon
+    // like qs-watcher, so there's nothing to hold open between fetches.
+    // On any failure it still prints valid JSON with an empty events array
+    // (see gcal_fetch.py), except when another instance holds the lock —
+    // then stdout is empty and JSON.parse throws, so the catch below just
+    // keeps the last-known-good calendarEvents rather than clearing it.
+    Process {
+        id: calendarFetch
+        command: ["gcal-fetch"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var d = JSON.parse(text)
+                    root.calendarEvents = d.events || []
+                } catch (e) {}
+            }
+        }
+    }
+
+    Timer {
+        id: calendarFetchTimer
+        interval: 5 * 60 * 1000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: calendarFetch.running = true
     }
 
 }

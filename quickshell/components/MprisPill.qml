@@ -34,21 +34,43 @@ Item {
         font.pointSize: Style.fontSize
     }
 
-    Text {
+    // Marquee: one-way continuous scroll-left-and-snap-back, unlike the
+    // player panel's back-and-forth version — this is a much smaller,
+    // always-glanceable area, so a simple continuous loop reads better
+    // than a pause/bounce cycle.
+    Item {
+        id: titleClip
         anchors.left: pillIcon.right
         anchors.leftMargin: 6
         anchors.right: parent.right
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
-        text: {
-            if (!root.player) return ""
-            var artist = root.player.trackArtist || ""
-            var title  = root.player.trackTitle  || ""
-            return artist ? artist + " – " + title : title
+        height: pillText.implicitHeight
+        clip: true
+
+        readonly property real overflowPx: Math.max(0, pillText.implicitWidth - titleClip.width)
+
+        Text {
+            id: pillText
+            text: {
+                if (!root.player) return ""
+                var artist = root.player.trackArtist || ""
+                var title  = root.player.trackTitle  || ""
+                return artist ? artist + " – " + title : title
+            }
+            color: Style.textPillNormal
+            font.family: Style.fontFamily
+            font.pointSize: Style.fontSize
+            width: titleClip.overflowPx > 0 ? implicitWidth : titleClip.width
+
+            NumberAnimation on x {
+                running: titleClip.overflowPx > 0
+                loops: Animation.Infinite
+                from: 0
+                to: -titleClip.overflowPx
+                duration: Math.max(2000, titleClip.overflowPx * 40)
+                onRunningChanged: if (!running) pillText.x = 0
+            }
         }
-        color: Style.textPillNormal
-        font.family: Style.fontFamily
-        font.pointSize: Style.fontSize
-        elide: Text.ElideRight
     }
 }
