@@ -29,7 +29,12 @@ Item {
     readonly property string _iconNext:  String.fromCharCode(0xf051)
 
     implicitWidth: parent ? parent.width : 0
-    implicitHeight: (hovered || pinned) ? _gap + playerPanel.implicitHeight : 0
+    // Unconditional — shell.qml's panelClip is what clips/animates this panel
+    // in and out (root._panelOpen) now; gating it here too used to fight that
+    // animation, snapping this to 0 the instant hovered/pinned went false,
+    // which happens in the same tick a dismiss starts (before panelClip's
+    // own animation has moved at all).
+    implicitHeight: _gap + playerPanel.implicitHeight
 
     // ── Expanded player panel (rectangle-normal) ─────────────────────────────
     Rectangle {

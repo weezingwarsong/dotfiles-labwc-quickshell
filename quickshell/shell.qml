@@ -21,13 +21,17 @@ ShellRoot {
     property var    weatherData: ({})
 
     // ── Hover-panel state (calendar, MPRIS player) ────────────────────────────
-    // `_panelHovered` tracks the mouse over the combined bar+panel region (see
-    // the HoverHandler below) — not just the bar itself — so moving from the
-    // pill down into its panel doesn't count as leaving. The `*Pinned` flags
+    // `_rawPanelHovered` tracks the mouse over the combined bar+panel region
+    // (see the HoverHandler below) — not just the bar itself — so moving from
+    // the pill down into its panel doesn't count as leaving. `_panelHovered`
+    // (below, near _animating) is the gated value everything else reads —
+    // hovering in is suppressed while a roll/slide is mid-flight (spawning
+    // the expanded panel mid-animation looked broken), but hovering back OUT
+    // is never gated, so nothing can get stuck open. The `*Pinned` flags
     // live here (not on the Time.qml/Mpris.qml panel instances) so they survive
     // the panel being destroyed/recreated during brief interruptions (workspace
     // flash, recording) while that module isn't the active one.
-    property bool _panelHovered: false
+    property bool _rawPanelHovered: false
     property bool _calendarPinned: false
     property bool _mprisPinned: false
 
@@ -177,13 +181,39 @@ ShellRoot {
     // also popping the calendar/mpris panel open uninvited.
     readonly property bool _pillVisible: root._stackHasContent || root._panelHovered || root._hotZoneHovered || root._keybindReveal
 
-    // Only allowed to retract once no roll is mid-flight — this is what
-    // sequences "finish any in-flight roll, THEN hide" without any manual
-    // animation chaining (see _pillOpen below). Deliberately does not require
-    // activeModule === "time": mpris can sit as the topEntry for an entire
-    // song while _pillVisible is false (background session, not hovered),
-    // and must still be able to hide in that state.
-    readonly property bool _readyToHide: !root._pillVisible && !root._inTransition
+    // True while either half of the reveal/exit sequence (roll or slide) is
+    // actively animating — see _inTransition/rollAnim further down for the
+    // roll half. The slide half is checked as _pillOpen !== _pillOpenTarget
+    // (a plain value comparison) rather than the Behavior's animation
+    // .running flag — the two can otherwise have a one-tick gap right at the
+    // roll→slide handoff (_inTransition just went false, but the Behavior
+    // hasn't started animating _pillOpen towards its new target yet), and a
+    // hover landing in that gap was still slipping through during exit. The
+    // value comparison has no such gap: _pillOpenTarget updates synchronously
+    // with _inTransition, so it's already unequal to _pillOpen the instant
+    // the target changes, before the Behavior even starts. Used only to gate
+    // _panelHovered (below): hovering in while the pill/panel is still
+    // resizing or rolling used to spawn the expanded panel mid-motion, which
+    // looked broken; gating just the "hover in" edge means the instant the
+    // animation settles, _panelHovered reevaluates on its own (no manual
+    // re-check needed) if the mouse is still there.
+    readonly property bool _animating: root._inTransition || root._pillOpen !== root._pillOpenTarget
+
+    // The gated value everything else reads. _rawPanelHovered flips instantly
+    // on both hover-in and hover-out (see the HoverHandler below); ANDing
+    // with !_animating only suppresses the hover-*in* edge while animating —
+    // hover-out (_rawPanelHovered already false) is untouched, so nothing can
+    // get stuck open waiting for an animation that already finished.
+    readonly property bool _panelHovered: root._rawPanelHovered && !root._animating
+
+    // Only allowed to retract once no roll is mid-flight AND the panel has
+    // finished its own shrink (_panelOpen below) — this is what sequences
+    // "finish any in-flight roll and panel-shrink, THEN hide" without any
+    // manual animation chaining (see _pillOpen below). Deliberately does not
+    // require activeModule === "time": mpris can sit as the topEntry for an
+    // entire song while _pillVisible is false (background session, not
+    // hovered), and must still be able to hide in that state.
+    readonly property bool _readyToHide: !root._pillVisible && !root._inTransition && root._panelOpen === 0
 
     // Target open state, as a plain binding rather than imperative onChanged
     // handlers (QML's auto-generated on<Prop>Changed name isn't reliable for
@@ -193,10 +223,42 @@ ShellRoot {
     // Behavior animating the transition — this also gives the correct
     // hidden-by-default value for free at startup (nothing on the stack →
     // target is 0 from the very first evaluation, no special-casing needed).
+    // Easing is reactive rather than a fixed Style constant: OutQuad (fast
+    // start, decelerating) entering, InQuad (slow start, accelerating)
+    // exiting — see the matching choice on _panelOpen and rollAnim below,
+    // all three stages of the same enter/exit sequence share this pair.
     readonly property real _pillOpenTarget: (root._pillVisible || !root._readyToHide) ? 1.0 : 0.0
     property real _pillOpen: root._pillOpenTarget
     Behavior on _pillOpen {
-        NumberAnimation { duration: Style.pillSlideDuration; easing.type: Style.pillSlideEasing }
+        NumberAnimation {
+            duration: Style.pillSlideDuration
+            easing.type: root._pillOpenTarget ? Easing.OutQuad : Easing.InQuad
+        }
+    }
+
+    // Drives the expanded panel's own grow/shrink (see panelClip below), the
+    // last of three strictly sequential 50ms stages — see Style.qml's
+    // Animation section for the full Pill→Text→Panel (enter) / Panel→Text→
+    // Pill (exit) picture:
+    //   - Enter: target only goes true once _pillOpen has reached 1 AND the
+    //     roll has finished (!_inTransition) — using _pillOpen rather than
+    //     _pillVisible/_pillOpenTarget is what makes this wait for the
+    //     slide's last animated frame, not just its start; requiring
+    //     !_inTransition too is what pushes the panel behind the text stage
+    //     instead of running alongside it.
+    //   - Exit: target goes false the instant _pillVisible does, immediately
+    //     — before the roll (_inTransition) even reacts to the same
+    //     intent-to-close, since the panel must be the very first thing to
+    //     move on the way out. onActiveModuleChanged (below) is what then
+    //     delays the roll until this finishes, and _readyToHide gates the
+    //     pill-slide on both the roll and this being done, in that order.
+    readonly property bool _panelOpenTarget: root._pillVisible && root._pillOpen === 1 && !root._inTransition
+    property real _panelOpen: root._panelOpenTarget ? 1.0 : 0.0
+    Behavior on _panelOpen {
+        NumberAnimation {
+            duration: Style.pillSlideDuration
+            easing.type: root._panelOpenTarget ? Easing.OutQuad : Easing.InQuad
+        }
     }
 
     // The bar's rolling content — a lightweight icon+text component per module,
@@ -323,6 +385,21 @@ ShellRoot {
     // (declared where they're used below) — they update immediately, but pillLoader
     // stays invisible (visible: !_inTransition) until the roll finishes, so there's
     // no premature flash of the new content.
+    //
+    // Enter/exit vs. steady-state swap: on enter, _pillOpen < 1 means the
+    // container itself hasn't finished growing yet (possibly just starting
+    // this same tick) — the roll is delayed until that finishes
+    // (rollStartDelay, timed to pillSlideDuration), giving Pill→Text→Panel.
+    // On exit, _panelOpen > 0 && !_panelOpenTarget means the panel is still
+    // (or about to start) shrinking — the roll is equally delayed until
+    // *that* finishes instead, giving Panel→Text→Pill. If neither is true,
+    // the container isn't moving at all (a plain in-place module swap, e.g.
+    // recording preempting mpris while both are visible), so the roll starts
+    // immediately, same as always. Either delayed case, the reverse-direction
+    // partner needs no equivalent delay of its own here — _readyToHide's
+    // `!_inTransition` already blocks the pill-slide from starting until the
+    // roll has finished, and _panelOpenTarget's own `!_inTransition` already
+    // blocks the panel-grow the same way on enter.
     onActiveModuleChanged: {
         var prev = root._prevModule
         root._prevModule = root.activeModule
@@ -337,12 +414,36 @@ ShellRoot {
         outLoader.source = root._pillSource(prev)
         inLoader.source  = root._pillSource(root.activeModule)
 
+        // Checked before flipping _inTransition below: _panelOpenTarget itself
+        // depends on !_inTransition (see its declaration), so evaluating it
+        // after that flip would always read false here and over-delay even
+        // the steady-state case. !_pillVisible is the stable, direct signal
+        // for "we're on our way out" instead.
+        var panelStillClosing = root._panelOpen > 0 && !root._pillVisible
+        var pillStillOpening  = root._pillOpen < 1
+
         root._inTransition = true
         root._rollProgress = 0
         root._rollScaleProgress = 0
-        rollAnim.restart()
+        if (pillStillOpening || panelStillClosing) {
+            rollStartDelay.restart()
+        } else {
+            rollAnim.restart()
+        }
 
         root._updatePanelPinTimer()
+    }
+
+    // Fires the roll only after whichever neighboring stage it's waiting on
+    // has settled — the pill-slide on enter, or the panel-shrink on exit —
+    // see onActiveModuleChanged above. Both happen to share this same
+    // duration, which is what makes one Timer/interval work for either.
+    // restart()ing (rather than letting a stale one fire) if another module
+    // change lands before this ticks.
+    Timer {
+        id: rollStartDelay
+        interval: Style.pillSlideDuration
+        onTriggered: rollAnim.restart()
     }
 
     // Keeps the "mpris" stack entry resident for as long as a track is
@@ -510,7 +611,7 @@ ShellRoot {
         implicitWidth: root._pillVisible
             ? Math.round(Screen.width * root._panelWidthFrac(root.activeModule))
             : Math.round(Screen.width * 0.10)
-        implicitHeight: root._pillOpen * (Style.pillHeight + moduleLoader.implicitHeight)
+        implicitHeight: root._pillOpen * (Style.pillHeight + panelClip.height)
 
         // Exclusive keyboard focus (a per-surface wlr-layer-shell grab, not a
         // labwc keybind) whenever the active module wants it — see
@@ -536,7 +637,7 @@ ShellRoot {
             }
 
             // Tracks the mouse over the combined bar+panel region — this Item's
-            // bounds already equal Style.pillHeight + moduleLoader.implicitHeight
+            // bounds already equal Style.pillHeight + panelClip.height
             // (it fills the PanelWindow, which is sized to exactly that), so this
             // naturally grows to cover a panel the moment it opens. Only consumed
             // when the active module actually has a hover-based panel (time,
@@ -550,7 +651,7 @@ ShellRoot {
                         // Cancel any pending "leave" from a moment ago — see
                         // _hoverLeaveGrace below.
                         _hoverLeaveGrace.stop()
-                        root._panelHovered = true
+                        root._rawPanelHovered = true
                         root._updatePanelPinTimer()
                     } else {
                         // Debounced rather than applied immediately: the
@@ -578,7 +679,7 @@ ShellRoot {
                 id: _hoverLeaveGrace
                 interval: 120
                 onTriggered: {
-                    root._panelHovered = false
+                    root._rawPanelHovered = false
                     root._updatePanelPinTimer()
                 }
             }
@@ -587,13 +688,14 @@ ShellRoot {
             // _pillOpen goes 1→0, so retracting slides everything up behind
             // the clip boundary instead of just popping invisible. Only
             // begins once _readyToHide allows it (content already settled
-            // on "time" — see its declaration above), so the sequence is
-            // always "roll to time, then slide away," never both at once.
+            // on "time", and the panel already shrunk — see its declaration
+            // above), so the sequence is always "roll + panel-shrink, then
+            // slide away," never overlapping the bar's own slide.
             Item {
                 id: pillContent
                 width: parent.width
-                height: Style.pillHeight + moduleLoader.implicitHeight
-                y: -(Style.pillHeight + moduleLoader.implicitHeight) * (1 - root._pillOpen)
+                height: Style.pillHeight + panelClip.height
+                y: -(Style.pillHeight + panelClip.height) * (1 - root._pillOpen)
 
                 // ── Bar: a rigid rectangle that never moves or resizes. Content
                 // rolls vertically inside it between modules, as if printed on a
@@ -612,8 +714,12 @@ ShellRoot {
                     border.width: Style.pillBorderWidth
                     color: root.activeModule === "recording" ? Style.pillCriticalBg : Style.pillBg
                     border.color: root.activeModule === "recording" ? Style.pillCriticalBorder : Style.pillBorder
-                    Behavior on color        { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
-                    Behavior on border.color { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
+                    // Unrelated to the pill/text/panel enter-exit sequence above —
+                    // just a plain crossfade into/out of the recording-red state,
+                    // so it keeps its own fixed easing rather than the reactive
+                    // OutQuad/InQuad pair those three stages share.
+                    Behavior on color        { ColorAnimation { duration: Style.rollDuration; easing.type: Easing.InOutCubic } }
+                    Behavior on border.color { ColorAnimation { duration: Style.rollDuration; easing.type: Easing.InOutCubic } }
 
                     // ── Persistent pill content (shown when not rolling) ───────
                     Loader {
@@ -674,37 +780,55 @@ ShellRoot {
                 }
 
                 // ── Expanded panel (MPRIS player, window switcher, calendar) ───
-                // Anchored directly below the now-static bar; unaffected by the
-                // roll transition above — opens/closes instantly, as before.
-                Loader {
-                    id: moduleLoader
+                // Anchored directly below the now-static bar. moduleLoader
+                // itself always stays loaded (so its natural implicitHeight is
+                // known and stable) — panelClip is what's actually animated,
+                // clipping it down to root._panelOpen's fraction of that
+                // natural height, using the exact same 0-100ms/100-200ms
+                // windows as the bar's own roll/slide (see _panelOpen above).
+                Item {
+                    id: panelClip
                     width: parent.width
                     anchors.top: bar.bottom
                     anchors.horizontalCenter: parent.horizontalCenter
-                    source: root._panelSource(root.activeModule)
-                    onLoaded: root._bindPanel(moduleLoader, root.activeModule)
+                    height: root._panelOpen * moduleLoader.implicitHeight
+                    clip: true
+
+                    Loader {
+                        id: moduleLoader
+                        width: parent.width
+                        source: root._panelSource(root.activeModule)
+                        onLoaded: root._bindPanel(moduleLoader, root.activeModule)
+                    }
                 }
             }
         }
     }
 
-    // Drives the roll: animates _rollProgress (translate/opacity, InOutCubic)
-    // and _rollScaleProgress (squash, InOutQuad) 0→1 in parallel, from which
-    // outItem/inItem's y/opacity/scale are derived.  On finish, tear down the
-    // transition loaders — pillLoader (already on the new source) takes over.
+    // Drives the roll: animates _rollProgress (translate/opacity) and
+    // _rollScaleProgress (squash) 0→1 in parallel, from which outItem/inItem's
+    // y/opacity/scale are derived. Easing is reactive rather than a fixed
+    // Style constant, matching _pillOpen/_panelOpen: OutQuad entering,
+    // InQuad exiting. root._pillVisible is the signal for which — it's the
+    // stable "do we want this open" intent, unlike _pillOpenTarget/
+    // _panelOpenTarget which stay pinned at their "still open" value for the
+    // full duration of whichever neighboring stage this roll is sequenced
+    // behind, so checking those here wouldn't reliably tell enter from exit.
+    // On finish, tear down the transition loaders — pillLoader (already on
+    // the new source) takes over.
     ParallelAnimation {
         id: rollAnim
         NumberAnimation {
             target: root; property: "_rollProgress"
             from: 0; to: 1
             duration: Style.rollDuration
-            easing.type: Style.rollTranslateEasing
+            easing.type: root._pillVisible ? Easing.OutQuad : Easing.InQuad
         }
         NumberAnimation {
             target: root; property: "_rollScaleProgress"
             from: 0; to: 1
             duration: Style.rollDuration
-            easing.type: Style.rollScaleEasing
+            easing.type: root._pillVisible ? Easing.OutQuad : Easing.InQuad
         }
         onFinished: {
             outLoader.source = ""

@@ -29,22 +29,21 @@ QtObject {
     readonly property int    fontSize:   10
 
     // ── Animation ─────────────────────────────────────────────────────────────
-    // Used by the rolling-text transition in shell.qml.  The bar itself is a
-    // rigid rectangle that never moves; when the active module changes, the
-    // outgoing content rolls out (translate + squash toward the edge it exits
-    // through) while the incoming content rolls in (translate + squash from 0)
-    // — as if content were printed on a cylinder rotating behind the bar's
-    // clipped window.  Direction is determined by comparing _modPriority
-    // indices: higher priority rolls in from the bottom.
-    readonly property int rollDuration:        350  // ms; bump to 1000 for slow-motion testing
-    readonly property int rollTranslateEasing: Easing.InOutCubic
-    readonly property int rollScaleEasing:     Easing.InOutQuad
-
-    // ── Pill show/hide (hidden by default, slides out on demand) ─────────────
-    // The slide plays only after the roll transition above has already
-    // settled the content back on "time" — see _readyToHide in shell.qml.
-    readonly property int pillSlideDuration: 300  // ms
-    readonly property int pillSlideEasing:   Easing.InOutCubic
+    // Three independently-animated things — pill (bar container), text (the
+    // rolling-text transition), panel (expanded calendar/mpris/window content)
+    // — run as three strictly sequential, non-overlapping 50ms stages, never
+    // two at once (see shell.qml: _pillOpen/_rollProgress+_rollScaleProgress/
+    // _panelOpen, and the gating in onActiveModuleChanged/_panelOpenTarget/
+    // _readyToHide):
+    //   Enter:  Pill (0-50ms)  → Text (50-100ms)  → Panel (100-150ms)
+    //   Exit:   Panel (0-50ms) → Text (50-100ms)  → Pill (100-150ms)
+    // All three use the same duration and the same enter/exit easing pair —
+    // OutQuad (fast start, decelerating) entering, InQuad (slow start,
+    // accelerating) exiting — reactively chosen per-direction in shell.qml
+    // rather than fixed constants here, so there's a single duration token to
+    // bump for slow-motion testing rather than three.
+    readonly property int rollDuration:      50  // ms
+    readonly property int pillSlideDuration: 50  // ms
 
     // ── Hot zone (dedicated hover-to-reveal strip, shell.qml) ─────────────────
     // A separate, never-resizing surface above the pill, deliberately
