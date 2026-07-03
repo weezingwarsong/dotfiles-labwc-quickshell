@@ -111,29 +111,66 @@ Item {
                 }
             }
 
-            RowLayout {
+            // ── Agenda / header ──────────────────────────────────────────
+            // Full panel width — today's date, agenda list (or "No events
+            // today"), same content/tooltip logic as before, just promoted
+            // from a narrow side column to the full narrow panel width.
+            ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: 6
 
-                // ── Agenda (left) ────────────────────────────────────────
-                ColumnLayout {
-                    Layout.preferredWidth: calendarPanel.width * 0.28
-                    Layout.fillHeight: true
-                    spacing: 6
+                Text {
+                    text: Qt.formatDate(new Date(), "ddd d MMM")
+                    color: Style.textPanelHighlight
+                    font.family: Style.fontFamily
+                    font.pointSize: Style.fontSize
+                    font.bold: true
+                }
 
-                    Text {
-                        text: Qt.formatDate(new Date(), "ddd d MMM")
-                        color: Style.textPanelHighlight
+                Repeater {
+                    model: root._allDayEvents
+                    delegate: Text {
+                        id: allDayText
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: modelData.summary
+                        color: Style.textPanelNormal
                         font.family: Style.fontFamily
                         font.pointSize: Style.fontSize
-                        font.bold: true
-                    }
+                        elide: Text.ElideRight
 
-                    Repeater {
-                        model: root._allDayEvents
-                        delegate: Text {
-                            id: allDayText
-                            required property var modelData
+                        HoverHandler { id: allDayHover }
+                        PanelToolTip {
+                            visible: allDayHover.hovered && allDayText.truncated
+                            text: allDayText.text
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 2
+                    Layout.bottomMargin: 2
+                    height: 1
+                    color: Style.panelBorder
+                    visible: root._allDayEvents.length > 0 && root._timedEvents.length > 0
+                }
+
+                Repeater {
+                    model: root._timedEvents
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Text {
+                            text: Qt.formatTime(new Date(modelData.start), "HH:mm")
+                            color: Style.textPanelHighlight
+                            font.family: Style.fontFamily
+                            font.pointSize: Style.fontSize
+                        }
+                        Text {
+                            id: timedText
                             Layout.fillWidth: true
                             text: modelData.summary
                             color: Style.textPanelNormal
@@ -141,375 +178,323 @@ Item {
                             font.pointSize: Style.fontSize
                             elide: Text.ElideRight
 
-                            HoverHandler { id: allDayHover }
+                            HoverHandler { id: timedHover }
                             PanelToolTip {
-                                visible: allDayHover.hovered && allDayText.truncated
-                                text: allDayText.text
+                                visible: timedHover.hovered && timedText.truncated
+                                text: timedText.text
                             }
                         }
                     }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.topMargin: 2
-                        Layout.bottomMargin: 2
-                        height: 1
-                        color: Style.panelBorder
-                        visible: root._allDayEvents.length > 0 && root._timedEvents.length > 0
-                    }
-
-                    Repeater {
-                        model: root._timedEvents
-                        delegate: RowLayout {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            Text {
-                                text: Qt.formatTime(new Date(modelData.start), "HH:mm")
-                                color: Style.textPanelHighlight
-                                font.family: Style.fontFamily
-                                font.pointSize: Style.fontSize
-                            }
-                            Text {
-                                id: timedText
-                                Layout.fillWidth: true
-                                text: modelData.summary
-                                color: Style.textPanelNormal
-                                font.family: Style.fontFamily
-                                font.pointSize: Style.fontSize
-                                elide: Text.ElideRight
-
-                                HoverHandler { id: timedHover }
-                                PanelToolTip {
-                                    visible: timedHover.hovered && timedText.truncated
-                                    text: timedText.text
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        visible: root._todayEvents.length === 0
-                        text: "No events today"
-                        color: Style.textPanelLow
-                        font.family: Style.fontFamily
-                        font.pointSize: Style.fontSize
-                    }
-
-                    Item { Layout.fillHeight: true }
                 }
 
-                // ── Month view + weather (middle) ────────────────────────
-                ColumnLayout {
+                Text {
+                    visible: root._todayEvents.length === 0
+                    text: "No events today"
+                    color: Style.textPanelLow
+                    font.family: Style.fontFamily
+                    font.pointSize: Style.fontSize
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Style.panelBorder }
+
+            // ── Month view ────────────────────────────────────────────────
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                // ── Month nav: prev triangle / picker button / next triangle ──
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
 
-                    ColumnLayout {
+                    PanelIconButton {
+                        icon: "◀"
+                        onClicked: root._shiftMonth(-1)
+                    }
+
+                    // Center button — same visual language as Mpris.qml's
+                    // focus button (rectangle, hover-grow, drop shadow),
+                    // but centered text and no icon, per the sketch.
+                    // Sized to match PanelIconButton (26/30, fixed 30
+                    // footprint) so it lines up with the triangle
+                    // buttons on either side instead of Mpris' own
+                    // pillHeight-based sizing (24/28).
+                    Item {
                         Layout.fillWidth: true
-                        spacing: 4
+                        implicitHeight: 30
 
-                        // ── Month nav: prev triangle / picker button / next triangle ──
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            PanelIconButton {
-                                icon: "◀"
-                                onClicked: root._shiftMonth(-1)
+                        Rectangle {
+                            id: monthYearBtn
+                            property bool localHovered: false
+                            anchors.centerIn: parent
+                            width: localHovered ? parent.width + 4 : parent.width
+                            height: localHovered ? 30 : 26
+                            color: Style.panelButtonBg
+                            radius: Style.panelButtonRadius
+                            border.width: Style.panelButtonBorderWidth
+                            border.color: Style.panelButtonBorder
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                shadowEnabled: true
+                                shadowColor: Style.panelButtonShadowColor
+                                shadowBlur: monthYearBtn.localHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
+                                shadowVerticalOffset: monthYearBtn.localHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
+                                shadowOpacity: monthYearBtn.localHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
                             }
 
-                            // Center button — same visual language as Mpris.qml's
-                            // focus button (rectangle, hover-grow, drop shadow),
-                            // but centered text and no icon, per the sketch.
-                            // Sized to match PanelIconButton (26/30, fixed 30
-                            // footprint) so it lines up with the triangle
-                            // buttons on either side instead of Mpris' own
-                            // pillHeight-based sizing (24/28).
-                            Item {
-                                Layout.fillWidth: true
-                                implicitHeight: 30
+                            HoverHandler { onHoveredChanged: monthYearBtn.localHovered = hovered }
 
-                                Rectangle {
-                                    id: monthYearBtn
-                                    property bool localHovered: false
-                                    anchors.centerIn: parent
-                                    width: localHovered ? parent.width + 4 : parent.width
-                                    height: localHovered ? 30 : 26
-                                    color: Style.panelButtonBg
-                                    radius: Style.panelButtonRadius
-                                    border.width: Style.panelButtonBorderWidth
-                                    border.color: Style.panelButtonBorder
-                                    layer.enabled: true
-                                    layer.effect: MultiEffect {
-                                        shadowEnabled: true
-                                        shadowColor: Style.panelButtonShadowColor
-                                        shadowBlur: monthYearBtn.localHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
-                                        shadowVerticalOffset: monthYearBtn.localHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
-                                        shadowOpacity: monthYearBtn.localHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
-                                    }
-
-                                    HoverHandler { onHoveredChanged: monthYearBtn.localHovered = hovered }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (root._pickerOpen) {
-                                                // "Today" shortcut while the picker is open —
-                                                // jumps back to the current month and closes
-                                                // the picker, without needing W-1 again.
-                                                root.viewYear  = new Date().getFullYear()
-                                                root.viewMonth = new Date().getMonth()
-                                                root._pickerOpen = false
-                                            } else {
-                                                root._pickerOpen = true
-                                            }
-                                        }
-                                    }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: root._pickerOpen ? "Today"
-                                            : Qt.formatDate(new Date(root.viewYear, root.viewMonth, 1), "MMMM yyyy")
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color: Style.textPanelHighlight
-                                        font.family: Style.fontFamily
-                                        font.pointSize: Style.fontSize
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (root._pickerOpen) {
+                                        // "Today" shortcut while the picker is open —
+                                        // jumps back to the current month and closes
+                                        // the picker, without needing W-1 again.
+                                        root.viewYear  = new Date().getFullYear()
+                                        root.viewMonth = new Date().getMonth()
+                                        root._pickerOpen = false
+                                    } else {
+                                        root._pickerOpen = true
                                     }
                                 }
                             }
 
-                            PanelIconButton {
-                                icon: "▶"
-                                onClicked: root._shiftMonth(1)
-                            }
-                        }
-
-                        DayOfWeekRow {
-                            Layout.fillWidth: true
-                            visible: !root._pickerOpen
-
-                            delegate: Text {
-                                required property string shortName
-                                text: shortName
+                            Text {
+                                anchors.centerIn: parent
+                                text: root._pickerOpen ? "Today"
+                                    : Qt.formatDate(new Date(root.viewYear, root.viewMonth, 1), "MMMM yyyy")
                                 horizontalAlignment: Text.AlignHCenter
                                 color: Style.textPanelHighlight
                                 font.family: Style.fontFamily
-                                font.pointSize: 11
-                            }
-                        }
-
-                        MonthGrid {
-                            id: monthGrid
-                            Layout.fillWidth: true
-                            visible: !root._pickerOpen
-                            month: root.viewMonth
-                            year: root.viewYear
-
-                            delegate: Item {
-                                id: dayCell
-                                required property int day
-                                required property int month
-                                required property bool today
-
-                                readonly property var _dayEvents:
-                                    dayCell.month === monthGrid.month ? (root._monthEventsByDay[dayCell.day] || []) : []
-                                property bool _todayHovered: false
-
-                                implicitWidth: dayText.implicitWidth + 6
-                                implicitHeight: dayText.implicitHeight + 4
-
-                                // Today gets the "button effect" — same hover-grow +
-                                // shadow language as PanelIconButton/PinButton — while
-                                // this Item's own size stays fixed so MonthGrid's
-                                // internal cell layout doesn't shift on hover.
-                                Rectangle {
-                                    anchors.centerIn: parent
-                                    visible: dayCell.today
-                                    width:  (dayCell._todayHovered ? parent.width  + 6 : parent.width  + 2)
-                                    height: (dayCell._todayHovered ? parent.height + 6 : parent.height + 2)
-                                    color: Style.panelButtonBg
-                                    radius: Style.panelButtonRadius
-                                    border.width: Style.panelButtonBorderWidth
-                                    border.color: Style.panelButtonBorder
-                                    layer.enabled: true
-                                    layer.effect: MultiEffect {
-                                        shadowEnabled: true
-                                        shadowColor: Style.panelButtonShadowColor
-                                        shadowBlur: dayCell._todayHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
-                                        shadowVerticalOffset: dayCell._todayHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
-                                        shadowOpacity: dayCell._todayHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
-                                    }
-                                }
-
-                                Text {
-                                    id: dayText
-                                    anchors.centerIn: parent
-                                    text: dayCell.day
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: dayCell._dayEvents.length > 0 ? Style.textPanelHighlight
-                                         : dayCell.month === monthGrid.month ? Style.textPanelNormal
-                                         : Style.textPanelLow
-                                    font.family: Style.fontFamily
-                                    font.pointSize: 11
-                                    font.bold: dayCell.today
-                                }
-
-                                // Today's button-grow hover.
-                                HoverHandler {
-                                    enabled: dayCell.today
-                                    onHoveredChanged: dayCell._todayHovered = hovered
-                                }
-
-                                // Event tooltip — any day with events, today included.
-                                HoverHandler { id: eventHover }
-                                PanelToolTip {
-                                    visible: eventHover.hovered && dayCell._dayEvents.length > 0
-                                    text: dayCell._dayEvents.join("\n")
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    enabled: dayCell.today
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        root.viewYear  = new Date().getFullYear()
-                                        root.viewMonth = new Date().getMonth()
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── Month/year picker — replaces the grid inline when open ──
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            visible: root._pickerOpen
-                            spacing: 6
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 6
-
-                                PanelIconButton {
-                                    icon: "◀"
-                                    onClicked: root.viewYear--
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: root.viewYear
-                                    color: Style.textPanelHighlight
-                                    font.family: Style.fontFamily
-                                    font.pointSize: Style.fontSize
-                                    font.bold: true
-                                }
-                                PanelIconButton {
-                                    icon: "▶"
-                                    onClicked: root.viewYear++
-                                }
-                            }
-
-                            GridLayout {
-                                Layout.fillWidth: true
-                                columns: 3
-                                columnSpacing: 6
-                                rowSpacing: 6
-
-                                Repeater {
-                                    model: 12
-                                    delegate: Rectangle {
-                                        id: monthCell
-                                        required property int index
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: 26
-                                        property bool localHovered: false
-                                        color: index === root.viewMonth ? Style.textPanelHighlight
-                                             : localHovered ? Style.panelButtonBg : "transparent"
-                                        radius: Style.panelButtonRadius
-                                        border.width: Style.panelButtonBorderWidth
-                                        border.color: Style.panelButtonBorder
-
-                                        HoverHandler { onHoveredChanged: monthCell.localHovered = hovered }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
-                                                root.viewMonth = monthCell.index
-                                                root._pickerOpen = false
-                                            }
-                                        }
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: Qt.locale().monthName(monthCell.index, Locale.ShortFormat)
-                                            color: monthCell.index === root.viewMonth ? Style.textPanelOnHighlight : Style.textPanelNormal
-                                            font.family: Style.fontFamily
-                                            font.pointSize: Style.fontSize
-                                        }
-                                    }
-                                }
+                                font.pointSize: Style.fontSize
                             }
                         }
                     }
 
-                    // Fed by shell.qml's weatherData, populated by the periodic
-                    // weather-fetch Process — see weather_fetch.py for the
-                    // {temp, high, low, condition, icon} shape. Fields are
-                    // null while the first fetch is still in flight or failed.
-                    // `icon` is a Nerd Font nf-weather codepoint (hex string).
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 90
-                        color: Style.panelButtonBg
-                        radius: Style.panelButtonRadius
-                        border.width: Style.panelButtonBorderWidth
-                        border.color: Style.panelButtonBorder
+                    PanelIconButton {
+                        icon: "▶"
+                        onClicked: root._shiftMonth(1)
+                    }
+                }
 
-                        RowLayout {
+                DayOfWeekRow {
+                    Layout.fillWidth: true
+                    visible: !root._pickerOpen
+
+                    delegate: Text {
+                        required property string shortName
+                        text: shortName
+                        horizontalAlignment: Text.AlignHCenter
+                        color: Style.textPanelHighlight
+                        font.family: Style.fontFamily
+                        font.pointSize: 11
+                    }
+                }
+
+                MonthGrid {
+                    id: monthGrid
+                    Layout.fillWidth: true
+                    visible: !root._pickerOpen
+                    month: root.viewMonth
+                    year: root.viewYear
+
+                    delegate: Item {
+                        id: dayCell
+                        required property int day
+                        required property int month
+                        required property bool today
+
+                        readonly property var _dayEvents:
+                            dayCell.month === monthGrid.month ? (root._monthEventsByDay[dayCell.day] || []) : []
+                        property bool _todayHovered: false
+
+                        implicitWidth: dayText.implicitWidth + 6
+                        implicitHeight: dayText.implicitHeight + 4
+
+                        // Today gets the "button effect" — same hover-grow +
+                        // shadow language as PanelIconButton/PinButton — while
+                        // this Item's own size stays fixed so MonthGrid's
+                        // internal cell layout doesn't shift on hover.
+                        Rectangle {
                             anchors.centerIn: parent
-                            spacing: 10
-                            visible: root.weather.temp !== undefined && root.weather.temp !== null
-
-                            Text {
-                                text: root.weather.icon ? String.fromCharCode(parseInt(root.weather.icon, 16)) : ""
-                                color: Style.textPanelGlyphNormal
-                                font.family: Style.fontFamily
-                                font.pointSize: Style.fontSize + 10
-                            }
-
-                            ColumnLayout {
-                                spacing: 2
-
-                                Text {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    text: root.weather.temp !== undefined ? root.weather.temp + "°C" : ""
-                                    color: Style.textPanelHighlight
-                                    font.family: Style.fontFamily
-                                    font.pointSize: Style.fontSize + 2
-                                    font.bold: true
-                                }
-                                Text {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    text: root.weather.condition || ""
-                                    color: Style.textPanelNormal
-                                    font.family: Style.fontFamily
-                                    font.pointSize: Style.fontSize
-                                }
-                                Text {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    text: (root.weather.high !== undefined ? "H:" + root.weather.high + "°  " : "")
-                                        + (root.weather.low  !== undefined ? "L:" + root.weather.low  + "°"   : "")
-                                    color: Style.textPanelLow
-                                    font.family: Style.fontFamily
-                                    font.pointSize: Style.fontSize
-                                }
+                            visible: dayCell.today
+                            width:  (dayCell._todayHovered ? parent.width  + 6 : parent.width  + 2)
+                            height: (dayCell._todayHovered ? parent.height + 6 : parent.height + 2)
+                            color: Style.panelButtonBg
+                            radius: Style.panelButtonRadius
+                            border.width: Style.panelButtonBorderWidth
+                            border.color: Style.panelButtonBorder
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                shadowEnabled: true
+                                shadowColor: Style.panelButtonShadowColor
+                                shadowBlur: dayCell._todayHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
+                                shadowVerticalOffset: dayCell._todayHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
+                                shadowOpacity: dayCell._todayHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
                             }
                         }
 
                         Text {
+                            id: dayText
                             anchors.centerIn: parent
-                            visible: root.weather.temp === undefined || root.weather.temp === null
-                            text: "weather unavailable"
+                            text: dayCell.day
+                            horizontalAlignment: Text.AlignHCenter
+                            color: dayCell._dayEvents.length > 0 ? Style.textPanelHighlight
+                                 : dayCell.month === monthGrid.month ? Style.textPanelNormal
+                                 : Style.textPanelLow
+                            font.family: Style.fontFamily
+                            font.pointSize: 11
+                            font.bold: dayCell.today
+                        }
+
+                        // Today's button-grow hover.
+                        HoverHandler {
+                            enabled: dayCell.today
+                            onHoveredChanged: dayCell._todayHovered = hovered
+                        }
+
+                        // Event tooltip — any day with events, today included.
+                        HoverHandler { id: eventHover }
+                        PanelToolTip {
+                            visible: eventHover.hovered && dayCell._dayEvents.length > 0
+                            text: dayCell._dayEvents.join("\n")
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: dayCell.today
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.viewYear  = new Date().getFullYear()
+                                root.viewMonth = new Date().getMonth()
+                            }
+                        }
+                    }
+                }
+
+                // ── Month/year picker — replaces the grid inline when open ──
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: root._pickerOpen
+                    spacing: 6
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        PanelIconButton {
+                            icon: "◀"
+                            onClicked: root.viewYear--
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            text: root.viewYear
+                            color: Style.textPanelHighlight
+                            font.family: Style.fontFamily
+                            font.pointSize: Style.fontSize
+                            font.bold: true
+                        }
+                        PanelIconButton {
+                            icon: "▶"
+                            onClicked: root.viewYear++
+                        }
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 3
+                        columnSpacing: 6
+                        rowSpacing: 6
+
+                        Repeater {
+                            model: 12
+                            delegate: Rectangle {
+                                id: monthCell
+                                required property int index
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 26
+                                property bool localHovered: false
+                                color: index === root.viewMonth ? Style.textPanelHighlight
+                                     : localHovered ? Style.panelButtonBg : "transparent"
+                                radius: Style.panelButtonRadius
+                                border.width: Style.panelButtonBorderWidth
+                                border.color: Style.panelButtonBorder
+
+                                HoverHandler { onHoveredChanged: monthCell.localHovered = hovered }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        root.viewMonth = monthCell.index
+                                        root._pickerOpen = false
+                                    }
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: Qt.locale().monthName(monthCell.index, Locale.ShortFormat)
+                                    color: monthCell.index === root.viewMonth ? Style.textPanelOnHighlight : Style.textPanelNormal
+                                    font.family: Style.fontFamily
+                                    font.pointSize: Style.fontSize
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Style.panelBorder }
+
+            // Fed by shell.qml's weatherData, populated by the periodic
+            // weather-fetch Process — see weather_fetch.py for the
+            // {temp, high, low, condition, icon} shape. Fields are
+            // null while the first fetch is still in flight or failed.
+            // `icon` is a Nerd Font nf-weather codepoint (hex string).
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 90
+                color: Style.panelButtonBg
+                radius: Style.panelButtonRadius
+                border.width: Style.panelButtonBorderWidth
+                border.color: Style.panelButtonBorder
+
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
+                    visible: root.weather.temp !== undefined && root.weather.temp !== null
+
+                    Text {
+                        text: root.weather.icon ? String.fromCharCode(parseInt(root.weather.icon, 16)) : ""
+                        color: Style.textPanelGlyphNormal
+                        font.family: Style.fontFamily
+                        font.pointSize: Style.fontSize + 10
+                    }
+
+                    ColumnLayout {
+                        spacing: 2
+
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: root.weather.temp !== undefined ? root.weather.temp + "°C" : ""
+                            color: Style.textPanelHighlight
+                            font.family: Style.fontFamily
+                            font.pointSize: Style.fontSize + 2
+                            font.bold: true
+                        }
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: root.weather.condition || ""
+                            color: Style.textPanelNormal
+                            font.family: Style.fontFamily
+                            font.pointSize: Style.fontSize
+                        }
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: (root.weather.high !== undefined ? "H:" + root.weather.high + "°  " : "")
+                                + (root.weather.low  !== undefined ? "L:" + root.weather.low  + "°"   : "")
                             color: Style.textPanelLow
                             font.family: Style.fontFamily
                             font.pointSize: Style.fontSize
@@ -517,28 +502,38 @@ Item {
                     }
                 }
 
-                // ── Button rail (right) ──────────────────────────────────
-                // Bottom-aligned so it sits next to the weather box (the
-                // last element in the middle column) rather than up by the
-                // month grid header.
-                ColumnLayout {
-                    Layout.alignment: Qt.AlignBottom
-                    spacing: 8
+                Text {
+                    anchors.centerIn: parent
+                    visible: root.weather.temp === undefined || root.weather.temp === null
+                    text: "weather unavailable"
+                    color: Style.textPanelLow
+                    font.family: Style.fontFamily
+                    font.pointSize: Style.fontSize
+                }
+            }
 
-                    PanelIconButton {
-                        icon: String.fromCharCode(0xf013)  // gear
-                        // No-op until the Settings component (roadmap item) exists.
-                        onClicked: {}
-                    }
-                    PanelIconButton {
-                        icon: String.fromCharCode(0xf0ac)  // globe
-                        tooltip: "Open in browser"
-                        onClicked: openCalendarProcess.running = true
-                    }
-                    PanelIconButton {
-                        icon: String.fromCharCode(0xf141)  // ellipsis — reserved, TBD
-                        onClicked: {}
-                    }
+            // ── Button rail ───────────────────────────────────────────────
+            // Right-justified via a leading fill-width spacer, sitting at
+            // the bottom of the stack as the last element.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Item { Layout.fillWidth: true }
+
+                PanelIconButton {
+                    icon: String.fromCharCode(0xf013)  // gear
+                    // No-op until the Settings component (roadmap item) exists.
+                    onClicked: {}
+                }
+                PanelIconButton {
+                    icon: String.fromCharCode(0xf0ac)  // globe
+                    tooltip: "Open in browser"
+                    onClicked: openCalendarProcess.running = true
+                }
+                PanelIconButton {
+                    icon: String.fromCharCode(0xf141)  // ellipsis — reserved, TBD
+                    onClicked: {}
                 }
             }
         }
