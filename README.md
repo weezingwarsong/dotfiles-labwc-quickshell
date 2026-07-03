@@ -48,7 +48,7 @@ dotfiles-labwc-quickshell/
 │   │   ├── Style.qml                # singleton — all colours, fonts, spacing tokens
 │   │   ├── TimePill.qml             # bar content — clock (HHmm)
 │   │   ├── Time.qml                 # calendar panel, opens on TimePill hover — agenda, navigable
-│   │   │                            #   month grid + picker, weather placeholder, button rail
+│   │   │                            #   month grid + picker, weather box (temp/condition/hi-lo + icon), button rail
 │   │   ├── WorkspacePill.qml        # bar content — dual-square workspace indicator (flashes on switch)
 │   │   ├── MprisPill.qml            # bar content — MPRIS play/pause icon + marquee-scrolling track text
 │   │   ├── Mpris.qml                # MPRIS player panel, opens on MprisPill hover — marquee title too
@@ -71,8 +71,9 @@ dotfiles-labwc-quickshell/
 │   │                                #   for quickshell) never opens a browser; `--auth` does the OAuth consent
 │   │                                #   flow by hand. Credentials live outside the repo, see below.
 │   └── weather/
-│       └── weather_fetch.py         # Open-Meteo sync — prints {temp, high, low, condition} JSON. Location via
-│                                    #   IP geolocation (ipapi.co), cached 24h at ~/.config/weather-quickshell/.
+│       └── weather_fetch.py         # Open-Meteo sync — prints {temp, high, low, condition, icon} JSON. `icon` is
+│                                    #   a Nerd Font nf-weather codepoint, chosen from the WMO code + day/night.
+│                                    #   Location via IP geolocation (ipapi.co), cached 24h at ~/.config/weather-quickshell/.
 │                                    #   Keyless — no credentials setup needed.
 │
 ├── design/
@@ -113,7 +114,7 @@ dotfiles-labwc-quickshell/
 **Time module** — shows the current time in `HHmm` format. Hovering slides down a wide calendar panel (independent panel width — see `_panelWidthFrac` in `shell.qml`; the pill itself never resizes); the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` toggles it open/closed directly, independent of hover.
 - **Agenda** (left) — today's events pulled from `gcal-fetch`, split into all-day and timed, with tooltips on truncated titles.
 - **Month view** (middle) — navigable via prev/next triangle buttons or a month/year picker (click the month/year label; it inline-swaps to a year+month grid rather than a floating popup, since a fixed-size Wayland layer-shell surface has no "outside the window" for an overlay to render into). Days with events are highlighted with a tooltip listing them; today gets a hover-grow button treatment and, when the picker is open, the label becomes a "Today" shortcut back to the current month.
-- **Weather** (below month view) — current temperature, condition, and today's high/low, pulled from `weather-fetch`. Location is auto-detected via IP geolocation (cached 24h) and weather data comes from [Open-Meteo](https://open-meteo.com/) — both keyless, no account/credentials setup needed.
+- **Weather** (below month view) — current temperature, condition, today's high/low, and a day/night Nerd Font weather glyph (nf-weather), pulled from `weather-fetch`. Location is auto-detected via IP geolocation (cached 24h) and weather data comes from [Open-Meteo](https://open-meteo.com/) — both keyless, no account/credentials setup needed.
 - **Button rail** (right) — settings (inert, pending the Settings roadmap item), open-in-browser (`xdg-open` to Google Calendar), and a reserved placeholder.
 
 **Workspace module** — two filled squares representing workspaces 1 and 2. Active is Nord7, inactive is Nord3. Flashes for 1 second on switch then returns to the resting module.
@@ -250,7 +251,7 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 - [x] **Calendar panel** — see the "Time module" and "Calendar sync" entries under Features above for the full shape of what's built: agenda, navigable month view + inline picker, event highlighting/tooltips, button rail, and the `gcal-fetch` backend wired into `shell.qml` as a periodic `Process`.
   > OAuth credentials (`~/.config/gcal-quickshell/credentials.json`, from Google Cloud Console) and the cached `token.json` live outside the repo — it's public on GitHub — so they're never committed and aren't part of `install.sh`; set up by hand per-machine with `gcal-fetch --auth`.
-  - [x] Weather box — wired to `weather-fetch` (Open-Meteo + IP geolocation, both keyless). See the "Weather" entry under Features above and `helper/weather/weather_fetch.py`.
+  - [x] Weather box — wired to `weather-fetch` (Open-Meteo + IP geolocation, both keyless), including a day/night Nerd Font condition icon mapped from the WMO weather code. See the "Weather" entry under Features above and `helper/weather/weather_fetch.py`.
 
 - [ ] **Settings component** — a quickshell module (triggered by a keybind, and by the currently-inert settings button in the calendar panel's button rail) for configuring user preferences at runtime without editing files. Candidates:
   - [ ] **Default apps** — replace hardcoded app references (e.g. `kitty` as terminal, the `focus-or-open.sh` app\_id mappings for `W-w`/browser and `W-e`/file manager) with `xdg-open` and XDG MIME defaults, so swapping preferred apps doesn't require touching `rc.xml` or scripts by hand.
