@@ -28,7 +28,7 @@ ShellRoot {
     // hovering in is suppressed while a roll/slide is mid-flight (spawning
     // the expanded panel mid-animation looked broken), but hovering back OUT
     // is never gated, so nothing can get stuck open. The `*Pinned` flags
-    // live here (not on the Time.qml/Mpris.qml panel instances) so they survive
+    // live here (not on the Calendar.qml/MediaPlayer.qml panel instances) so they survive
     // the panel being destroyed/recreated during brief interruptions (workspace
     // flash, recording) while that module isn't the active one.
     property bool _rawPanelHovered: false
@@ -44,6 +44,21 @@ ShellRoot {
     property string _prevModule: ""
     property string _outgoingModule: ""
     property bool   _inTransition: false
+
+    // ── Panel identity (decoupled from which pill is active) ─────────────────
+    // Which panel (if any) belongs to each pill — a static fact about the
+    // pill, not something that varies per request, so this is the only place
+    // the pill→panel parent/child link needs to live. _panelSource/_bindPanel/
+    // _panelWidthFrac below key off a *panel* id from this map, never a pill
+    // id directly, so a panel can only ever be reached by first going through
+    // its one parent pill.
+    readonly property var _panelForPill: ({ "time": "calendar", "mpris": "mediaPlayer", "window": "windowSwitcher" })
+    // The panel the current winning pill wants shown, updating the instant
+    // activeModule does. _displayedPanel (below) is what's actually bound to
+    // moduleLoader — see the panelStillClosing branch in onActiveModuleChanged
+    // for why the two are allowed to diverge briefly on the way out.
+    readonly property string _topPanel: root._panelForPill[root.activeModule] || ""
+    property string _displayedPanel: ""
     property real   _rollProgress: 0.0       // drives y + opacity (InOutCubic)
     property real   _rollScaleProgress: 0.0  // drives the squash scaleY (InOutQuad)
     property int    _rollDir: 1  // +1 = incoming rolls up from below, -1 = down from above
@@ -271,23 +286,25 @@ ShellRoot {
         return Qt.resolvedUrl("components/TimePill.qml")
     }
 
-    // The expanded panel anchored below the bar. Workspace/recording have none.
-    function _panelSource(mod) {
-        if (mod === "mpris")  return Qt.resolvedUrl("components/Mpris.qml")
-        if (mod === "window") return Qt.resolvedUrl("components/Window.qml")
-        if (mod === "time")   return Qt.resolvedUrl("components/Time.qml")
+    // The expanded panel anchored below the bar, keyed by *panel* id (see
+    // _panelForPill above) — never by pill/module id directly. Workspace/
+    // recording have no entry in _panelForPill, so this returns "" for them.
+    function _panelSource(panelId) {
+        if (panelId === "mediaPlayer")    return Qt.resolvedUrl("components/MediaPlayer.qml")
+        if (panelId === "windowSwitcher") return Qt.resolvedUrl("components/WindowSwitcher.qml")
+        if (panelId === "calendar")       return Qt.resolvedUrl("components/Calendar.qml")
         return ""
     }
 
     // Fraction of screen width for the panel *window* (bar + its panel).
     // The bar itself stays a fixed small pill regardless (see `bar.width` in
     // the PanelWindow below) — only the panel content area below it grows.
-    // All modules currently share the same narrow width (calendar used to be
+    // All panels currently share the same narrow width (calendar used to be
     // a wide dashboard layout, now stacked vertically to match the pill) —
-    // kept as a per-module function so a future wide panel (e.g. Settings)
+    // kept as a per-panel function so a future wide panel (e.g. Settings)
     // can override it without touching the panel-window plumbing.
-    function _panelWidthFrac(mod) {
-        return mod === "time" ? 0.10 : 0.10
+    function _panelWidthFrac(panelId) {
+        return panelId === "calendar" ? 0.10 : 0.10
     }
 
     // Bind live Qt.binding() properties on a freshly loaded pill item.
@@ -319,24 +336,25 @@ ShellRoot {
         if (mod === "mpris")                                 item.player = root.mprisPlayer
     }
 
-    // Bind the expanded panel below the bar. Time's and MPRIS's `hovered`/
+    // Bind the expanded panel below the bar, keyed by *panel* id (see
+    // _panelForPill above). Calendar's and the media player's `hovered`/
     // `pinned` both come from the root-level combined-region hover and pin
     // state (see _panelHovered above), since each panel's hover area spans
     // pill+gap+panel, not just the pill.
-    function _bindPanel(loader, mod) {
+    function _bindPanel(loader, panelId) {
         var item = loader.item
         if (!item) return
-        if (mod === "mpris") {
+        if (panelId === "mediaPlayer") {
             item.hovered = Qt.binding(() => root._panelHovered)
             item.pinned  = Qt.binding(() => root._mprisPinned)
             item.player  = Qt.binding(() => root.mprisPlayer)
             item.dismissRequested.connect(function() {
                 root._setMprisPinned(false)
-                // Re-arm the countdown if still hovering — see the "time" branch below.
+                // Re-arm the countdown if still hovering — see the "calendar" branch below.
                 root._updatePanelPinTimer()
             })
         }
-        if (mod === "time") {
+        if (panelId === "calendar") {
             item.hovered = Qt.binding(() => root._panelHovered)
             item.pinned  = Qt.binding(() => root._calendarPinned)
             item.events  = Qt.binding(() => root.calendarEvents)
@@ -349,7 +367,7 @@ ShellRoot {
                 root._updatePanelPinTimer()
             })
         }
-        if (mod === "window") {
+        if (panelId === "windowSwitcher") {
             item.windows = Qt.binding(() => root.windows)
             item.windowFocused.connect(function() {
                 root._releaseModule("window")
@@ -374,6 +392,7 @@ ShellRoot {
 
     Component.onCompleted: {
         root._prevModule = root.activeModule
+        root._displayedPanel = root._topPanel
     }
 
     // Transition sequencing:
@@ -381,10 +400,12 @@ ShellRoot {
     //   2. Load the incoming pill source into inLoader so both can animate simultaneously.
     //   3. rollAnim drives _rollProgress/_rollScaleProgress 0→1; slot y/opacity/scale derive from them.
     //   4. rollAnim.onFinished tears down the transition loaders.
-    // pillLoader.source and moduleLoader.source are plain bindings on activeModule
-    // (declared where they're used below) — they update immediately, but pillLoader
-    // stays invisible (visible: !_inTransition) until the roll finishes, so there's
-    // no premature flash of the new content.
+    // pillLoader.source is a plain binding on activeModule (declared where it's
+    // used below) — it updates immediately, but pillLoader stays invisible
+    // (visible: !_inTransition) until the roll finishes, so there's no premature
+    // flash of the new content. moduleLoader.source instead follows the lagged
+    // _displayedPanel (see panelSwapDelay below), not activeModule directly —
+    // it only swaps once any outgoing panel has actually finished shrinking.
     //
     // Enter/exit vs. steady-state swap: on enter, _pillOpen < 1 means the
     // container itself hasn't finished growing yet (possibly just starting
@@ -422,6 +443,18 @@ ShellRoot {
         var panelStillClosing = root._panelOpen > 0 && !root._pillVisible
         var pillStillOpening  = root._pillOpen < 1
 
+        // Same panelStillClosing signal also decides when moduleLoader is
+        // allowed to swap to the new winner's panel: if a panel was actually
+        // visible and nothing's queued behind it, hold the outgoing panel's
+        // own content on screen until its shrink finishes (panelSwapDelay),
+        // instead of swapping instantly underneath a still-open container —
+        // that instant swap was the "wrong panel flashes on exit" bug.
+        if (panelStillClosing) {
+            panelSwapDelay.restart()
+        } else {
+            root._displayedPanel = root._topPanel
+        }
+
         root._inTransition = true
         root._rollProgress = 0
         root._rollScaleProgress = 0
@@ -444,6 +477,16 @@ ShellRoot {
         id: rollStartDelay
         interval: Style.pillSlideDuration
         onTriggered: rollAnim.restart()
+    }
+
+    // Swaps moduleLoader over to whatever panel the new winning pill owns,
+    // but only once the outgoing panel's own shrink (panelStillClosing, in
+    // onActiveModuleChanged above) has had time to finish — same duration as
+    // the shrink itself, so the swap lands exactly as it visually reaches 0.
+    Timer {
+        id: panelSwapDelay
+        interval: Style.pillSlideDuration
+        onTriggered: root._displayedPanel = root._topPanel
     }
 
     // Keeps the "mpris" stack entry resident for as long as a track is
@@ -609,7 +652,7 @@ ShellRoot {
         // now the only thing that needs to be hoverable while idle. Visible:
         // grows/shrinks continuously with _pillOpen as it slides in/out.
         implicitWidth: root._pillVisible
-            ? Math.round(Screen.width * root._panelWidthFrac(root.activeModule))
+            ? Math.round(Screen.width * root._panelWidthFrac(root._displayedPanel))
             : Math.round(Screen.width * 0.10)
         implicitHeight: root._pillOpen * (Style.pillHeight + panelClip.height)
 
@@ -797,8 +840,8 @@ ShellRoot {
                     Loader {
                         id: moduleLoader
                         width: parent.width
-                        source: root._panelSource(root.activeModule)
-                        onLoaded: root._bindPanel(moduleLoader, root.activeModule)
+                        source: root._panelSource(root._displayedPanel)
+                        onLoaded: root._bindPanel(moduleLoader, root._displayedPanel)
                     }
                 }
             }
