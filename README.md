@@ -26,9 +26,23 @@ A Wayland desktop built on [labwc](https://github.com/labwc/labwc) with [quicksh
 
 | Term | Definition |
 |---|---|
-| **Module** | A single view loaded into the main pill — e.g. *time*, *workspace indicator*, *MPRIS*, *window switcher*, *recording status*. Only one module is active at a time. |
-| **Main pill** | The always-visible `Style.pillHeight` (24 px) bar element at the top-centre. Swaps its module based on context (recording > workspace flash > MPRIS > time) or on demand (window switcher via `Super+Tab`). |
-| **Panel** | A container that spawns below the main pill on demand or on hover — e.g. the window list, the MPRIS player panel, the calendar. Panels are dismissed when the module changes or the user presses Escape. |
+| **Module** | A logical feature area — e.g. *time*, *workspace indicator*, *MPRIS*, *window switcher*, *recording status*, *wallpaper*. Some modules have no bar/panel UI at all (wallpaper is background-only, currently disabled). |
+| **Pill** | The always-visible bar face of a module — `pill-time`, `pill-workspace`, `pill-mpris`, `pill-window`, `pill-recording`. The main bar is a single `Style.pillHeight` (24 px) slot at the top-centre that shows exactly one pill at a time, swapped based on context (recording > workspace flash > MPRIS > time) or on demand (window switcher via `Super+Tab`). |
+| **Panel** | An expanded container that spawns below the bar on demand or on hover — `panel-calendar`, `panel-media-player`, `panel-window-switcher`. Every panel is a **child of exactly one pill** and cannot exist independently of it. |
+
+### Pill ↔ panel ownership
+
+A panel is never a standalone module — it's always subordinate to the pill it expands from. Calling a panel implicitly calls its parent pill too; a panel can never be shown while its parent pill is not the one active in the bar.
+
+| Pill (parent) | Panel (child) |
+|---|---|
+| `pill-time` | `panel-calendar` |
+| `pill-mpris` | `panel-media-player` |
+| `pill-window` | `panel-window-switcher` |
+| `pill-workspace` | *(none)* |
+| `pill-recording` | *(none)* |
+
+Modules with no bar/panel UI yet: **wallpaper** (background layer only, currently disabled).
 
 These names are also reflected in `Style.qml` token prefixes:
 - `pill*` — background, border, height for the main pill
@@ -47,14 +61,14 @@ dotfiles-labwc-quickshell/
 │   ├── components/
 │   │   ├── Style.qml                # singleton — all colours, fonts, spacing tokens
 │   │   ├── TimePill.qml             # bar content — clock (HHmm)
-│   │   ├── Time.qml                 # calendar panel, opens on TimePill hover — agenda, navigable
+│   │   ├── Calendar.qml             # calendar panel, opens on TimePill hover — agenda, navigable
 │   │   │                            #   month grid + picker, weather box (temp/condition/hi-lo + icon), button rail
 │   │   ├── WorkspacePill.qml        # bar content — dual-square workspace indicator (flashes on switch)
 │   │   ├── MprisPill.qml            # bar content — MPRIS play/pause icon + marquee-scrolling track text
-│   │   ├── Mpris.qml                # MPRIS player panel, opens on MprisPill hover — marquee title too
+│   │   ├── MediaPlayer.qml          # MPRIS player panel, opens on MprisPill hover — marquee title too
 │   │   ├── RecordingPill.qml        # bar content — recording state (RECORDING / RECORDING SAVED)
 │   │   ├── WindowPill.qml           # bar content — static "Window" label
-│   │   ├── Window.qml               # window switcher panel — flat list, filter, keyboard nav
+│   │   ├── WindowSwitcher.qml       # window switcher panel — flat list, filter, keyboard nav
 │   │   ├── WallpaperWindow.qml      # background-layer wallpaper surface
 │   │   ├── PinButton.qml            # shared — thumbtack button that docks to a panel's top-right corner
 │   │   ├── PanelIconButton.qml      # shared — square hover-grow icon button, Layout-safe (fixed footprint)

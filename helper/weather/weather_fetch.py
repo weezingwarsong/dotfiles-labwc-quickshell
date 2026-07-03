@@ -2,7 +2,7 @@
 # Fetches current + today's high/low weather and prints one JSON object to
 # stdout: {"temp": .., "high": .., "low": .., "condition": "...", "icon": ".."}.
 # `icon` is a Nerd Font codepoint (hex string, no "0x"/"\u" prefix) from the
-# nf-weather set — Time.qml turns it into a glyph with
+# nf-weather set — Calendar.qml turns it into a glyph with
 # String.fromCharCode(parseInt(icon, 16)). Stdlib only — no extra pip
 # dependency for a one-shot poll like this.
 #

@@ -218,7 +218,7 @@ Item {
                         onClicked: root._shiftMonth(-1)
                     }
 
-                    // Center button — same visual language as Mpris.qml's
+                    // Center button — same visual language as MediaPlayer.qml's
                     // focus button (rectangle, hover-grow, drop shadow),
                     // but centered text and no icon, per the sketch.
                     // Sized to match PanelIconButton (26/30, fixed 30
