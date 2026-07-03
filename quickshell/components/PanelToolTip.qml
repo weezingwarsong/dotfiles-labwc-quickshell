@@ -38,8 +38,9 @@ ToolTip {
     }
 
     background: Rectangle {
-        color: Style.panelBg
-        border.width: Style.borderWidth
-        border.color: Style.panelBorder
+        color: Style.tooltipBg
+        radius: Style.tooltipRadius
+        border.width: Style.tooltipBorderWidth
+        border.color: Style.tooltipBorder
     }
 }

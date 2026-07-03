@@ -83,7 +83,8 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width
         color: Style.panelBg
-        border.width: Style.borderWidth
+        radius: Style.panelRadius
+        border.width: Style.panelBorderWidth
         border.color: Style.panelBorder
         implicitHeight: contentLayout.implicitHeight + 16
 
@@ -235,15 +236,16 @@ Item {
                                     width: localHovered ? parent.width + 4 : parent.width
                                     height: localHovered ? 30 : 26
                                     color: Style.panelButtonBg
-                                    border.width: Style.borderWidth
+                                    radius: Style.panelButtonRadius
+                                    border.width: Style.panelButtonBorderWidth
                                     border.color: Style.panelButtonBorder
                                     layer.enabled: true
                                     layer.effect: MultiEffect {
                                         shadowEnabled: true
-                                        shadowColor: Style.nord0
-                                        shadowBlur: monthYearBtn.localHovered ? 0.55 : 0.25
-                                        shadowVerticalOffset: monthYearBtn.localHovered ? 6 : 2
-                                        shadowOpacity: monthYearBtn.localHovered ? 0.8 : 0.5
+                                        shadowColor: Style.panelButtonShadowColor
+                                        shadowBlur: monthYearBtn.localHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
+                                        shadowVerticalOffset: monthYearBtn.localHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
+                                        shadowOpacity: monthYearBtn.localHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
                                     }
 
                                     HoverHandler { onHoveredChanged: monthYearBtn.localHovered = hovered }
@@ -327,15 +329,16 @@ Item {
                                     width:  (dayCell._todayHovered ? parent.width  + 6 : parent.width  + 2)
                                     height: (dayCell._todayHovered ? parent.height + 6 : parent.height + 2)
                                     color: Style.panelButtonBg
-                                    border.width: Style.borderWidth
+                                    radius: Style.panelButtonRadius
+                                    border.width: Style.panelButtonBorderWidth
                                     border.color: Style.panelButtonBorder
                                     layer.enabled: true
                                     layer.effect: MultiEffect {
                                         shadowEnabled: true
-                                        shadowColor: Style.nord0
-                                        shadowBlur: dayCell._todayHovered ? 0.55 : 0.25
-                                        shadowVerticalOffset: dayCell._todayHovered ? 6 : 2
-                                        shadowOpacity: dayCell._todayHovered ? 0.8 : 0.5
+                                        shadowColor: Style.panelButtonShadowColor
+                                        shadowBlur: dayCell._todayHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
+                                        shadowVerticalOffset: dayCell._todayHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
+                                        shadowOpacity: dayCell._todayHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
                                     }
                                 }
 
@@ -422,7 +425,8 @@ Item {
                                         property bool localHovered: false
                                         color: index === root.viewMonth ? Style.textPanelHighlight
                                              : localHovered ? Style.panelButtonBg : "transparent"
-                                        border.width: Style.borderWidth
+                                        radius: Style.panelButtonRadius
+                                        border.width: Style.panelButtonBorderWidth
                                         border.color: Style.panelButtonBorder
 
                                         HoverHandler { onHoveredChanged: monthCell.localHovered = hovered }
@@ -452,7 +456,8 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 90
                         color: Style.panelButtonBg
-                        border.width: Style.borderWidth
+                        radius: Style.panelButtonRadius
+                        border.width: Style.panelButtonBorderWidth
                         border.color: Style.panelButtonBorder
 
                         Text {

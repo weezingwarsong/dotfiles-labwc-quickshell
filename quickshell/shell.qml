@@ -292,7 +292,7 @@ ShellRoot {
                 height: Style.pillHeight
                 clip: true
                 radius: Style.pillRadius
-                border.width: Style.borderWidth
+                border.width: Style.pillBorderWidth
                 color: root.activeModule === "recording" ? Style.pillCriticalBg : Style.pillBg
                 border.color: root.activeModule === "recording" ? Style.pillCriticalBorder : Style.pillBorder
                 Behavior on color        { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }

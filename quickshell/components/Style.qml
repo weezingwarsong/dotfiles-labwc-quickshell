@@ -28,9 +28,6 @@ QtObject {
     readonly property string fontFamily: "JetBrainsMono Nerd Font"
     readonly property int    fontSize:   10
 
-    // ── Shared ───────────────────────────────────────────────────────────────
-    readonly property int borderWidth: 2
-
     // ── Animation ─────────────────────────────────────────────────────────────
     // Used by the rolling-text transition in shell.qml.  The bar itself is a
     // rigid rectangle that never moves; when the active module changes, the
@@ -44,22 +41,52 @@ QtObject {
     readonly property int rollScaleEasing:     Easing.InOutQuad
 
     // ── Pill (the always-visible 24 px bar element) ───────────────────────────
+    // These are the SHIPPED DEFAULTS — a future settings panel writes user
+    // overrides (color/opacity/radius) to a separate document and layers them
+    // on top rather than mutating this file; this stays the "reset" baseline.
     readonly property int   pillHeight: 24
     readonly property int   pillRadius: 0  // sharp rectangle, not a capsule
-    readonly property color pillBg:     Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
-    readonly property color pillBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
+    readonly property real  pillOpacity: 0.9
+    readonly property color pillBg:         Qt.rgba(nord0.r, nord0.g, nord0.b, pillOpacity)
+    readonly property color pillBorder:     Qt.rgba(nord3.r, nord3.g, nord3.b, pillOpacity)
+    readonly property int   pillBorderWidth: 2
 
     // ── Pill: Critical variant (recording / alert state) ─────────────────────
-    readonly property color pillCriticalBg:     Qt.rgba(nord11.r, nord11.g, nord11.b, 0.9)
-    readonly property color pillCriticalBorder: Qt.rgba(nord12.r, nord12.g, nord12.b, 0.9)
+    readonly property color pillCriticalBg:     Qt.rgba(nord11.r, nord11.g, nord11.b, pillOpacity)
+    readonly property color pillCriticalBorder: Qt.rgba(nord12.r, nord12.g, nord12.b, pillOpacity)
 
     // ── Panel (spawned below the pill on demand or hover) ─────────────────────
-    readonly property color panelBg:     Qt.rgba(nord0.r, nord0.g, nord0.b, 0.9)
-    readonly property color panelBorder: Qt.rgba(nord1.r, nord1.g, nord1.b, 0.9)
+    readonly property int   panelRadius: 0
+    readonly property real  panelOpacity: 0.9
+    readonly property color panelBg:         Qt.rgba(nord0.r, nord0.g, nord0.b, panelOpacity)
+    readonly property color panelBorder:     Qt.rgba(nord3.r, nord3.g, nord3.b, panelOpacity)
+    readonly property int   panelBorderWidth: 2
 
     // ── Panel: Button (interactive element inside a panel) ────────────────────
-    readonly property color panelButtonBg:     Qt.rgba(nord2.r, nord2.g, nord2.b, 0.9)
-    readonly property color panelButtonBorder: Qt.rgba(nord3.r, nord3.g, nord3.b, 0.9)
+    readonly property int   panelButtonRadius: 0
+    readonly property real  panelButtonOpacity: 0.9
+    readonly property color panelButtonBg:         Qt.rgba(nord2.r, nord2.g, nord2.b, panelButtonOpacity)
+    readonly property color panelButtonBorder:     Qt.rgba(nord3.r, nord3.g, nord3.b, panelButtonOpacity)
+    readonly property int   panelButtonBorderWidth: 2
+
+    // ── Panel: Button shadow (hover-grow drop shadow shared by every panel
+    //    button — PinButton, PanelIconButton, Mpris focus button, Time's
+    //    month/year + day-cell buttons). Centralized to kill duplicated
+    //    literals; not exposed in the future settings panel. ───────────────────
+    readonly property color panelButtonShadowColor:              nord0
+    readonly property real  panelButtonShadowBlurRest:            0.25
+    readonly property real  panelButtonShadowBlurHover:           0.55
+    readonly property int   panelButtonShadowVerticalOffsetRest:  2
+    readonly property int   panelButtonShadowVerticalOffsetHover: 6
+    readonly property real  panelButtonShadowOpacityRest:         0.5
+    readonly property real  panelButtonShadowOpacityHover:        0.8
+
+    // ── Tooltip (Nord-styled hover tooltip inside panels) ─────────────────────
+    readonly property int   tooltipRadius: 0
+    readonly property real  tooltipOpacity: 0.9
+    readonly property color tooltipBg:         Qt.rgba(nord0.r, nord0.g, nord0.b, tooltipOpacity)
+    readonly property color tooltipBorder:     Qt.rgba(nord3.r, nord3.g, nord3.b, tooltipOpacity)
+    readonly property int   tooltipBorderWidth: 2
 
     // ── Text: Pill ────────────────────────────────────────────────────────────
     readonly property color textPillLow:       nord3   // dimmed / inactive

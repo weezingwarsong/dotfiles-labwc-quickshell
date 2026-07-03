@@ -39,7 +39,8 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width
         color: Style.panelBg
-        border.width: Style.borderWidth
+        radius: Style.panelRadius
+        border.width: Style.panelBorderWidth
         border.color: Style.panelBorder
         implicitHeight: col.implicitHeight + 16
 
@@ -206,15 +207,16 @@ Item {
                 width: localHovered ? parent.width + 4 : parent.width
                 height: localHovered ? 28 : Style.pillHeight
                 color: Style.panelButtonBg
-                border.width: Style.borderWidth
+                radius: Style.panelButtonRadius
+                border.width: Style.panelButtonBorderWidth
                 border.color: Style.panelButtonBorder
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     shadowEnabled: true
-                    shadowColor: Style.nord0
-                    shadowBlur: focusBtn.localHovered ? 0.55 : 0.25
-                    shadowVerticalOffset: focusBtn.localHovered ? 6 : 2
-                    shadowOpacity: focusBtn.localHovered ? 0.8 : 0.5
+                    shadowColor: Style.panelButtonShadowColor
+                    shadowBlur: focusBtn.localHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
+                    shadowVerticalOffset: focusBtn.localHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
+                    shadowOpacity: focusBtn.localHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
                 }
 
                 HoverHandler { onHoveredChanged: focusBtn.localHovered = hovered }

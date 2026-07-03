@@ -247,13 +247,13 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 - [x] **Calendar panel** — see the "Time module" and "Calendar sync" entries under Features above for the full shape of what's built: agenda, navigable month view + inline picker, event highlighting/tooltips, button rail, and the `gcal-fetch` backend wired into `shell.qml` as a periodic `Process`.
   > OAuth credentials (`~/.config/gcal-quickshell/credentials.json`, from Google Cloud Console) and the cached `token.json` live outside the repo — it's public on GitHub — so they're never committed and aren't part of `install.sh`; set up by hand per-machine with `gcal-fetch --auth`.
   - [ ] Weather box is still a placeholder — no data source wired up.
-  - [ ] Settings button in the panel's button rail is inert — wire it once the Settings component (below) exists.
 
-- [ ] **Settings component** — a quickshell module (triggered by a keybind) for configuring user preferences at runtime without editing files. First candidate: the `focus-or-open.sh` app\_id mappings for `W-w` (browser) and `W-e` (file manager), so swapping browsers or file managers doesn't require touching rc.xml or the script. Settings would write to a small config file that the scripts and shell read.
+- [ ] **Settings component** — a quickshell module (triggered by a keybind, and by the currently-inert settings button in the calendar panel's button rail) for configuring user preferences at runtime without editing files. Candidates:
+  - [ ] **Default apps** — replace hardcoded app references (e.g. `kitty` as terminal, the `focus-or-open.sh` app\_id mappings for `W-w`/browser and `W-e`/file manager) with `xdg-open` and XDG MIME defaults, so swapping preferred apps doesn't require touching `rc.xml` or scripts by hand.
+  - [ ] **Wallpaper management** — browse and assign wallpapers to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames.
+  - [ ] **Theme editor** — runtime overrides for the per-element color, opacity, and corner-radius tokens in `Style.qml` (pill, panel, panel-button, tooltip). `Style.qml` stays the shipped "default/reset" baseline — user overrides get written to a separate document (not this file) that the panel can save/load, rather than mutating `Style.qml` directly.
 
-- [ ] **Default apps** (under Settings) — replace hardcoded app references (e.g. `kitty` as terminal) with `xdg-open` and XDG MIME defaults so the system respects the user's preferred apps rather than baking names into scripts and keybinds.
-
-- [ ] **Wallpaper management** — add a wallpaper panel/module to the settings component so wallpapers can be browsed and assigned to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames.
+  Settings would write to a small config document that the scripts and shell read.
 
 - [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to grow/shrink in height when they open/close, mirroring the bar's vertical roll transition instead of popping open instantly.
 

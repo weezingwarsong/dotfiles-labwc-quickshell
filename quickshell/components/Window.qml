@@ -77,7 +77,8 @@ FocusScope {
         anchors.top: parent.top; anchors.topMargin: root._gap
         width: parent.width
         color: Style.panelBg
-        border.width: Style.borderWidth; border.color: Style.panelBorder
+        radius: Style.panelRadius
+        border.width: Style.panelBorderWidth; border.color: Style.panelBorder
         implicitHeight: col.implicitHeight + 16
 
         Column {
@@ -92,7 +93,8 @@ FocusScope {
             Rectangle {
                 width: parent.width; height: 28
                 color: Style.panelButtonBg
-                border.width: Style.borderWidth; border.color: Style.panelButtonBorder
+                radius: Style.panelButtonRadius
+                border.width: Style.panelButtonBorderWidth; border.color: Style.panelButtonBorder
 
                 Text {
                     anchors.fill: parent; anchors.leftMargin: 8

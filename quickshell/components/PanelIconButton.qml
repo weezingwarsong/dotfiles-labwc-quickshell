@@ -32,15 +32,16 @@ Item {
         width: root.localHovered ? 30 : 26
         height: root.localHovered ? 30 : 26
         color: Style.panelButtonBg
-        border.width: Style.borderWidth
+        radius: Style.panelButtonRadius
+        border.width: Style.panelButtonBorderWidth
         border.color: Style.panelButtonBorder
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Style.nord0
-            shadowBlur: root.localHovered ? 0.55 : 0.25
-            shadowVerticalOffset: root.localHovered ? 6 : 2
-            shadowOpacity: root.localHovered ? 0.8 : 0.5
+            shadowColor: Style.panelButtonShadowColor
+            shadowBlur: root.localHovered ? Style.panelButtonShadowBlurHover : Style.panelButtonShadowBlurRest
+            shadowVerticalOffset: root.localHovered ? Style.panelButtonShadowVerticalOffsetHover : Style.panelButtonShadowVerticalOffsetRest
+            shadowOpacity: root.localHovered ? Style.panelButtonShadowOpacityHover : Style.panelButtonShadowOpacityRest
         }
 
         HoverHandler { onHoveredChanged: root.localHovered = hovered }
