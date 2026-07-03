@@ -96,13 +96,17 @@ ShellRoot {
     // they must route through the stack rather than being plain display flags.
     // Pinning is mutually exclusive across panels — standardized so any
     // future "force panel open" keybind follows the same rule: turning one
-    // pin on dismisses whichever other panel was pinned, and its stack entry
-    // sits at _forcedPinPriority (always above mpris/workspace/window/
-    // recording), so "the latest keybind wins," full stop.
+    // pin on dismisses whichever other panel was pinned/active, and its stack
+    // entry sits at _forcedPinPriority (always above mpris/workspace/window/
+    // recording), so "the latest keybind wins," full stop. Window switcher is
+    // part of the same group even though it has no separate "pinned" flag of
+    // its own (there's nothing to leave on across sessions to track) — W-Tab
+    // is just as much an explicit "force this open" request as W-1/W-2.
     function _setCalendarPinned(v) {
         root._calendarPinned = v
         if (v) {
-            if (root._mprisPinned) root._setMprisPinned(false)
+            if (root._mprisPinned)         root._setMprisPinned(false)
+            if (root._hasModule("window")) root._setWindowActive(false)
             root._requestModule("calendar-pin", "time", root._forcedPinPriority)
         } else {
             root._releaseModule("calendar-pin")
@@ -111,11 +115,45 @@ ShellRoot {
     function _setMprisPinned(v) {
         root._mprisPinned = v
         if (v) {
-            if (root._calendarPinned) root._setCalendarPinned(false)
+            if (root._calendarPinned)      root._setCalendarPinned(false)
+            if (root._hasModule("window")) root._setWindowActive(false)
             root._requestModule("mpris-pin", "mpris", root._forcedPinPriority)
         } else {
             root._releaseModule("mpris-pin")
         }
+    }
+    function _setWindowActive(v) {
+        if (v) {
+            if (root._calendarPinned) root._setCalendarPinned(false)
+            if (root._mprisPinned)    root._setMprisPinned(false)
+            root._requestModule("window", "window", root._forcedPinPriority)
+        } else {
+            root._releaseModule("window")
+        }
+    }
+
+    // ── Escape-to-dismiss / keyboard focus grab ───────────────────────────────
+    // Centralized here (not per-panel-component — see the `panel` PanelWindow
+    // below) since there's only one physical layer-shell surface hosting
+    // whichever module is active, and dismissing needs direct access to the
+    // arbiter/pin state above anyway. A table instead of if/else per module so
+    // adding a future panel is a one-line addition here, not three separate
+    // branches. "window" wants focus unconditionally (it's inherently modal —
+    // you're actively driving it via keyboard); the hover-panels only once
+    // explicitly pinned, so a passive hover-peek never steals keyboard input
+    // from whatever app you're actually using.
+    readonly property var _keyboardGrabModules: ({
+        "window": { wants: function() { return true }, dismiss: function() { root._setWindowActive(false) } },
+        "time":   { wants: function() { return root._calendarPinned }, dismiss: function() { root._setCalendarPinned(false); root._updatePanelPinTimer() } },
+        "mpris":  { wants: function() { return root._mprisPinned },    dismiss: function() { root._setMprisPinned(false);    root._updatePanelPinTimer() } }
+    })
+    readonly property bool _wantsKeyboardFocus: {
+        var entry = root._keyboardGrabModules[root.activeModule]
+        return entry ? entry.wants() : false
+    }
+    function _dismissActivePanel() {
+        var entry = root._keyboardGrabModules[root.activeModule]
+        if (entry) entry.dismiss()
     }
 
     // ── Pill show/hide ─────────────────────────────────────────────────────────
@@ -474,21 +512,24 @@ ShellRoot {
             : Math.round(Screen.width * 0.10)
         implicitHeight: root._pillOpen * (Style.pillHeight + moduleLoader.implicitHeight)
 
-        WlrLayershell.keyboardFocus: root.activeModule === "window"
+        // Exclusive keyboard focus (a per-surface wlr-layer-shell grab, not a
+        // labwc keybind) whenever the active module wants it — see
+        // _wantsKeyboardFocus/_keyboardGrabModules above for which modules and
+        // why (window always; hover-panels only once explicitly pinned).
+        WlrLayershell.keyboardFocus: root._wantsKeyboardFocus
             ? WlrKeyboardFocus.Exclusive
             : WlrKeyboardFocus.None
 
         Item {
             anchors.fill: parent
             clip: true
-            focus: root.activeModule === "window"
+            focus: root._wantsKeyboardFocus
 
             Keys.onPressed: function(event) {
-                if (root.activeModule !== "window") return
                 if (event.key === Qt.Key_Escape) {
-                    root._releaseModule("window")
+                    root._dismissActivePanel()
                     event.accepted = true
-                } else if (event.key === Qt.Key_Tab && (event.modifiers & Qt.MetaModifier)) {
+                } else if (root.activeModule === "window" && event.key === Qt.Key_Tab && (event.modifiers & Qt.MetaModifier)) {
                     root._releaseModule("window")
                     event.accepted = true
                 }
@@ -764,6 +805,9 @@ ShellRoot {
     // FIFO-based toggle for window-switch module — labwc W-Tab writes to this pipe.
     // Saves its own PID so the next quickshell session can kill this sh wrapper
     // (and its cat child) by exact PID, avoiding the pkill-matches-self trap.
+    // Routes through _setWindowActive (same forced-priority + mutual-exclusion
+    // treatment as W-1/W-2 — see its declaration above) rather than requesting
+    // the stack entry directly.
     Process {
         id: windowToggleReader
         command: ["sh", "-c",
@@ -777,9 +821,9 @@ ShellRoot {
             onRead: function(line) {
                 if (line.trim() !== "toggle") return
                 if (root._hasModule("window"))
-                    root._releaseModule("window")
+                    root._setWindowActive(false)
                 else
-                    root._requestModule("window", "window", 3)
+                    root._setWindowActive(true)
             }
         }
     }
@@ -802,6 +846,30 @@ ShellRoot {
                 if (line.trim() !== "toggle") return
                 if (root._calendarPinned) root._setCalendarPinned(false)
                 else                      root._setCalendarPinned(true)
+            }
+        }
+    }
+
+    // FIFO-based toggle for the MPRIS panel — labwc W-2 writes to this pipe.
+    // Same self-kill-by-PID pattern as windowToggleReader/calendarToggleReader
+    // above. Toggling on pins mpris open (permanent, same as the 30s-hover
+    // pin or the "still playing" background session — see _setMprisPinned,
+    // which already handles mutual exclusion with calendar-pin and priority);
+    // toggling off unpins it.
+    Process {
+        id: mprisToggleReader
+        command: ["sh", "-c",
+            "P=/tmp/qs-mpris-toggle-reader.pid; " +
+            "if [ -f \"$P\" ]; then O=$(cat \"$P\"); pkill -P \"$O\" 2>/dev/null; kill \"$O\" 2>/dev/null; fi; " +
+            "echo $$ > \"$P\"; " +
+            "rm -f /tmp/qs-mpris-toggle; mkfifo /tmp/qs-mpris-toggle; " +
+            "while true; do cat /tmp/qs-mpris-toggle; done"]
+        running: true
+        stdout: SplitParser {
+            onRead: function(line) {
+                if (line.trim() !== "toggle") return
+                if (root._mprisPinned) root._setMprisPinned(false)
+                else                   root._setMprisPinned(true)
             }
         }
     }

@@ -147,6 +147,9 @@
     <keybind key="W-1">
       <action name="Execute" command="~/.config/scripts/calendar-toggle.sh" />
     </keybind>
+    <keybind key="W-2">
+      <action name="Execute" command="~/.config/scripts/mpris-toggle.sh" />
+    </keybind>
     <keybind key="W-space">
       <action name="ShowMenu" menu="root-menu" />
     </keybind>

@@ -109,9 +109,9 @@ dotfiles-labwc-quickshell/
 
 ## Features
 
-**Single-slot bar** — one rigid rectangular bar at the top-center. The bar itself never moves or resizes; only one module's content is shown at a time, and switching between them rolls the outgoing text/icon out one edge while the incoming one rolls in from the other — like text printed on a cylinder rotating behind the bar. Priority order: recording > workspace flash > MPRIS > time.
+**Single-slot bar** — one rigid rectangular bar at the top-center. The bar itself never moves or resizes; only one module's content is shown at a time, and switching between them rolls the outgoing text/icon out one edge while the incoming one rolls in from the other — like text printed on a cylinder rotating behind the bar. Priority order: forced keybind (window switcher / calendar / MPRIS, whichever was invoked last — mutually exclusive with each other) > recording > workspace flash > MPRIS (background/hover) > time. See `_forcedPinPriority`/`_setWindowActive`/`_setCalendarPinned`/`_setMprisPinned` in `shell.qml`.
 
-**Time module** — shows the current time in `HHmm` format. Hovering slides down a wide calendar panel (independent panel width — see `_panelWidthFrac` in `shell.qml`; the pill itself never resizes); the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` toggles it open/closed directly, independent of hover.
+**Time module** — shows the current time in `HHmm` format. Hovering slides down a wide calendar panel (independent panel width — see `_panelWidthFrac` in `shell.qml`; the pill itself never resizes); the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` force-opens it directly, independent of hover, dismissing whichever other panel was pinned/active; Escape (once pinned) closes it again.
 - **Agenda** (left) — today's events pulled from `gcal-fetch`, split into all-day and timed, with tooltips on truncated titles.
 - **Month view** (middle) — navigable via prev/next triangle buttons or a month/year picker (click the month/year label; it inline-swaps to a year+month grid rather than a floating popup, since a fixed-size Wayland layer-shell surface has no "outside the window" for an overlay to render into). Days with events are highlighted with a tooltip listing them; today gets a hover-grow button treatment and, when the picker is open, the label becomes a "Today" shortcut back to the current month.
 - **Weather** (below month view) — current temperature, condition, today's high/low, and a day/night Nerd Font weather glyph (nf-weather), pulled from `weather-fetch`. Location is auto-detected via IP geolocation (cached 24h) and weather data comes from [Open-Meteo](https://open-meteo.com/) — both keyless, no account/credentials setup needed.
@@ -119,11 +119,11 @@ dotfiles-labwc-quickshell/
 
 **Workspace module** — two filled squares representing workspaces 1 and 2. Active is Nord7, inactive is Nord3. Flashes for 1 second on switch then returns to the resting module.
 
-**MPRIS module** — appears automatically when any audio player starts playing. Shows track title and artist, both marquee-scrolling when too long to fit (pill: continuous one-way scroll-and-snap; panel: pause/scroll/pause/reverse). Hovering expands a player panel with album, playback controls, and a focus button that brings the player window to front; the panel stays open across the whole pill+panel region, not just the pill. Dismisses 1 second after playback stops, unless hovering continuously for 30s has pinned it open permanently (thumbtack button to unpin), which overrides the auto-dismiss.
+**MPRIS module** — becomes the bar's priority winner for as long as a track is actually playing, but the bar itself no longer auto-opens for the whole song: each track change instead fires a desktop notification (title/artist, via `notify-send`/mako) announcing it, independent of whatever the bar currently shows. Hovering the bar at any point mid-song reveals the live player panel (album, playback controls, a focus button that brings the player window to front) on demand; moving away hides it again without affecting playback. Hovering continuously for 30s pins it open permanently (thumbtack button to unpin), and `Super+2` force-opens/closes it directly — either way dismissing whichever other panel was pinned/active, with Escape closing it again once pinned. Once playback actually stops/pauses, releases ~1s after you stop hovering it.
 
 **Calendar sync** — `helper/calendar/gcal_fetch.py` (installed as `gcal-fetch` on `PATH`) pulls Google Calendar events via OAuth and prints JSON; quickshell polls it every 5 minutes and caches the result client-side (window: -3 months to +24 months), so month navigation in the Time module never triggers a network call. Fetch mode never opens a browser — on auth failure it notifies (currently via `scripts/gcal-notify.sh`, a `notify-send` wrapper) and exits; re-auth is `gcal-fetch --auth`, run by hand. Credentials (`~/.config/gcal-quickshell/credentials.json` + cached `token.json`) live outside the repo, since it's public on GitHub.
 
-**Window switcher** — `Super+Tab` opens a panel with all open windows in a flat list, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). The currently focused window is shown muted. Powered by `qs-watcher`, a native C binary that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
+**Window switcher** — `Super+Tab` opens a panel with all open windows in a flat list, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). Force-opens to the top of the bar regardless of what's currently showing (recording included) and dismisses whichever other panel was pinned/active, same as the calendar/MPRIS keybinds. The currently focused window is shown muted. Powered by `qs-watcher`, a native C binary that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
 
 **Recording module** — `Super+Shift+R` starts screen recording. The bar switches to "RECORDING" (Nord11 red). On stop, shows "RECORDING SAVED" (Nord14 green) for 1 second, then returns to the resting module. Recordings saved to `~/Videos/`.
 
@@ -160,6 +160,7 @@ Emits one compact JSON line per state change to stdout. quickshell spawns `qs-wa
 |---|---|
 | `Super + Tab` | Window switcher (quickshell) |
 | `Super + 1` | Toggle calendar panel (quickshell) |
+| `Super + 2` | Toggle MPRIS panel (quickshell) |
 | `Alt + Tab / Alt + Shift + Tab` | Cycle windows forward / backward |
 | `Super + Alt + X` / `Alt + F4` | Close window |
 | `Super + Alt + F` | Maximize |
@@ -262,6 +263,9 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
   Settings would write to a small config document that the scripts and shell read.
 
 - [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to grow/shrink in height when they open/close, mirroring the bar's vertical roll transition instead of popping open instantly.
+
+- [x] **Escape-to-dismiss for pinned panels** — window switcher, calendar (once pinned), and MPRIS (once pinned) all grab exclusive per-surface keyboard focus (`WlrLayershell.keyboardFocus`) and release on Escape, via a small centralized table (`_keyboardGrabModules` in `shell.qml`) rather than a labwc keybind — a passive hover-peek never grabs focus, only an explicit pin/active session does, so ambient panels never steal input from whatever app you're actually using.
+- [ ] **Keyboard navigation for panels** — extend the same exclusive-focus mechanism beyond Escape-to-dismiss: arrow-key/Enter navigation in the calendar's month grid and agenda, eventually MPRIS controls. Same rule applies — only grab focus once a panel is genuinely being driven by keyboard, never during a passive hover-peek.
 
 ---
 
