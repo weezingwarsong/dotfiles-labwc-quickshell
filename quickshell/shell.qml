@@ -31,6 +31,11 @@ ShellRoot {
     property bool _calendarPinned: false
     property bool _mprisPinned: false
 
+    // Set by the dedicated `hotZone` PanelWindow (a separate, never-resizing
+    // surface above the pill) — reveal-only, see _pillVisible below for why
+    // it's kept apart from _panelHovered.
+    property bool _hotZoneHovered: false
+
     // ── Transition state ──────────────────────────────────────────────────────
     property string _prevModule: ""
     property string _outgoingModule: ""
@@ -46,6 +51,15 @@ ShellRoot {
         "time": 0, "mpris": 1, "workspace": 2, "window": 3,
         "recording": 4, "recordingSaved": 4
     })
+
+    // Priority tier for an explicit "force this panel open" keybind (W-1
+    // calendar today; a future mpris-open keybind, etc.) — always above every
+    // passive/ambient module, including recording, since pressing the keybind
+    // is a deliberate, one-off request that should always win. See
+    // _setCalendarPinned/_setMprisPinned for the accompanying mutual-exclusion
+    // ("latest keybind wins") — this constant alone only handles ranking
+    // above the rest of the stack, not exclusivity between pins themselves.
+    readonly property int _forcedPinPriority: 5
 
     // ── Priority-stack arbiter ─────────────────────────────────────────────────
     // Replaces the old flat/last-write-wins activeModule register. Each active
@@ -80,30 +94,58 @@ ShellRoot {
 
     // Pin flags now also gate pill visibility (see _pillVisible below), so
     // they must route through the stack rather than being plain display flags.
+    // Pinning is mutually exclusive across panels — standardized so any
+    // future "force panel open" keybind follows the same rule: turning one
+    // pin on dismisses whichever other panel was pinned, and its stack entry
+    // sits at _forcedPinPriority (always above mpris/workspace/window/
+    // recording), so "the latest keybind wins," full stop.
     function _setCalendarPinned(v) {
         root._calendarPinned = v
-        if (v) root._requestModule("calendar-pin", "time", root._modPriority["time"])
-        else   root._releaseModule("calendar-pin")
+        if (v) {
+            if (root._mprisPinned) root._setMprisPinned(false)
+            root._requestModule("calendar-pin", "time", root._forcedPinPriority)
+        } else {
+            root._releaseModule("calendar-pin")
+        }
     }
     function _setMprisPinned(v) {
         root._mprisPinned = v
-        if (v) root._requestModule("mpris-pin", "mpris", root._modPriority["mpris"])
-        else   root._releaseModule("mpris-pin")
+        if (v) {
+            if (root._calendarPinned) root._setCalendarPinned(false)
+            root._requestModule("mpris-pin", "mpris", root._forcedPinPriority)
+        } else {
+            root._releaseModule("mpris-pin")
+        }
     }
 
     // ── Pill show/hide ─────────────────────────────────────────────────────────
     // Hidden by default (no reserved screen space, ever — see PanelWindow's
     // exclusiveZone below); slides out whenever the stack has any content, the
-    // combined bar+panel region is hovered (hot-zone reveal when idle), or a
-    // future keybind forces it open (_keybindReveal stub).
-    readonly property bool _stackHasContent: root._moduleStack.length > 0
+    // dedicated `hotZone` strip is hovered while idle, the pill+panel itself
+    // is hovered once visible, or a future keybind forces it open
+    // (_keybindReveal stub). The bare "mpris" token is excluded here — it
+    // stays on the stack for the whole song so it remains the logical
+    // priority winner (see _peekMpris), but its mere presence must not force
+    // the pill open on its own; only a hover/pin actually shows it, and the
+    // track-change "peek" is a desktop notification instead (see
+    // _notifyMprisTrack). "mpris-pin" is a distinct token and still counts.
+    readonly property bool _stackHasContent: root._moduleStack.some(function(e) { return e.token !== "mpris" })
     property bool _keybindReveal: false   // stub — future revealToggleReader FIFO flips this
-    readonly property bool _pillVisible: root._stackHasContent || root._panelHovered || root._keybindReveal
+    // _hotZoneHovered (dedicated static strip, see the `hotZone` PanelWindow
+    // below) only ever asks to reveal the pill. _panelHovered (the pill+panel
+    // surface itself) is what also opens the module's own panel — see
+    // _bindPanel. Keeping these separate is what stops "the pill appeared
+    // under my resting cursor because I hovered the strip above it" from
+    // also popping the calendar/mpris panel open uninvited.
+    readonly property bool _pillVisible: root._stackHasContent || root._panelHovered || root._hotZoneHovered || root._keybindReveal
 
-    // Only allowed to retract once content has already settled back on "time"
-    // and no roll is mid-flight — this is what sequences "roll to time, THEN
-    // hide" without any manual animation chaining (see _pillOpen below).
-    readonly property bool _readyToHide: !root._pillVisible && root.activeModule === "time" && !root._inTransition
+    // Only allowed to retract once no roll is mid-flight — this is what
+    // sequences "finish any in-flight roll, THEN hide" without any manual
+    // animation chaining (see _pillOpen below). Deliberately does not require
+    // activeModule === "time": mpris can sit as the topEntry for an entire
+    // song while _pillVisible is false (background session, not hovered),
+    // and must still be able to hide in that state.
+    readonly property bool _readyToHide: !root._pillVisible && !root._inTransition
 
     // Target open state, as a plain binding rather than imperative onChanged
     // handlers (QML's auto-generated on<Prop>Changed name isn't reliable for
@@ -140,10 +182,12 @@ ShellRoot {
     // Fraction of screen width for the panel *window* (bar + its panel).
     // The bar itself stays a fixed small pill regardless (see `bar.width` in
     // the PanelWindow below) — only the panel content area below it grows.
-    // Calendar is a wide dashboard layout; everything else keeps the
-    // original narrow width.
+    // All modules currently share the same narrow width (calendar used to be
+    // a wide dashboard layout, now stacked vertically to match the pill) —
+    // kept as a per-module function so a future wide panel (e.g. Settings)
+    // can override it without touching the panel-window plumbing.
     function _panelWidthFrac(mod) {
-        return mod === "time" ? 0.20 : 0.10
+        return mod === "time" ? 0.10 : 0.10
     }
 
     // Bind live Qt.binding() properties on a freshly loaded pill item.
@@ -263,24 +307,63 @@ ShellRoot {
         root._updatePanelPinTimer()
     }
 
-    // Pushes a short-lived "mpris" stack entry (peek), auto-releasing after 1s
-    // unless the panel is being actively hovered — same shape as every other
-    // brief-flash trigger (workspace, recording). Independent of whether a
-    // player is actually attached: mprisPlayer/isMprisActive are maintained
-    // separately in _syncMpris below and are never touched by this peek or
-    // its release, so the session persists across hides. This is also the
-    // hook a future on-demand "show mpris" keybind would call directly.
+    // Keeps the "mpris" stack entry resident for as long as a track is
+    // actually playing — stopping mprisTimer here (rather than restarting
+    // it) is what makes mpris the persistent logical priority winner for the
+    // whole song, independent of hover. A desktop notification stands in for
+    // the visible "peek" instead of any pill-visibility state (see
+    // _notifyMprisTrack) — it fires regardless of whatever the bar is
+    // currently showing, so a peek is never stolen by a higher-priority
+    // module (recording/window/workspace). Once playback isn't active, falls
+    // back to the old deferred-release shape: release 1s after the panel
+    // stops being hovered, same as every other brief-flash trigger
+    // (workspace, recording). mprisPlayer/isMprisActive are maintained
+    // separately in _syncMpris below, so the session persists across hides
+    // regardless. This is also the hook a future on-demand "show mpris"
+    // keybind would call directly.
     function _peekMpris() {
         root._requestModule("mpris", "mpris", root._modPriority["mpris"])
-        if (!(root._panelHovered && root.activeModule === "mpris"))
+        if (root.isMprisActive) {
+            mprisTimer.stop()
+            root._notifyMprisTrack()
+        } else if (!(root._panelHovered && root.activeModule === "mpris")) {
             mprisTimer.restart()
+        }
+    }
+
+    // Fires (or replaces, via notify-send's -r/replaces-id) a desktop
+    // notification announcing the current track — this is the entire "peek"
+    // UX now; the bar pill itself never auto-opens on a track change.
+    // Independent of activeModule/_pillVisible on purpose: it should fire
+    // even when a higher-priority module (recording/window/workspace)
+    // currently owns the bar. No explicit -t: left at mako's configured
+    // urgency=low default-timeout (3s).
+    property int _mprisNotifyId: 0
+
+    function _notifyMprisTrack() {
+        if (!root.mprisPlayer) return
+        var args = ["notify-send", "-a", "Now Playing", "-u", "low", "-p"]
+        if (root._mprisNotifyId > 0) args.push("-r", String(root._mprisNotifyId))
+        args.push(root.mprisPlayer.trackTitle || "", root.mprisPlayer.trackArtist || "")
+        mprisNotifyProcess.command = args
+        mprisNotifyProcess.running = true
+    }
+
+    Process {
+        id: mprisNotifyProcess
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var id = parseInt(text.trim())
+                if (!isNaN(id)) root._mprisNotifyId = id
+            }
+        }
     }
 
     // Maintains mpris session state (mprisPlayer/isMprisActive) from the live
     // player list — this is the "background session," untouched by hide/show.
     // Every call here is itself already event-driven (onPlaybackStateChanged,
-    // onObjectAdded/Removed below), so peeking on every playing/paused sighting
-    // is correct — it only fires on real play/pause/track transitions, not a poll.
+    // onObjectAdded/Removed below); _peekMpris (above) is what decides
+    // whether that keeps "mpris" resident or arms its dismiss countdown.
     function _syncMpris() {
         var playing = null
         var paused  = null
@@ -299,6 +382,7 @@ ShellRoot {
             root._peekMpris()
         } else {
             root.mprisPlayer = null   // only null when truly no players exist
+            if (root._hasModule("mpris")) root._peekMpris()
         }
     }
 
@@ -309,15 +393,72 @@ ShellRoot {
         return ""
     }
 
-    WallpaperWindow {
-        source: root.currentWallpaper
+    // Disabled while we work on the yin integration — flip back on once
+    // that's wired up. Loader keeps WallpaperWindow's own surface from ever
+    // being created while off, rather than just hiding it.
+    property bool _wallpaperEnabled: false
+    Loader {
+        active: root._wallpaperEnabled
+        sourceComponent: WallpaperWindow {
+            source: root.currentWallpaper
+        }
+    }
+
+    // ── Hot zone: dedicated, always-present hover-to-reveal strip ──────────────
+    // A separate surface that never resizes — its only job is setting
+    // _hotZoneHovered, which is reveal-only (see _pillVisible). Deliberately
+    // NOT the same surface as `panel` below: that one also drives the
+    // module's own expanded panel (calendar/mpris) via _panelHovered, and
+    // fusing the two meant a passive reveal (MPRIS starting playback, a
+    // workspace flash, Super+1) with the cursor already resting over the
+    // pill's footprint would instantly pop that panel open too — geometry
+    // masquerading as intent. Splitting them means "the pill became
+    // visible" and "the user is deliberately hovering it" can't be
+    // conflated. This also fixed a real flicker bug: `panel` below used to
+    // double as its own hot zone, so its size depended on its own hover
+    // state — hovering it could shift its edge under a jittery cursor,
+    // re-triggering hover, restarting the slide, repeat. This strip never
+    // resizes, so there's nothing for it to feed back into. It sits flush
+    // against `panel`'s top margin (both keyed to Style.hotZoneHeight) so
+    // there's no dead pixel row between them, and the pill's resting
+    // position on screen is unchanged.
+    PanelWindow {
+        id: hotZone
+        anchors.top: true
+        color: "transparent"
+        exclusiveZone: 0
+        implicitWidth: Math.round(Screen.width * Style.hotZoneWidthFrac)
+        implicitHeight: Style.hotZoneHeight
+
+        // Same debounce as `panel`'s HoverHandler below, and needed even
+        // more here: this strip is only Style.hotZoneHeight (4px) tall, an
+        // easy boundary to jitter across, and _hotZoneHovered feeds
+        // _pillVisible with nothing else smoothing it — undebounced, that
+        // jitter flips _pillOpenTarget faster than its 300ms Behavior can
+        // finish, so the slide never completes a sweep, just creeps back
+        // and forth. That's what showed up as "slow motion" on reveal.
+        HoverHandler {
+            onHoveredChanged: {
+                if (hovered) {
+                    _hotZoneLeaveGrace.stop()
+                    root._hotZoneHovered = true
+                } else {
+                    _hotZoneLeaveGrace.restart()
+                }
+            }
+        }
+        Timer {
+            id: _hotZoneLeaveGrace
+            interval: 120
+            onTriggered: root._hotZoneHovered = false
+        }
     }
 
     PanelWindow {
         id: panel
         anchors.top: true
         color: "transparent"
-        margins.top: 4
+        margins.top: Style.hotZoneHeight
         // Permanently 0 — the pill overlays windows rather than reserving
         // screen space, whether hidden or open (see _pillVisible/_pillOpen).
         // wlr-layer-shell's exclusiveZone is compositor space-reservation
@@ -325,14 +466,13 @@ ShellRoot {
         // only the visual slide (an ordinary surface resize) is.
         exclusiveZone: 0
 
-        // Hidden (retracted): shrinks to a thin always-present hover strip
-        // (Style.hotZoneHeight) at the standard 10%-width hot-zone, so
-        // there's always something to hover to reveal the pill. Visible:
+        // Hidden (retracted): collapses fully — the hotZone window above is
+        // now the only thing that needs to be hoverable while idle. Visible:
         // grows/shrinks continuously with _pillOpen as it slides in/out.
         implicitWidth: root._pillVisible
             ? Math.round(Screen.width * root._panelWidthFrac(root.activeModule))
             : Math.round(Screen.width * 0.10)
-        implicitHeight: Style.hotZoneHeight + root._pillOpen * (Style.pillHeight + moduleLoader.implicitHeight)
+        implicitHeight: root._pillOpen * (Style.pillHeight + moduleLoader.implicitHeight)
 
         WlrLayershell.keyboardFocus: root.activeModule === "window"
             ? WlrKeyboardFocus.Exclusive
@@ -365,14 +505,40 @@ ShellRoot {
             // reveal falls out for free with no separate hot-zone element.
             HoverHandler {
                 onHoveredChanged: {
-                    root._panelHovered = hovered
-                    root._updatePanelPinTimer()
-                    // MPRIS peek auto-releases 1s after you stop hovering it,
-                    // unless pinned permanent — it no longer stays out for the
-                    // whole duration of playback (see _peekMpris), so active
-                    // playback alone doesn't block this countdown anymore.
-                    if (!hovered && root.activeModule === "mpris" && !root._mprisPinned)
+                    if (hovered) {
+                        // Cancel any pending "leave" from a moment ago — see
+                        // _hoverLeaveGrace below.
+                        _hoverLeaveGrace.stop()
+                        root._panelHovered = true
+                        root._updatePanelPinTimer()
+                    } else {
+                        // Debounced rather than applied immediately: the
+                        // hoverable surface starts a couple px below the
+                        // real screen edge (PanelWindow's margins.top, the
+                        // deliberate gap above the pill), so a cursor
+                        // resting right at that boundary flickers in/out of
+                        // "hovered" by a pixel or two. Applying every flip
+                        // immediately used to restart the pill's slide
+                        // Behavior on each one, which is what showed up as
+                        // flicker/stutter right at the top edge. The grace
+                        // timer absorbs that jitter — a genuine mouse-away
+                        // still reads as unhovered, just ~120ms later.
+                        _hoverLeaveGrace.restart()
+                    }
+                    // MPRIS release is gated on playback actually having
+                    // stopped/paused, not just on you glancing away — while
+                    // isMprisActive is true the token stays resident for the
+                    // whole song (see _peekMpris) regardless of hover.
+                    if (!hovered && root.activeModule === "mpris" && !root._mprisPinned && !root.isMprisActive)
                         mprisTimer.restart()
+                }
+            }
+            Timer {
+                id: _hoverLeaveGrace
+                interval: 120
+                onTriggered: {
+                    root._panelHovered = false
+                    root._updatePanelPinTimer()
                 }
             }
 
@@ -395,8 +561,8 @@ ShellRoot {
                     id: bar
                     // Fixed to the narrow width regardless of which module is
                     // active — only the panel window itself (and moduleLoader
-                    // below) grows for wide panels like the calendar. Without
-                    // this, the always-visible pill would stretch to match.
+                    // below) would grow for a future wide panel (e.g. Settings).
+                    // Without this, the always-visible pill would stretch to match.
                     width: Math.round(Screen.width * 0.10)
                     anchors.horizontalCenter: parent.horizontalCenter
                     height: Style.pillHeight
@@ -641,12 +807,16 @@ ShellRoot {
     }
 
     // qs-watcher is spawned directly so there are no orphaned FIFO readers.
-    // First launch kills any stray qs-watcher left from a previous quickshell
-    // session; exec replaces the sh wrapper so only one qs-watcher process runs.
+    // Eviction of a leftover watcher from a previous session already happens
+    // once in start-watchers.sh before quickshell is launched (see
+    // labwc/autostart) — pkill-ing by name here too would kill ANY
+    // qs-watcher on the system, including one owned by another concurrently
+    // running quickshell instance (e.g. during live-reload testing), which
+    // is worse than doing nothing.
     // On exit (e.g. labwc --reconfigure), watcherRestartTimer respawns after 2 s.
     Process {
         id: watcherReader
-        command: ["sh", "-c", "pkill -x qs-watcher 2>/dev/null; sleep 0.3; exec qs-watcher"]
+        command: ["qs-watcher"]
         running: true
         stdout: SplitParser {
             onRead: function(line) {

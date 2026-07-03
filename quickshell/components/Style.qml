@@ -45,7 +45,14 @@ QtObject {
     // settled the content back on "time" — see _readyToHide in shell.qml.
     readonly property int pillSlideDuration: 300  // ms
     readonly property int pillSlideEasing:   Easing.InOutCubic
-    readonly property int hotZoneHeight:     6    // px — always-alive hover strip when retracted
+
+    // ── Hot zone (dedicated hover-to-reveal strip, shell.qml) ─────────────────
+    // A separate, never-resizing surface above the pill, deliberately
+    // decoupled from it — see the `hotZone` PanelWindow in shell.qml for why.
+    // hotZoneHeight doubles as the pill's own `margins.top` so the two sit
+    // flush with no dead pixel row between them.
+    readonly property int  hotZoneHeight:     4     // px
+    readonly property real hotZoneWidthFrac:  0.15  // fraction of screen width
 
     // ── Fetch intervals (periodic Process polling in shell.qml) ──────────────
     // Separate tokens even though both default to 5 min, so either can be
