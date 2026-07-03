@@ -55,13 +55,17 @@ echo "  installed qs-watcher → ~/.local/bin"
 ln -snf "$DOTFILES/helper/calendar/gcal_fetch.py" "$HOME/.local/bin/gcal-fetch"
 echo "  linked gcal-fetch → ~/.local/bin"
 
+# weather_fetch.py — same symlink treatment as gcal-fetch, no credentials needed.
+ln -snf "$DOTFILES/helper/weather/weather_fetch.py" "$HOME/.local/bin/weather-fetch"
+echo "  linked weather-fetch → ~/.local/bin"
+
 # Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find qs-watcher.
 # labwc reads this file before launching child processes; the user's shell PATH is not inherited.
 LOCAL_BIN="$HOME/.local/bin"
 ENV_FILE="$DOTFILES/labwc/environment"
 if ! grep -q "^PATH=.*$LOCAL_BIN" "$ENV_FILE" 2>/dev/null; then
     printf "\n  ~/.local/bin is not in labwc/environment PATH.\n"
-    printf "  quickshell needs this to find qs-watcher/gcal-fetch at runtime.\n"
+    printf "  quickshell needs this to find qs-watcher/gcal-fetch/weather-fetch at runtime.\n"
     printf "  Add it automatically? [Y/n] "
     read -r _answer
     if [ "${_answer:-y}" != "n" ] && [ "${_answer:-y}" != "N" ]; then
@@ -72,7 +76,7 @@ if ! grep -q "^PATH=.*$LOCAL_BIN" "$ENV_FILE" 2>/dev/null; then
         fi
         echo "  added ~/.local/bin to PATH in labwc/environment"
     else
-        echo "  skipped — add PATH=~/.local/bin:\$PATH to labwc/environment manually or qs-watcher/gcal-fetch won't be found"
+        echo "  skipped — add PATH=~/.local/bin:\$PATH to labwc/environment manually or qs-watcher/gcal-fetch/weather-fetch won't be found"
     fi
 fi
 
@@ -88,6 +92,6 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
-echo "  Note: ensure ~/.local/bin is in your PATH for qs-watcher/gcal-fetch."
+echo "  Note: ensure ~/.local/bin is in your PATH for qs-watcher/gcal-fetch/weather-fetch."
 echo "  Note: gcal-fetch needs ~/.config/gcal-quickshell/credentials.json (Google OAuth client, not in this repo)."
 echo "        Run 'gcal-fetch --auth' once to complete the consent flow."

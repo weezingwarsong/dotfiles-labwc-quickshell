@@ -19,6 +19,7 @@ Item {
     property bool hovered: false
     property bool pinned: false
     property var  events: []
+    property var  weather: ({})
 
     signal dismissRequested()
 
@@ -451,7 +452,11 @@ Item {
                         }
                     }
 
-                    // Placeholder — no weather source wired up yet.
+                    // Fed by shell.qml's weatherData, populated by the periodic
+                    // weather-fetch Process — see weather_fetch.py for the
+                    // {temp, high, low, condition, icon} shape. Fields are
+                    // null while the first fetch is still in flight or failed.
+                    // `icon` is a Nerd Font nf-weather codepoint (hex string).
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 90
@@ -460,9 +465,51 @@ Item {
                         border.width: Style.panelButtonBorderWidth
                         border.color: Style.panelButtonBorder
 
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 10
+                            visible: root.weather.temp !== undefined && root.weather.temp !== null
+
+                            Text {
+                                text: root.weather.icon ? String.fromCharCode(parseInt(root.weather.icon, 16)) : ""
+                                color: Style.textPanelGlyphNormal
+                                font.family: Style.fontFamily
+                                font.pointSize: Style.fontSize + 10
+                            }
+
+                            ColumnLayout {
+                                spacing: 2
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: root.weather.temp !== undefined ? root.weather.temp + "°C" : ""
+                                    color: Style.textPanelHighlight
+                                    font.family: Style.fontFamily
+                                    font.pointSize: Style.fontSize + 2
+                                    font.bold: true
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: root.weather.condition || ""
+                                    color: Style.textPanelNormal
+                                    font.family: Style.fontFamily
+                                    font.pointSize: Style.fontSize
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: (root.weather.high !== undefined ? "H:" + root.weather.high + "°  " : "")
+                                        + (root.weather.low  !== undefined ? "L:" + root.weather.low  + "°"   : "")
+                                    color: Style.textPanelLow
+                                    font.family: Style.fontFamily
+                                    font.pointSize: Style.fontSize
+                                }
+                            }
+                        }
+
                         Text {
                             anchors.centerIn: parent
-                            text: "weather — not wired up yet"
+                            visible: root.weather.temp === undefined || root.weather.temp === null
+                            text: "weather unavailable"
                             color: Style.textPanelLow
                             font.family: Style.fontFamily
                             font.pointSize: Style.fontSize

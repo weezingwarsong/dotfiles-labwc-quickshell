@@ -19,6 +19,7 @@ ShellRoot {
     property var    _wallpaperBuf: []
     property var    windows: []
     property var    calendarEvents: []
+    property var    weatherData: ({})
 
     // ── Hover-panel state (calendar, MPRIS player) ────────────────────────────
     // `_panelHovered` tracks the mouse over the combined bar+panel region (see
@@ -127,6 +128,7 @@ ShellRoot {
             item.hovered = Qt.binding(() => root._panelHovered)
             item.pinned  = Qt.binding(() => root._calendarPinned)
             item.events  = Qt.binding(() => root.calendarEvents)
+            item.weather = Qt.binding(() => root.weatherData)
             item.dismissRequested.connect(function() {
                 root._calendarPinned = false
                 // Dismissing happens while still hovering (you just clicked a
@@ -607,11 +609,37 @@ ShellRoot {
 
     Timer {
         id: calendarFetchTimer
-        interval: 5 * 60 * 1000
+        interval: Style.calendarFetchIntervalMs
         running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: calendarFetch.running = true
+    }
+
+    // Polls weather-fetch (helper/weather/weather_fetch.py) on a timer — same
+    // one-shot-process shape as gcal-fetch above. It always prints valid JSON
+    // (nulls on failure, see weather_fetch.py), so a parse failure here only
+    // happens if another instance holds stdout mid-write; the catch below
+    // just keeps the last-known-good weatherData rather than clearing it.
+    Process {
+        id: weatherFetch
+        command: ["weather-fetch"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.weatherData = JSON.parse(text)
+                } catch (e) {}
+            }
+        }
+    }
+
+    Timer {
+        id: weatherFetchTimer
+        interval: Style.weatherFetchIntervalMs
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: weatherFetch.running = true
     }
 
 }

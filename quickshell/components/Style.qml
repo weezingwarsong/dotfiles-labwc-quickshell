@@ -40,6 +40,12 @@ QtObject {
     readonly property int rollTranslateEasing: Easing.InOutCubic
     readonly property int rollScaleEasing:     Easing.InOutQuad
 
+    // ── Fetch intervals (periodic Process polling in shell.qml) ──────────────
+    // Separate tokens even though both default to 5 min, so either can be
+    // tuned independently later without touching the other.
+    readonly property int calendarFetchIntervalMs: 5 * 60 * 1000
+    readonly property int weatherFetchIntervalMs:  5 * 60 * 1000
+
     // ── Pill (the always-visible 24 px bar element) ───────────────────────────
     // These are the SHIPPED DEFAULTS — a future settings panel writes user
     // overrides (color/opacity/radius) to a separate document and layers them
