@@ -95,15 +95,22 @@ ShellRoot {
     // Hidden by default (no reserved screen space, ever — see PanelWindow's
     // exclusiveZone below); slides out whenever the stack has any content, the
     // combined bar+panel region is hovered (hot-zone reveal when idle), or a
-    // future keybind forces it open (_keybindReveal stub).
-    readonly property bool _stackHasContent: root._moduleStack.length > 0
+    // future keybind forces it open (_keybindReveal stub). The bare "mpris"
+    // token is excluded here — it stays on the stack for the whole song so it
+    // remains the logical priority winner (see _peekMpris), but its mere
+    // presence must not force the pill open; only a hover/pin actually shows
+    // it. "mpris-pin" is a distinct token and still counts normally.
+    readonly property bool _stackHasContent: root._moduleStack.some(function(e) { return e.token !== "mpris" })
     property bool _keybindReveal: false   // stub — future revealToggleReader FIFO flips this
     readonly property bool _pillVisible: root._stackHasContent || root._panelHovered || root._keybindReveal
 
-    // Only allowed to retract once content has already settled back on "time"
-    // and no roll is mid-flight — this is what sequences "roll to time, THEN
-    // hide" without any manual animation chaining (see _pillOpen below).
-    readonly property bool _readyToHide: !root._pillVisible && root.activeModule === "time" && !root._inTransition
+    // Only allowed to retract once no roll is mid-flight — this is what
+    // sequences "finish any in-flight roll, THEN hide" without any manual
+    // animation chaining (see _pillOpen below). Deliberately does not require
+    // activeModule === "time": mpris can sit as the topEntry for an entire
+    // song while _pillVisible is false (background session, not hovered), and
+    // must still be able to hide in that state.
+    readonly property bool _readyToHide: !root._pillVisible && !root._inTransition
 
     // Target open state, as a plain binding rather than imperative onChanged
     // handlers (QML's auto-generated on<Prop>Changed name isn't reliable for
@@ -263,17 +270,51 @@ ShellRoot {
         root._updatePanelPinTimer()
     }
 
-    // Pushes a short-lived "mpris" stack entry (peek), auto-releasing after 1s
-    // unless the panel is being actively hovered — same shape as every other
-    // brief-flash trigger (workspace, recording). Independent of whether a
-    // player is actually attached: mprisPlayer/isMprisActive are maintained
-    // separately in _syncMpris below and are never touched by this peek or
-    // its release, so the session persists across hides. This is also the
-    // hook a future on-demand "show mpris" keybind would call directly.
+    // Keeps the "mpris" stack entry resident for as long as a track is
+    // actually playing — stopping mprisTimer here (rather than restarting
+    // it) is what makes mpris the persistent logical priority winner for the
+    // whole song, independent of hover. A mako notification stands in for
+    // the visible "peek" instead of any pill-visibility state (see
+    // _notifyMprisTrack). Once playback isn't active, falls back to the old
+    // deferred-release shape: release 1s after the panel stops being
+    // hovered, same as every other brief-flash trigger (workspace,
+    // recording). mprisPlayer/isMprisActive are maintained separately in
+    // _syncMpris below, so the session persists across hides regardless.
     function _peekMpris() {
         root._requestModule("mpris", "mpris", root._modPriority["mpris"])
-        if (!(root._panelHovered && root.activeModule === "mpris"))
+        if (root.isMprisActive) {
+            mprisTimer.stop()
+            root._notifyMprisTrack()
+        } else if (!(root._panelHovered && root.activeModule === "mpris")) {
             mprisTimer.restart()
+        }
+    }
+
+    // Fires (or replaces, via mako's replaces-id) a top-right desktop
+    // notification announcing the current track — this is the entire
+    // "peek" UX now; the bar pill itself never auto-opens on a track
+    // change. Independent of activeModule/_pillVisible on purpose: it
+    // should fire even when a higher-priority module (recording/window/
+    // workspace) currently owns the bar.
+    property int _mprisNotifyId: 0
+
+    function _notifyMprisTrack() {
+        if (!root.mprisPlayer) return
+        var args = ["notify-send", "-a", "Now Playing", "-u", "low", "-p"]
+        if (root._mprisNotifyId > 0) args.push("-r", String(root._mprisNotifyId))
+        args.push(root.mprisPlayer.trackTitle || "", root.mprisPlayer.trackArtist || "")
+        mprisNotifyProcess.command = args
+        mprisNotifyProcess.running = true
+    }
+
+    Process {
+        id: mprisNotifyProcess
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var id = parseInt(text.trim())
+                if (!isNaN(id)) root._mprisNotifyId = id
+            }
+        }
     }
 
     // Maintains mpris session state (mprisPlayer/isMprisActive) from the live
@@ -367,11 +408,11 @@ ShellRoot {
                 onHoveredChanged: {
                     root._panelHovered = hovered
                     root._updatePanelPinTimer()
-                    // MPRIS peek auto-releases 1s after you stop hovering it,
-                    // unless pinned permanent — it no longer stays out for the
-                    // whole duration of playback (see _peekMpris), so active
-                    // playback alone doesn't block this countdown anymore.
-                    if (!hovered && root.activeModule === "mpris" && !root._mprisPinned)
+                    // MPRIS release is gated on playback actually having
+                    // stopped/paused, not just on you glancing away — while
+                    // isMprisActive is true the token stays resident for the
+                    // whole song (see _peekMpris) regardless of hover.
+                    if (!hovered && root.activeModule === "mpris" && !root._mprisPinned && !root.isMprisActive)
                         mprisTimer.restart()
                 }
             }
@@ -379,9 +420,9 @@ ShellRoot {
             // Wraps the bar + panel and translates them off the top edge as
             // _pillOpen goes 1→0, so retracting slides everything up behind
             // the clip boundary instead of just popping invisible. Only
-            // begins once _readyToHide allows it (content already settled
-            // on "time" — see its declaration above), so the sequence is
-            // always "roll to time, then slide away," never both at once.
+            // begins once _readyToHide allows it (any in-flight roll has
+            // settled — see its declaration above), so the sequence is
+            // always "finish rolling, then slide away," never both at once.
             Item {
                 id: pillContent
                 width: parent.width
