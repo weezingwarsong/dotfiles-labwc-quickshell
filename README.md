@@ -262,6 +262,10 @@ Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats 
 
 - [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to grow/shrink in height when they open/close, mirroring the bar's vertical roll transition instead of popping open instantly.
 
+- [ ] **Swap `gpu-screen-recorder` for `wl-screenrec`** — `scripts/record-toggle.sh` currently shells out to `gpu-screen-recorder`; replace with [`wl-screenrec`](https://github.com/russelltg/wl-screenrec) instead.
+
+- [ ] **Wallpaper via [yin](https://github.com/SaverinOnRails/yin)** — consider offloading wallpaper rendering/management to `yin`, keeping quickshell scoped to the bar/panel UI only rather than also owning the wallpaper surface (`WallpaperWindow.qml`).
+
 ---
 
 ## Colour palette
