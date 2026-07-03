@@ -9,7 +9,6 @@ ShellRoot {
     id: root
 
     // priority: "time"=0 | "mpris"=1 | "workspace"=2 | "window"=3 | "recording"/"recordingSaved"=4
-    property string activeModule: "time"
     property string currentWorkspace: "1"
     property var    workspaceList:    []
     property bool   isRecording: false
@@ -40,9 +39,6 @@ ShellRoot {
     property real   _rollScaleProgress: 0.0  // drives the squash scaleY (InOutQuad)
     property int    _rollDir: 1  // +1 = incoming rolls up from below, -1 = down from above
 
-    // Drives where workspace/recording timers return to
-    readonly property string restingModule: isMprisActive ? "mpris" : "time"
-
     // Priority index for each module.  onActiveModuleChanged compares the old
     // and new indices to set _rollDir: new >= old → incoming rolls in from
     // below (+1), new < old → incoming rolls in from above (-1).
@@ -50,6 +46,78 @@ ShellRoot {
         "time": 0, "mpris": 1, "workspace": 2, "window": 3,
         "recording": 4, "recordingSaved": 4
     })
+
+    // ── Priority-stack arbiter ─────────────────────────────────────────────────
+    // Replaces the old flat/last-write-wins activeModule register. Each active
+    // requester pushes a {token, id, priority} entry; activeModule is derived
+    // from whichever entry currently has the highest priority. Releasing an
+    // entry falls through to whatever's next on the stack (or "time" if the
+    // stack is empty) instead of always reverting to a fixed resting module —
+    // this is what lets e.g. a workspace flash resume the window-switcher
+    // panel afterward instead of dropping straight back to idle.
+    property var _moduleStack: []   // reassigned (not mutated) so bindings fire
+
+    readonly property var _topEntry: {
+        if (root._moduleStack.length === 0) return null
+        var top = root._moduleStack[0]
+        for (var i = 1; i < root._moduleStack.length; i++)
+            if (root._moduleStack[i].priority > top.priority) top = root._moduleStack[i]
+        return top
+    }
+    readonly property string activeModule: root._topEntry ? root._topEntry.id : "time"
+
+    function _requestModule(token, id, priority) {
+        var next = root._moduleStack.filter(function(e) { return e.token !== token })
+        next.push({ token: token, id: id, priority: priority })
+        root._moduleStack = next
+    }
+    function _releaseModule(token) {
+        root._moduleStack = root._moduleStack.filter(function(e) { return e.token !== token })
+    }
+    function _hasModule(token) {
+        return root._moduleStack.some(function(e) { return e.token === token })
+    }
+
+    // Pin flags now also gate pill visibility (see _pillVisible below), so
+    // they must route through the stack rather than being plain display flags.
+    function _setCalendarPinned(v) {
+        root._calendarPinned = v
+        if (v) root._requestModule("calendar-pin", "time", root._modPriority["time"])
+        else   root._releaseModule("calendar-pin")
+    }
+    function _setMprisPinned(v) {
+        root._mprisPinned = v
+        if (v) root._requestModule("mpris-pin", "mpris", root._modPriority["mpris"])
+        else   root._releaseModule("mpris-pin")
+    }
+
+    // ── Pill show/hide ─────────────────────────────────────────────────────────
+    // Hidden by default (no reserved screen space, ever — see PanelWindow's
+    // exclusiveZone below); slides out whenever the stack has any content, the
+    // combined bar+panel region is hovered (hot-zone reveal when idle), or a
+    // future keybind forces it open (_keybindReveal stub).
+    readonly property bool _stackHasContent: root._moduleStack.length > 0
+    property bool _keybindReveal: false   // stub — future revealToggleReader FIFO flips this
+    readonly property bool _pillVisible: root._stackHasContent || root._panelHovered || root._keybindReveal
+
+    // Only allowed to retract once content has already settled back on "time"
+    // and no roll is mid-flight — this is what sequences "roll to time, THEN
+    // hide" without any manual animation chaining (see _pillOpen below).
+    readonly property bool _readyToHide: !root._pillVisible && root.activeModule === "time" && !root._inTransition
+
+    // Target open state, as a plain binding rather than imperative onChanged
+    // handlers (QML's auto-generated on<Prop>Changed name isn't reliable for
+    // underscore-prefixed properties). Stays open (1) whenever visible OR
+    // not yet ready to hide (mid-roll-back-to-time); only targets 0 once
+    // genuinely settled and idle. _pillOpen just tracks this target, with a
+    // Behavior animating the transition — this also gives the correct
+    // hidden-by-default value for free at startup (nothing on the stack →
+    // target is 0 from the very first evaluation, no special-casing needed).
+    readonly property real _pillOpenTarget: (root._pillVisible || !root._readyToHide) ? 1.0 : 0.0
+    property real _pillOpen: root._pillOpenTarget
+    Behavior on _pillOpen {
+        NumberAnimation { duration: Style.pillSlideDuration; easing.type: Style.pillSlideEasing }
+    }
 
     // The bar's rolling content — a lightweight icon+text component per module,
     // with no Rectangle/border of its own (the shared `bar` draws that once).
@@ -119,7 +187,7 @@ ShellRoot {
             item.pinned  = Qt.binding(() => root._mprisPinned)
             item.player  = Qt.binding(() => root.mprisPlayer)
             item.dismissRequested.connect(function() {
-                root._mprisPinned = false
+                root._setMprisPinned(false)
                 // Re-arm the countdown if still hovering — see the "time" branch below.
                 root._updatePanelPinTimer()
             })
@@ -130,7 +198,7 @@ ShellRoot {
             item.events  = Qt.binding(() => root.calendarEvents)
             item.weather = Qt.binding(() => root.weatherData)
             item.dismissRequested.connect(function() {
-                root._calendarPinned = false
+                root._setCalendarPinned(false)
                 // Dismissing happens while still hovering (you just clicked a
                 // button on the panel) — no hover transition occurs to restart
                 // the countdown on its own, so re-arm it explicitly here.
@@ -140,7 +208,7 @@ ShellRoot {
         if (mod === "window") {
             item.windows = Qt.binding(() => root.windows)
             item.windowFocused.connect(function() {
-                root.activeModule = root.restingModule
+                root._releaseModule("window")
             })
         }
     }
@@ -195,6 +263,24 @@ ShellRoot {
         root._updatePanelPinTimer()
     }
 
+    // Pushes a short-lived "mpris" stack entry (peek), auto-releasing after 1s
+    // unless the panel is being actively hovered — same shape as every other
+    // brief-flash trigger (workspace, recording). Independent of whether a
+    // player is actually attached: mprisPlayer/isMprisActive are maintained
+    // separately in _syncMpris below and are never touched by this peek or
+    // its release, so the session persists across hides. This is also the
+    // hook a future on-demand "show mpris" keybind would call directly.
+    function _peekMpris() {
+        root._requestModule("mpris", "mpris", root._modPriority["mpris"])
+        if (!(root._panelHovered && root.activeModule === "mpris"))
+            mprisTimer.restart()
+    }
+
+    // Maintains mpris session state (mprisPlayer/isMprisActive) from the live
+    // player list — this is the "background session," untouched by hide/show.
+    // Every call here is itself already event-driven (onPlaybackStateChanged,
+    // onObjectAdded/Removed below), so peeking on every playing/paused sighting
+    // is correct — it only fires on real play/pause/track transitions, not a poll.
     function _syncMpris() {
         var playing = null
         var paused  = null
@@ -204,18 +290,15 @@ ShellRoot {
             if (p.playbackState === MprisPlaybackState.Playing && !playing) playing = p
             else if (p.playbackState === MprisPlaybackState.Paused  && !paused)  paused  = p
         }
-        var wasActive = root.isMprisActive
         root.isMprisActive = (playing !== null)
         if (playing !== null) {
-            mprisTimer.stop()
             root.mprisPlayer = playing
-            if (!root.isRecording && root.activeModule !== "workspace" && root.activeModule !== "window")
-                root.activeModule = "mpris"
-        } else if (wasActive) {
-            if (paused !== null) root.mprisPlayer = paused
-            var comp = moduleLoader.item
-            if (root.activeModule === "mpris" && !root._mprisPinned && (!comp || !comp.hovered))
-                mprisTimer.restart()
+            root._peekMpris()
+        } else if (paused !== null) {
+            root.mprisPlayer = paused
+            root._peekMpris()
+        } else {
+            root.mprisPlayer = null   // only null when truly no players exist
         }
     }
 
@@ -235,12 +318,21 @@ ShellRoot {
         anchors.top: true
         color: "transparent"
         margins.top: 4
-        exclusiveZone: 28
+        // Permanently 0 — the pill overlays windows rather than reserving
+        // screen space, whether hidden or open (see _pillVisible/_pillOpen).
+        // wlr-layer-shell's exclusiveZone is compositor space-reservation
+        // accounting, not a renderable value, so it isn't animated here —
+        // only the visual slide (an ordinary surface resize) is.
+        exclusiveZone: 0
 
-        implicitWidth: Math.round(Screen.width * root._panelWidthFrac(root.activeModule))
-        // Panels are no longer part of the roll transition, so their height
-        // always tracks the panel content directly — no clamping needed.
-        implicitHeight: Style.pillHeight + moduleLoader.implicitHeight
+        // Hidden (retracted): shrinks to a thin always-present hover strip
+        // (Style.hotZoneHeight) at the standard 10%-width hot-zone, so
+        // there's always something to hover to reveal the pill. Visible:
+        // grows/shrinks continuously with _pillOpen as it slides in/out.
+        implicitWidth: root._pillVisible
+            ? Math.round(Screen.width * root._panelWidthFrac(root.activeModule))
+            : Math.round(Screen.width * 0.10)
+        implicitHeight: Style.hotZoneHeight + root._pillOpen * (Style.pillHeight + moduleLoader.implicitHeight)
 
         WlrLayershell.keyboardFocus: root.activeModule === "window"
             ? WlrKeyboardFocus.Exclusive
@@ -254,10 +346,10 @@ ShellRoot {
             Keys.onPressed: function(event) {
                 if (root.activeModule !== "window") return
                 if (event.key === Qt.Key_Escape) {
-                    root.activeModule = root.restingModule
+                    root._releaseModule("window")
                     event.accepted = true
                 } else if (event.key === Qt.Key_Tab && (event.modifiers & Qt.MetaModifier)) {
-                    root.activeModule = root.restingModule
+                    root._releaseModule("window")
                     event.accepted = true
                 }
             }
@@ -267,107 +359,124 @@ ShellRoot {
             // (it fills the PanelWindow, which is sized to exactly that), so this
             // naturally grows to cover a panel the moment it opens. Only consumed
             // when the active module actually has a hover-based panel (time,
-            // mpris); harmless no-op otherwise.
+            // mpris); harmless no-op otherwise. When the pill is retracted, this
+            // is the only thing live over the thin hot-zone strip — hovering it
+            // sets _panelHovered, which is one of _pillVisible's OR-clauses, so
+            // reveal falls out for free with no separate hot-zone element.
             HoverHandler {
                 onHoveredChanged: {
                     root._panelHovered = hovered
                     root._updatePanelPinTimer()
-                    // MPRIS auto-returns to time 1s after you stop hovering it,
-                    // unless it's playing (isMprisActive) or pinned permanent.
-                    if (!hovered && root.activeModule === "mpris" &&
-                            !root._mprisPinned && !root.isMprisActive)
+                    // MPRIS peek auto-releases 1s after you stop hovering it,
+                    // unless pinned permanent — it no longer stays out for the
+                    // whole duration of playback (see _peekMpris), so active
+                    // playback alone doesn't block this countdown anymore.
+                    if (!hovered && root.activeModule === "mpris" && !root._mprisPinned)
                         mprisTimer.restart()
                 }
             }
 
-            // ── Bar: a rigid rectangle that never moves or resizes. Content
-            // rolls vertically inside it between modules, as if printed on a
-            // cylinder rotating behind the bar's clipped window. ─────────────
-            Rectangle {
-                id: bar
-                // Fixed to the narrow width regardless of which module is
-                // active — only the panel window itself (and moduleLoader
-                // below) grows for wide panels like the calendar. Without
-                // this, the always-visible pill would stretch to match.
-                width: Math.round(Screen.width * 0.10)
-                anchors.horizontalCenter: parent.horizontalCenter
-                height: Style.pillHeight
-                clip: true
-                radius: Style.pillRadius
-                border.width: Style.pillBorderWidth
-                color: root.activeModule === "recording" ? Style.pillCriticalBg : Style.pillBg
-                border.color: root.activeModule === "recording" ? Style.pillCriticalBorder : Style.pillBorder
-                Behavior on color        { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
-                Behavior on border.color { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
-
-                // ── Persistent pill content (shown when not rolling) ───────
-                Loader {
-                    id: pillLoader
-                    anchors.fill: parent
-                    visible: !root._inTransition
-                    source: root._pillSource(root.activeModule)
-                    onLoaded: root._bindPill(pillLoader, root.activeModule)
-                }
-
-                // ── Roll overlay (shown only mid-transition) ────────────────
-                Item {
-                    anchors.fill: parent
-                    visible: root._inTransition
-
-                    // Outgoing — rolls out toward the exit edge, squashing
-                    // toward that same edge as it goes.
-                    Item {
-                        id: outItem
-                        width: parent.width
-                        height: parent.height
-                        y: root._rollDir > 0 ? -root._rollProgress * Style.pillHeight
-                                              :  root._rollProgress * Style.pillHeight
-                        opacity: 1 - root._rollProgress
-                        transform: Scale {
-                            yScale: 1 - root._rollScaleProgress * 0.9
-                            origin.y: root._rollDir > 0 ? 0 : outItem.height
-                        }
-
-                        Loader {
-                            id: outLoader
-                            anchors.fill: parent
-                            onLoaded: root._bindPillSnapshot(outLoader, root._outgoingModule)
-                        }
-                    }
-
-                    // Incoming — rolls in from the entry edge, growing from 0
-                    // as if emerging from behind that edge.
-                    Item {
-                        id: inItem
-                        width: parent.width
-                        height: parent.height
-                        y: root._rollDir > 0 ? (1 - root._rollProgress) * Style.pillHeight
-                                              : -(1 - root._rollProgress) * Style.pillHeight
-                        opacity: root._rollProgress
-                        transform: Scale {
-                            yScale: 0.1 + root._rollScaleProgress * 0.9
-                            origin.y: root._rollDir > 0 ? inItem.height : 0
-                        }
-
-                        Loader {
-                            id: inLoader
-                            anchors.fill: parent
-                            onLoaded: root._bindPill(inLoader, root.activeModule)
-                        }
-                    }
-                }
-            }
-
-            // ── Expanded panel (MPRIS player, window switcher, calendar) ───
-            // Anchored directly below the now-static bar; unaffected by the
-            // roll transition above — opens/closes instantly, as before.
-            Loader {
-                id: moduleLoader
+            // Wraps the bar + panel and translates them off the top edge as
+            // _pillOpen goes 1→0, so retracting slides everything up behind
+            // the clip boundary instead of just popping invisible. Only
+            // begins once _readyToHide allows it (content already settled
+            // on "time" — see its declaration above), so the sequence is
+            // always "roll to time, then slide away," never both at once.
+            Item {
+                id: pillContent
                 width: parent.width
-                anchors.top: bar.bottom
-                anchors.horizontalCenter: parent.horizontalCenter
-                source: root._panelSource(root.activeModule)
-                onLoaded: root._bindPanel(moduleLoader, root.activeModule)
+                height: Style.pillHeight + moduleLoader.implicitHeight
+                y: -(Style.pillHeight + moduleLoader.implicitHeight) * (1 - root._pillOpen)
+
+                // ── Bar: a rigid rectangle that never moves or resizes. Content
+                // rolls vertically inside it between modules, as if printed on a
+                // cylinder rotating behind the bar's clipped window. ─────────────
+                Rectangle {
+                    id: bar
+                    // Fixed to the narrow width regardless of which module is
+                    // active — only the panel window itself (and moduleLoader
+                    // below) grows for wide panels like the calendar. Without
+                    // this, the always-visible pill would stretch to match.
+                    width: Math.round(Screen.width * 0.10)
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    height: Style.pillHeight
+                    clip: true
+                    radius: Style.pillRadius
+                    border.width: Style.pillBorderWidth
+                    color: root.activeModule === "recording" ? Style.pillCriticalBg : Style.pillBg
+                    border.color: root.activeModule === "recording" ? Style.pillCriticalBorder : Style.pillBorder
+                    Behavior on color        { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
+                    Behavior on border.color { ColorAnimation { duration: Style.rollDuration; easing.type: Style.rollTranslateEasing } }
+
+                    // ── Persistent pill content (shown when not rolling) ───────
+                    Loader {
+                        id: pillLoader
+                        anchors.fill: parent
+                        visible: !root._inTransition
+                        source: root._pillSource(root.activeModule)
+                        onLoaded: root._bindPill(pillLoader, root.activeModule)
+                    }
+
+                    // ── Roll overlay (shown only mid-transition) ────────────────
+                    Item {
+                        anchors.fill: parent
+                        visible: root._inTransition
+
+                        // Outgoing — rolls out toward the exit edge, squashing
+                        // toward that same edge as it goes.
+                        Item {
+                            id: outItem
+                            width: parent.width
+                            height: parent.height
+                            y: root._rollDir > 0 ? -root._rollProgress * Style.pillHeight
+                                                  :  root._rollProgress * Style.pillHeight
+                            opacity: 1 - root._rollProgress
+                            transform: Scale {
+                                yScale: 1 - root._rollScaleProgress * 0.9
+                                origin.y: root._rollDir > 0 ? 0 : outItem.height
+                            }
+
+                            Loader {
+                                id: outLoader
+                                anchors.fill: parent
+                                onLoaded: root._bindPillSnapshot(outLoader, root._outgoingModule)
+                            }
+                        }
+
+                        // Incoming — rolls in from the entry edge, growing from 0
+                        // as if emerging from behind that edge.
+                        Item {
+                            id: inItem
+                            width: parent.width
+                            height: parent.height
+                            y: root._rollDir > 0 ? (1 - root._rollProgress) * Style.pillHeight
+                                                  : -(1 - root._rollProgress) * Style.pillHeight
+                            opacity: root._rollProgress
+                            transform: Scale {
+                                yScale: 0.1 + root._rollScaleProgress * 0.9
+                                origin.y: root._rollDir > 0 ? inItem.height : 0
+                            }
+
+                            Loader {
+                                id: inLoader
+                                anchors.fill: parent
+                                onLoaded: root._bindPill(inLoader, root.activeModule)
+                            }
+                        }
+                    }
+                }
+
+                // ── Expanded panel (MPRIS player, window switcher, calendar) ───
+                // Anchored directly below the now-static bar; unaffected by the
+                // roll transition above — opens/closes instantly, as before.
+                Loader {
+                    id: moduleLoader
+                    width: parent.width
+                    anchors.top: bar.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    source: root._panelSource(root.activeModule)
+                    onLoaded: root._bindPanel(moduleLoader, root.activeModule)
+                }
             }
         }
     }
@@ -403,39 +512,43 @@ ShellRoot {
     Timer {
         id: calendarPinTimer
         interval: 30000
-        onTriggered: root._calendarPinned = true
+        onTriggered: root._setCalendarPinned(true)
     }
     Timer {
         id: mprisPinTimer
         interval: 30000
-        onTriggered: root._mprisPinned = true
+        onTriggered: root._setMprisPinned(true)
     }
 
-    // Return to resting module after workspace flash
+    // Release the workspace-flash stack entry — falls through to whatever's
+    // next on the stack (or "time" if nothing else is queued), rather than a
+    // fixed resting module. Releasing an absent token is a no-op, so the old
+    // "am I still on workspace" guard is no longer needed.
     Timer {
         id: workspaceTimer
         interval: 1000
-        onTriggered: if (root.activeModule === "workspace") root.activeModule = root.restingModule
+        onTriggered: root._releaseModule("workspace")
     }
 
-    // Return to resting module after "RECORDING SAVED" flash
+    // Release the "RECORDING SAVED" flash entry after it's shown briefly.
     Timer {
         id: recordingTimer
         interval: 1000
-        onTriggered: root.activeModule = root.restingModule
+        onTriggered: root._releaseModule("recording")
     }
 
-    // Return to time 1s after MPRIS stops playing; clear player ref after leaving
+    // Release the MPRIS peek entry 1s after a play/pause/track-change event.
+    // mprisPlayer/isMprisActive are deliberately left untouched here — the
+    // player session persists in the background even once the pill hides,
+    // so a future on-demand "show mpris" call can reveal it again without
+    // re-deriving anything (see _syncMpris/_peekMpris).
     Timer {
         id: mprisTimer
         interval: 1000
-        onTriggered: {
-            if (root.activeModule === "mpris") root.activeModule = "time"
-            root.mprisPlayer = null
-        }
+        onTriggered: root._releaseModule("mpris")
     }
 
-    // Watch each player's playback state reactively
+    // Watch each player's playback state (and track changes) reactively
     Instantiator {
         model: Mpris.players
         delegate: QtObject {
@@ -443,6 +556,11 @@ ShellRoot {
             property var _conn: Connections {
                 target: modelData
                 function onPlaybackStateChanged() { root._syncMpris() }
+                // Track changes while already playing don't flip playbackState,
+                // so they wouldn't otherwise re-trigger a peek — this is what
+                // makes a new track its own "call," per the confirmed MPRIS
+                // peek-on-event behavior.
+                function onTrackChanged() { root._syncMpris() }
             }
         }
         onObjectAdded: { root._syncMpris() }
@@ -464,12 +582,14 @@ ShellRoot {
             var nowRecording = (code === 0)
             if (nowRecording && !root.isRecording) {
                 root.isRecording = true
-                root.activeModule = "recording"
-                workspaceTimer.stop()
-                recordingTimer.stop()
+                // Priority 4 always wins the stack top regardless of what's
+                // underneath, so there's no need to stop workspace/recording
+                // timers anymore — releasing "recording" later just falls
+                // through to whatever's still queued.
+                root._requestModule("recording", "recording", 4)
             } else if (!nowRecording && root.isRecording) {
                 root.isRecording = false
-                root.activeModule = "recordingSaved"
+                root._requestModule("recording", "recordingSaved", 4)
                 recordingTimer.restart()
             }
         }
@@ -490,18 +610,18 @@ ShellRoot {
         stdout: SplitParser {
             onRead: function(line) {
                 if (line.trim() !== "toggle") return
-                if (root.activeModule === "window")
-                    root.activeModule = root.restingModule
+                if (root._hasModule("window"))
+                    root._releaseModule("window")
                 else
-                    root.activeModule = "window"
+                    root._requestModule("window", "window", 3)
             }
         }
     }
 
     // FIFO-based toggle for the calendar panel — labwc W-1 writes to this pipe.
     // Same self-kill-by-PID pattern as windowToggleReader above. Toggling on
-    // forces the bar to "time" and pins the calendar open (permanent, same as
-    // the 30s-hover pin); toggling off unpins it and returns to restingModule.
+    // pins the calendar open (permanent, same as the 30s-hover pin, backed by
+    // a stack entry so the pill stays visible); toggling off unpins it.
     Process {
         id: calendarToggleReader
         command: ["sh", "-c",
@@ -514,13 +634,8 @@ ShellRoot {
         stdout: SplitParser {
             onRead: function(line) {
                 if (line.trim() !== "toggle") return
-                if (root.activeModule === "time" && root._calendarPinned) {
-                    root._calendarPinned = false
-                    root.activeModule = root.restingModule
-                } else {
-                    root.activeModule = "time"
-                    root._calendarPinned = true
-                }
+                if (root._calendarPinned) root._setCalendarPinned(false)
+                else                      root._setCalendarPinned(true)
             }
         }
     }
@@ -553,7 +668,7 @@ ShellRoot {
                     if (wsName && wsName !== root.currentWorkspace) {
                         root.currentWorkspace = wsName
                         if (!root.isRecording) {
-                            root.activeModule = "workspace"
+                            root._requestModule("workspace", "workspace", 2)
                             workspaceTimer.restart()
                         }
                     }

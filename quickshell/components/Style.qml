@@ -40,6 +40,13 @@ QtObject {
     readonly property int rollTranslateEasing: Easing.InOutCubic
     readonly property int rollScaleEasing:     Easing.InOutQuad
 
+    // ── Pill show/hide (hidden by default, slides out on demand) ─────────────
+    // The slide plays only after the roll transition above has already
+    // settled the content back on "time" — see _readyToHide in shell.qml.
+    readonly property int pillSlideDuration: 300  // ms
+    readonly property int pillSlideEasing:   Easing.InOutCubic
+    readonly property int hotZoneHeight:     6    // px — always-alive hover strip when retracted
+
     // ── Fetch intervals (periodic Process polling in shell.qml) ──────────────
     // Separate tokens even though both default to 5 min, so either can be
     // tuned independently later without touching the other.
