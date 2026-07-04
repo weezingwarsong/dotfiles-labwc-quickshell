@@ -1,36 +1,14 @@
 import Quickshell
+import Quickshell.Wayland
 import QtQuick
+import Quickshell.Io
+import Quickshell.Services.Mpris
+import "components"
 
 ShellRoot {
     id: root
 
-    FifoListener {
-        id: fifo
-
-        onShowTimeRequested:         timePill.triggerManualPeek()
-        onRefreshCalendarRequested:  calendar.refresh()
-        onTimerSet:                  function(secs) { timer.setTimer(secs) }
-        onTimerStartRequested:       timer.startTimer()
-        onTimerPauseRequested:       timer.pauseTimer()
-        onTimerResetRequested:       timer.resetTimer()
-        onStopwatchStartRequested:   timer.startStopwatch()
-        onStopwatchStopRequested:    timer.stopStopwatch()
-        onStopwatchResetRequested:   timer.resetStopwatch()
-    }
-
-    ClockProcess    { id: clock }
-    CalendarProcess { id: calendar }
-    TimerProcess    { id: timer }
-
-    TimePill {
-        id: timePill
-        clockProcess:    clock
-        calendarProcess: calendar
-        timerProcess:    timer
-    }
-}
-
-/*
+    // priority: "time"=0 | "mpris"=1 | "workspace"=2 | "window"=3 | "recording"/"recordingSaved"=4
     property string currentWorkspace: "1"
     property var    workspaceList:    []
     property bool   isRecording: false
@@ -1192,4 +1170,3 @@ ShellRoot {
     }
 
 }
-*/

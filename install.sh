@@ -13,9 +13,11 @@ link_dir() {
     echo "  linked $dst"
 }
 
-echo "Installing labwc-quickshell..."
+echo "Installing labwc-quickshell (Pillbox)..."
 
 link_dir labwc       labwc
+# Pillbox rewrite — the active quickshell config.
+# The old implementation is preserved in quickshellold/ for reference.
 link_dir quickshell  quickshell
 link_dir scripts     scripts
 link_dir mako        mako
@@ -26,40 +28,42 @@ mkdir -p "$HOME/.local/share/rofi/themes"
 ln -snf "$DOTFILES/rofi-themes/nord-custom.rasi" "$HOME/.local/share/rofi/themes/nord-custom.rasi"
 echo "  linked ~/.local/share/rofi/themes/nord-custom.rasi"
 
-# Build and install unified watcher (requires gcc, pkg-config, wayland-scanner, wayland-protocols)
-for cmd in gcc pkg-config wayland-scanner; do
-    command -v "$cmd" >/dev/null 2>&1 || { echo "  error: '$cmd' not found — install build dependencies (see dependency file)"; exit 1; }
-done
-echo "  building qs-watcher..."
-BUILD_DIR="$DOTFILES/helper/watcher"
-WS_PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
-WLR_PROTO_XML="/usr/share/wlr-protocols/unstable/wlr-foreign-toplevel-management-unstable-v1.xml"
-wayland-scanner client-header "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.h"
-wayland-scanner private-code   "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.c"
-wayland-scanner client-header "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
-wayland-scanner private-code   "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c"
-gcc -O2 -o "$BUILD_DIR/qs-watcher" \
-    "$BUILD_DIR/main.c" \
-    "$BUILD_DIR/ext-workspace-v1-client-protocol.c" \
-    "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c" \
-    $(pkg-config --cflags --libs wayland-client)
-mkdir -p "$HOME/.local/bin"
-# mv (not cp) — an atomic rename swaps the directory entry instead of writing
-# into the target inode, so it can't collide with a running qs-watcher
-# instance (quickshell respawns it within 2s of exit, so this is a real race).
-mv "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
-echo "  installed qs-watcher → ~/.local/bin"
+# DISABLED (Pillbox rewrite): qs-watcher was the old implementation's external
+# binary for workspace and window tracking. Pillbox uses Quickshell's built-in
+# ToplevelManager (wlr-foreign-toplevel-management) and ExtWorkspaceManager
+# (ext-workspace-v1) instead — no compiled helper needed.
+#
+# for cmd in gcc pkg-config wayland-scanner; do
+#     command -v "$cmd" >/dev/null 2>&1 || { echo "  error: '$cmd' not found — install build dependencies (see dependency file)"; exit 1; }
+# done
+# echo "  building qs-watcher..."
+# BUILD_DIR="$DOTFILES/helper/watcher"
+# WS_PROTO_XML="/usr/share/wayland-protocols/staging/ext-workspace/ext-workspace-v1.xml"
+# WLR_PROTO_XML="/usr/share/wlr-protocols/unstable/wlr-foreign-toplevel-management-unstable-v1.xml"
+# wayland-scanner client-header "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.h"
+# wayland-scanner private-code   "$WS_PROTO_XML"  "$BUILD_DIR/ext-workspace-v1-client-protocol.c"
+# wayland-scanner client-header "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
+# wayland-scanner private-code   "$WLR_PROTO_XML" "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c"
+# gcc -O2 -o "$BUILD_DIR/qs-watcher" \
+#     "$BUILD_DIR/main.c" \
+#     "$BUILD_DIR/ext-workspace-v1-client-protocol.c" \
+#     "$BUILD_DIR/wlr-foreign-toplevel-management-unstable-v1-client-protocol.c" \
+#     $(pkg-config --cflags --libs wayland-client)
+# mkdir -p "$HOME/.local/bin"
+# mv "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
+# echo "  installed qs-watcher → ~/.local/bin"
 
 # gcal_fetch.py is symlinked (not copied) — it's a plain script, so edits in
 # the repo take effect immediately without rerunning install.sh.
 ln -snf "$DOTFILES/helper/calendar/gcal_fetch.py" "$HOME/.local/bin/gcal-fetch"
 echo "  linked gcal-fetch → ~/.local/bin"
 
-# weather_fetch.py — same symlink treatment as gcal-fetch, no credentials needed.
-ln -snf "$DOTFILES/helper/weather/weather_fetch.py" "$HOME/.local/bin/weather-fetch"
-echo "  linked weather-fetch → ~/.local/bin"
+# DISABLED (Pillbox rewrite): weather widget is not part of Pillbox.
+# Kept here for reference in case it is reintroduced.
+# ln -snf "$DOTFILES/helper/weather/weather_fetch.py" "$HOME/.local/bin/weather-fetch"
+# echo "  linked weather-fetch → ~/.local/bin"
 
-# Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find qs-watcher.
+# Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find gcal-fetch.
 # labwc reads this file before launching child processes; the user's shell PATH is not inherited.
 LOCAL_BIN="$HOME/.local/bin"
 ENV_FILE="$DOTFILES/labwc/environment"
@@ -92,6 +96,8 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
-echo "  Note: ensure ~/.local/bin is in your PATH for qs-watcher/gcal-fetch/weather-fetch."
+echo "  Note: ensure ~/.local/bin is in your PATH for gcal-fetch."
 echo "  Note: gcal-fetch needs ~/.config/gcal-quickshell/credentials.json (Google OAuth client, not in this repo)."
 echo "        Run 'gcal-fetch --auth' once to complete the consent flow."
+echo "  Note: Pillbox FIFO lives at ~/.local/share/pillbox/pillbox.fifo — created automatically on first run."
+echo "        labwc keybinds should write commands to that path (e.g. echo 'showTime' > ~/.local/share/pillbox/pillbox.fifo)."
