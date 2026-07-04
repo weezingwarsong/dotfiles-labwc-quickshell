@@ -53,11 +53,18 @@ ShellRoot {
     // id directly, so a panel can only ever be reached by first going through
     // its one parent pill.
     readonly property var _panelForPill: ({ "time": "calendar", "mpris": "mediaPlayer", "window": "windowSwitcher" })
-    // The panel the current winning pill wants shown, updating the instant
-    // activeModule does. _displayedPanel (below) is what's actually bound to
+    // The panel the current winning pill wants shown. A plain function, not a
+    // `readonly property` binding — a property binding on
+    // `_panelForPill[root.activeModule]` was observed to freeze at its
+    // Component.onCompleted value and never re-evaluate on later
+    // activeModule changes (QML's dependency tracking didn't pick up the
+    // bracket-indexed read), so this is called fresh at every use site
+    // instead of cached. _displayedPanel (below) is what's actually bound to
     // moduleLoader — see the panelStillClosing branch in onActiveModuleChanged
     // for why the two are allowed to diverge briefly on the way out.
-    readonly property string _topPanel: root._panelForPill[root.activeModule] || ""
+    function _topPanel() {
+        return root._panelForPill[root.activeModule] || ""
+    }
     property string _displayedPanel: ""
     property real   _rollProgress: 0.0       // drives y + opacity (InOutCubic)
     property real   _rollScaleProgress: 0.0  // drives the squash scaleY (InOutQuad)
@@ -392,7 +399,7 @@ ShellRoot {
 
     Component.onCompleted: {
         root._prevModule = root.activeModule
-        root._displayedPanel = root._topPanel
+        root._displayedPanel = root._topPanel()
     }
 
     // Transition sequencing:
@@ -452,7 +459,7 @@ ShellRoot {
         if (panelStillClosing) {
             panelSwapDelay.restart()
         } else {
-            root._displayedPanel = root._topPanel
+            root._displayedPanel = root._topPanel()
         }
 
         root._inTransition = true
@@ -486,7 +493,7 @@ ShellRoot {
     Timer {
         id: panelSwapDelay
         interval: Style.pillSlideDuration
-        onTriggered: root._displayedPanel = root._topPanel
+        onTriggered: root._displayedPanel = root._topPanel()
     }
 
     // Keeps the "mpris" stack entry resident for as long as a track is
