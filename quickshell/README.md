@@ -60,11 +60,55 @@ Each panel is a data + actions component: it binds to root processes and exposes
 | `WindowSwitcherPanel` | `ToplevelProcess` | `switchToWindow(toplevel)` |
 | `MediaPlayerPanel` | `MprisProcess` | `playPause()`, `next()`, `previous()` |
 
-### Phase 4 — Visuals
-Only after Phases 1–3 are fully validated:
-- Wrap pills in the shared pill visual shell (rounded rect, top-center anchor, show/hide animation driven by `shouldShow`)
-- Wrap panels in the shared panel visual shell (larger rect, positioned below pill, shown/hidden by explicit user calls)
+### Phase 4 — Visuals *(in progress)*
+- Wrap pills in `PillWindow` — the shared visual container in `module-reusable-elements/` ✓
+- Wrap panels in a shared panel visual shell (larger rect, positioned below pill, shown/hidden by explicit user calls)
 - Reusable visual primitives live in `module-reusable-elements/`
+
+**Wiring (in `shell.qml`):**
+```
+HoverZone ──► PillController ──► PillWindow
+TimePill  ──►      (judge)   ──► (renderer)
+```
+`HoverZone` and each pill feed into `PillController`. `PillController` outputs `activePill` and `shouldShow`. `PillWindow` renders `activePill.displayText` and sets `visible: shouldShow`. No other component makes show/hide decisions.
+
+**`PillController.qml`** (`module-reusable-elements/PillController.qml`):
+The single source of truth for all show/hide decisions. A `QtObject` — no visuals, pure logic. Every input that could influence pill visibility flows into `PillController`; nothing else makes show/hide decisions.
+
+Two explicit stages:
+
+*Stage 1 — Winner:* Which pill has the most relevant content right now, computed independently of whether anything is showing. Pre-computed so the display is instant on reveal. Priority order is TBD and will be defined as pills are completed. Currently `TimePill` is always the winner — it is the only pill.
+
+*Stage 2 — Show/hide:* Whether to show the pill at all. Three independent triggers evaluated in order:
+1. **Hover** — cursor in `HoverZone`. Always works, never suppressible.
+2. **Peek** — W-1 keybind via FIFO. Toggles: first press shows for 5 seconds, second press dismisses immediately. Sets `_userDismissed` on dismiss.
+3. **Content-driven** — `winner.shouldShow` is true (calendar imminent, timer active, etc.). Blocked by `_userDismissed` so the user can silence an active condition. `_userDismissed` auto-clears when the content condition ends naturally, so future conditions are not silenced.
+
+Inputs:
+- `hovered: bool` — from `HoverZone`
+- `timePill` (and future pills) — `PillController` reads their `shouldShow`
+
+Outputs:
+- `winner` — the pill with highest-priority content (pre-computed, always ready)
+- `shouldShow: bool` — the final gate
+- `activePill` — `winner` if `shouldShow`, else `null`; passed to `PillWindow`
+
+**`PillWindow.qml`** (`module-reusable-elements/PillWindow.qml`):
+- A `PanelWindow` anchored top-center on `Quickshell.screens[0]` (primary screen)
+- `exclusiveZone: 0` — overlays windows, reserves no screen space
+- `implicitWidth: Screen.width * 0.10`, `implicitHeight: 24`
+- `mask: Region {}` — fully pointer-transparent so `HoverZone` below it always receives the cursor
+- Receives `activePill` and `shouldShow` as injected properties from `shell.qml`
+- Renders `activePill.displayText` inside a rounded `Rectangle`
+- Completely dumb — no logic, no opinions. All decisions are made upstream in `PillController`.
+
+**`HoverZone.qml`** (`module-reusable-elements/HoverZone.qml`):
+- An always-present transparent `PanelWindow`, 8px tall, anchored top-center
+- Never hides — must always be present to detect cursor entry even when pill is hidden
+- Exposes `hovered: bool` with a 120ms leave debounce to prevent edge jitter
+- Feeds into `PillController.hovered` only — does not talk to `PillWindow` directly
+
+**`TimePill.shouldShow`** is content-driven only — calendar imminent or timer active. User-initiated triggers (hover, W-1 peek) live in `PillController`, not in the pill. Pills declare what content they have; `PillController` decides when to show it.
 
 ### Rule: One Source of Truth
 No pill or panel may fetch its own data. All data flows from `root-processes/` down. This makes the data layer independently testable and prevents duplicated IPC connections.
@@ -222,6 +266,10 @@ quickshell-rewrite/
 │   ├── WorkspacePill.qml
 │   └── qmldir
 ├── module-reusable-elements/
+│   ├── HoverZone.qml         ✓ implemented
+│   ├── PillController.qml    ✓ implemented
+│   ├── PillWindow.qml        ✓ implemented
+│   └── qmldir
 ├── root-processes/
 │   ├── CalendarProcess.qml   ✓ implemented
 │   ├── ClockProcess.qml      ✓ implemented

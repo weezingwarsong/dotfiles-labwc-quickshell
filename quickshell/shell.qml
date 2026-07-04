@@ -1,5 +1,9 @@
 import Quickshell
 import QtQuick
+import "./root-processes"
+import "./module-pills"
+import "./module-panels"
+import "./module-reusable-elements"
 
 ShellRoot {
     id: root
@@ -7,7 +11,7 @@ ShellRoot {
     FifoListener {
         id: fifo
 
-        onShowTimeRequested:         timePill.triggerManualPeek()
+        onShowTimeRequested:         controller.triggerPeek()
         onRefreshCalendarRequested:  calendar.refresh()
         onTimerSet:                  function(secs) { timer.setTimer(secs) }
         onTimerStartRequested:       timer.startTimer()
@@ -27,6 +31,19 @@ ShellRoot {
         clockProcess:    clock
         calendarProcess: calendar
         timerProcess:    timer
+    }
+
+    HoverZone { id: hoverZone }
+
+    PillController {
+        id: controller
+        hovered:  hoverZone.hovered
+        timePill: timePill
+    }
+
+    PillWindow {
+        activePill: controller.activePill
+        shouldShow: controller.shouldShow
     }
 }
 

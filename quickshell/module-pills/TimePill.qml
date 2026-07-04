@@ -8,9 +8,8 @@ Item {
     property var calendarProcess: null
     property var timerProcess: null
 
-    // ── Reveal conditions ────────────────────────────────────────────────────────
-
-    property bool _manualPeek: false
+    // ── Reveal conditions (content-driven only) ──────────────────────────────
+    // User-initiated triggers (hover, FIFO peek) live in PillController, not here.
 
     readonly property bool _calendarImminent: {
         if (!calendarProcess || !calendarProcess.nextEvent) return false
@@ -21,9 +20,9 @@ Item {
 
     readonly property bool _timerActive: timerProcess ? timerProcess.active : false
 
-    readonly property bool shouldShow: _manualPeek || _calendarImminent || _timerActive
+    readonly property bool shouldShow: _calendarImminent || _timerActive
 
-    // ── Display text ─────────────────────────────────────────────────────────────
+    // ── Display text ─────────────────────────────────────────────────────────
 
     readonly property string displayText: {
         if (_timerActive && timerProcess) return timerProcess.displayText
@@ -31,31 +30,10 @@ Item {
         return "--:--"
     }
 
-    // ── Manual peek ──────────────────────────────────────────────────────────────
+    // ── Logging ──────────────────────────────────────────────────────────────
 
-    function triggerManualPeek() {
-        _manualPeek = true
-        peekTimer.restart()
-        console.log("[TimePill] manual peek triggered")
-    }
-
-    Timer {
-        id: peekTimer
-        interval: 5000
-        onTriggered: {
-            root._manualPeek = false
-            console.log("[TimePill] manual peek expired")
-        }
-    }
-
-    // ── Logging ──────────────────────────────────────────────────────────────────
-
-    onShouldShowChanged: console.log("[TimePill] shouldShow:", shouldShow, "| text:", displayText,
-        "| manualPeek:", _manualPeek, "| calendarImminent:", _calendarImminent, "| timerActive:", _timerActive)
-
-    onDisplayTextChanged: {
-        if (shouldShow) console.log("[TimePill] displayText:", displayText)
-    }
+    onShouldShowChanged: console.log("[TimePill] shouldShow:", shouldShow,
+        "| calendarImminent:", _calendarImminent, "| timerActive:", _timerActive)
 
     Component.onCompleted: console.log("[TimePill] started")
 }

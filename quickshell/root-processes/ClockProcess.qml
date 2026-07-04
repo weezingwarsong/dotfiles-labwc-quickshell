@@ -15,7 +15,7 @@ Item {
             root.now = new Date()
             root.displayTime = Qt.formatTime(root.now, "HH:mm")
             root.displayTimeFull = Qt.formatTime(root.now, "HH:mm:ss")
-            console.log("[ClockProcess]", root.displayTimeFull)
+
         }
     }
 

@@ -140,12 +140,13 @@
       <action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" />
     </keybind>
 
-    <!-- W-Tab: previously ShowMenu client-list-combined-menu, now handled by quickshell window-switch module -->
+    <!-- W-Tab: window switcher via rofi (replaces old quickshell window-switch module) -->
     <keybind key="W-Tab">
-      <action name="Execute" command="~/.config/scripts/window-switch-toggle.sh" />
+      <action name="Execute" command="rofi -show window" />
     </keybind>
+    <!-- W-1: reveal TimePill via Pillbox FIFO -->
     <keybind key="W-1">
-      <action name="Execute" command="~/.config/scripts/calendar-toggle.sh" />
+      <action name="Execute" command="sh -c 'echo showTime > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
     <keybind key="W-2">
       <action name="Execute" command="~/.config/scripts/mpris-toggle.sh" />
