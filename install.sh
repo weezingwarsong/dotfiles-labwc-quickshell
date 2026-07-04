@@ -53,10 +53,16 @@ echo "  linked ~/.local/share/rofi/themes/nord-custom.rasi"
 # mv "$BUILD_DIR/qs-watcher" "$HOME/.local/bin/qs-watcher"
 # echo "  installed qs-watcher → ~/.local/bin"
 
-# gcal_fetch.py is symlinked (not copied) — it's a plain script, so edits in
-# the repo take effect immediately without rerunning install.sh.
-ln -snf "$DOTFILES/helper/calendar/gcal_fetch.py" "$HOME/.local/bin/gcal-fetch"
+# Google integration scripts — symlinked so repo edits take effect immediately.
+# All three share the same OAuth token at ~/.config/gcal-quickshell/token.json.
+# Run `gcal-fetch --auth` once after install to complete the consent flow.
+ln -snf "$DOTFILES/helper/calendar/gcal_fetch.py"    "$HOME/.local/bin/gcal-fetch"
 echo "  linked gcal-fetch → ~/.local/bin"
+ln -snf "$DOTFILES/helper/tasks/gtask_fetch.py"      "$HOME/.local/bin/gtask-fetch"
+echo "  linked gtask-fetch → ~/.local/bin"
+ln -snf "$DOTFILES/helper/google_auth_notify.sh"     "$HOME/.local/bin/google-auth-notify"
+chmod +x "$DOTFILES/helper/google_auth_notify.sh"
+echo "  linked google-auth-notify → ~/.local/bin"
 
 # DISABLED (Pillbox rewrite): weather widget is not part of Pillbox.
 # Kept here for reference in case it is reintroduced.
@@ -96,8 +102,8 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Done."
-echo "  Note: ensure ~/.local/bin is in your PATH for gcal-fetch."
-echo "  Note: gcal-fetch needs ~/.config/gcal-quickshell/credentials.json (Google OAuth client, not in this repo)."
-echo "        Run 'gcal-fetch --auth' once to complete the consent flow."
+echo "  Note: ensure ~/.local/bin is in your PATH for gcal-fetch/gtask-fetch."
+echo "  Note: gcal-fetch and gtask-fetch need ~/.config/gcal-quickshell/credentials.json (Google OAuth client, not in this repo)."
+echo "        Run 'gcal-fetch --auth' once to complete the consent flow (covers both Calendar and Tasks)."
 echo "  Note: Pillbox FIFO lives at ~/.local/share/pillbox/pillbox.fifo — created automatically on first run."
 echo "        labwc keybinds should write commands to that path (e.g. echo 'showTime' > ~/.local/share/pillbox/pillbox.fifo)."

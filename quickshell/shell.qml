@@ -24,6 +24,7 @@ ShellRoot {
 
     ClockProcess    { id: clock }
     CalendarProcess { id: calendar }
+    TasksProcess    { id: tasks }
     TimerProcess    { id: timer }
 
     TimePill {

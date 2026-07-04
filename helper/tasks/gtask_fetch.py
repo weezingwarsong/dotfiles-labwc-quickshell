@@ -1,24 +1,15 @@
 #!/usr/bin/env python3
-# Fetches events from the user's primary Google Calendar and prints them as
-# one JSON object to stdout: {"events": [...]}. Read-only (calendar.readonly
-# scope) — the panel's "open in browser" button handles editing.
+# Fetches tasks from the user's Google Tasks and prints them as
+# one JSON object to stdout: {"tasks": [...]}. Read-only (tasks.readonly scope).
 #
-# Auth state lives outside the repo (it's public on GitHub) at
-# ~/.config/gcal-quickshell/: credentials.json (OAuth client, from Google
-# Cloud Console) and token.json (cached user token, shared with gtask-fetch).
+# Shares auth state with gcal-fetch at ~/.config/gcal-quickshell/:
+# credentials.json (OAuth client) and token.json (cached user token).
+# The token must have been issued with both calendar.readonly and tasks.readonly
+# scopes — run `gcal-fetch --auth` to re-auth if needed (covers both scopes).
 #
 # Two modes:
-#   gcal-fetch         fetch mode — used by quickshell on a timer. Never
-#                       opens a browser; if re-auth is needed, sends a
-#                       notification with a "Re-authenticate" action and exits.
-#   gcal-fetch --auth  interactive mode — run this by hand (initial setup,
-#                       or after the refresh token expires) to do the OAuth
-#                       consent flow, then confirms with a fetch.
-#
-# While the OAuth consent screen is in "Testing" publishing status, Google
-# expires the refresh token after 7 days, so fetch mode will periodically
-# need a manual `--auth` run. Publishing the app (Audience tab -> Publish
-# App) removes that 7-day cap.
+#   gtask-fetch         fetch mode — used by quickshell on a timer.
+#   gtask-fetch --auth  interactive mode — re-auth and confirm with a fetch.
 #
 # Errors are logged to /tmp/pillbox-google.log for easy troubleshooting.
 
@@ -47,7 +38,7 @@ SCOPES = [
 CONFIG_DIR       = Path.home() / ".config" / "gcal-quickshell"
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
 TOKEN_FILE       = CONFIG_DIR / "token.json"
-LOCK_FILE        = CONFIG_DIR / "gcal_fetch.lock"
+LOCK_FILE        = CONFIG_DIR / "gtask_fetch.lock"
 HTTP_TIMEOUT_SECS = 15
 REAUTH_NOTIFY    = Path.home() / ".local/bin/google-auth-notify"
 LOG_FILE         = Path("/tmp/pillbox-google.log")
@@ -57,7 +48,7 @@ def log_error(error_type, message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with open(LOG_FILE, "a") as f:
-            f.write(f"[{timestamp}] [gcal-fetch] [{error_type}] {message}\n")
+            f.write(f"[{timestamp}] [gtask-fetch] [{error_type}] {message}\n")
     except OSError:
         pass
 
@@ -75,9 +66,6 @@ def notify_reauth():
 
 
 def acquire_lock():
-    # Kept open (and referenced) for the life of the process — the lock
-    # releases automatically on exit, including a crash, so there's no
-    # stale-lock cleanup to worry about (unlike a PID file).
     lock_file = open(LOCK_FILE, "w")
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -105,7 +93,7 @@ def _load_cached_credentials():
     try:
         return Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
     except (ValueError, json.JSONDecodeError):
-        return None  # corrupt token file — treat as absent
+        return None
 
 
 def get_credentials(interactive):
@@ -120,7 +108,7 @@ def get_credentials(interactive):
             _write_token(creds)
             return creds
         except RefreshError:
-            creds = None  # refresh token itself is dead — needs full reauth
+            creds = None
 
     if not interactive:
         log_error("auth", "re-authorization required — refresh token expired or missing")
@@ -136,40 +124,43 @@ def get_credentials(interactive):
     return creds
 
 
-def fetch_events(creds, days_back=90, days_ahead=730, max_results=250):
-    # Window covers roughly -3 months to +24 months so the calendar panel's
-    # month-navigation UI can color/tooltip event days by filtering this
-    # already-cached list client-side, instead of re-fetching per click.
+def fetch_tasks(creds):
     authed_http = AuthorizedHttp(creds, http=httplib2.Http(timeout=HTTP_TIMEOUT_SECS))
-    service = build("calendar", "v3", http=authed_http, cache_discovery=False)
+    service = build("tasks", "v1", http=authed_http, cache_discovery=False)
 
-    now = datetime.datetime.now(datetime.timezone.utc)
-    time_min = (now - datetime.timedelta(days=days_back)).isoformat()
-    time_max = (now + datetime.timedelta(days=days_ahead)).isoformat()
+    lists_result = service.tasklists().list(maxResults=20).execute(num_retries=2)
+    task_lists = lists_result.get("items", [])
 
-    result = service.events().list(
-        calendarId="primary",
-        timeMin=time_min,
-        timeMax=time_max,
-        maxResults=max_results,
-        singleEvents=True,
-        orderBy="startTime",
-    ).execute(num_retries=2)
+    all_tasks = []
+    for task_list in task_lists:
+        list_id    = task_list["id"]
+        list_title = task_list.get("title", "")
 
-    events = []
-    for item in result.get("items", []):
-        start = item["start"].get("dateTime", item["start"].get("date"))
-        end = item["end"].get("dateTime", item["end"].get("date"))
-        events.append({
-            "id":       item.get("id"),
-            "summary":  item.get("summary", "(no title)"),
-            "start":    start,
-            "end":      end,
-            "allDay":   "date" in item["start"],
-            "htmlLink": item.get("htmlLink"),
-        })
+        result = service.tasks().list(
+            tasklist=list_id,
+            maxResults=100,
+            showCompleted=True,
+            showHidden=False,
+            completedMin=(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)).isoformat(),
+        ).execute(num_retries=2)
 
-    return events
+        for item in result.get("items", []):
+            # Strip due date to YYYY-MM-DD (Google returns RFC 3339 midnight UTC)
+            due = None
+            if item.get("due"):
+                due = item["due"][:10]
+
+            all_tasks.append({
+                "id":        item.get("id"),
+                "title":     item.get("title", "(no title)"),
+                "status":    item.get("status", "needsAction"),
+                "due":       due,
+                "notes":     item.get("notes"),
+                "listTitle": list_title,
+                "listId":    list_id,
+            })
+
+    return all_tasks
 
 
 if __name__ == "__main__":
@@ -178,14 +169,14 @@ if __name__ == "__main__":
 
     try:
         credentials = get_credentials(interactive)
-        print(json.dumps({"events": fetch_events(credentials)}))
+        print(json.dumps({"tasks": fetch_tasks(credentials)}))
     except SystemExit:
         raise
     except (httplib2.ServerNotFoundError, socket.timeout, OSError) as e:
         log_error("network", str(e))
-        print(json.dumps({"events": []}))
+        print(json.dumps({"tasks": []}))
         sys.exit(1)
     except Exception as e:
         log_error("error", str(e))
-        print(json.dumps({"events": [], "error": str(e)}))
+        print(json.dumps({"tasks": [], "error": str(e)}))
         sys.exit(1)

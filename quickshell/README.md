@@ -16,6 +16,8 @@ A small rounded rectangle anchored at the top-center of the screen. Hidden by de
 ### Panel
 A larger rounded rectangle that appears below the Pill. **Dumb and passive** — it has no opinion about when to appear. It only opens when the user deliberately calls it, and only closes when the user deliberately dismisses it.
 
+**Only one panel is ever shown at a time.** If a panel is already open and the user summons a different panel, the current panel dismisses immediately and the new one takes its place. Last call wins.
+
 ---
 
 ## Build Plan
@@ -33,7 +35,8 @@ Write always-running singleton processes that fetch and expose live data. All pi
 |---|---|---|
 | `FifoListener` | incoming commands from external sources (keybinds, scripts) | See [Processes → FifoListener](#fifolistener) |
 | `ClockProcess` | current time (formatted string + raw datetime) | See [Processes → ClockProcess](#clockprocess) |
-| `CalendarProcess` | upcoming events, next event start time | See [Processes → CalendarProcess](#calendarprocess) |
+| `CalendarProcess` | upcoming events, today/week views, month dot map | See [Processes → CalendarProcess](#calendarprocess) |
+| `TasksProcess` | tasks by due date, overdue, today/week views | See [Processes → TasksProcess](#tasksprocess) |
 | `TimerProcess` | countdown/stopwatch state, display text | See [Processes → TimerProcess](#timerprocess) |
 
 Validate each by printing properties to console on change. No visuals yet.
@@ -56,7 +59,7 @@ Each panel is a data + actions component: it binds to root processes and exposes
 
 | Panel | Data source | Actions |
 |---|---|---|
-| `CalendarPanel` | `CalendarProcess` | — |
+| `CalendarPanel` | `CalendarProcess`, `TasksProcess`, `WeatherProcess` | — |
 | `WindowSwitcherPanel` | `ToplevelProcess` | `switchToWindow(toplevel)` |
 | `MediaPlayerPanel` | `MprisProcess` | `playPause()`, `next()`, `previous()` |
 
@@ -129,8 +132,8 @@ This is the general command bus for all external input into Pillbox.
 
 | Command | Effect |
 |---|---|
-| `showTime` | Tells TimePill to reveal and start its auto-hide timer |
-| `refreshCalendar` | Tells CalendarProcess to fetch immediately outside its 5-minute cycle |
+| `showTime` | Triggers a 5-second peek of the time pill (W-1 toggle) |
+| `refreshCalendar` | Tells CalendarProcess to fetch immediately outside its normal cycle |
 | `setTimer:N` | Tells TimerProcess to set a countdown for N seconds |
 | `startTimer` | Tells TimerProcess to start or resume the countdown |
 | `pauseTimer` | Tells TimerProcess to pause the countdown |
@@ -158,17 +161,64 @@ Starts with Pillbox, dies with Pillbox. A `QtQuick.Timer` fires every second and
 
 **File:** `root-processes/CalendarProcess.qml`
 
-Starts with Pillbox, dies with Pillbox. Fetches upcoming calendar events from Google Calendar via gcalcli and exposes them to the rest of Pillbox.
+Starts with Pillbox, dies with Pillbox. Fetches upcoming calendar events from Google Calendar via `gcal-fetch` (a Python script at `helper/calendar/gcal_fetch.py`, symlinked to `~/.local/bin/gcal-fetch`). Exposes pre-computed views so panels never re-filter the raw list.
 
 **Fetch behaviour:**
-- Fetches automatically every 5 minutes via `QtQuick.Timer`
+- Waits 10 seconds on startup before the first fetch — lets the network settle
+- Fetches automatically every 5 minutes after the first fetch
 - Fetches immediately on receiving the `refreshCalendar` command from `FifoListener`
-- On fetch failure (no network, expired token), retains the last known events list silently — no crash, no clear
+- On fetch failure (no network, expired token), retains the last known data silently — no crash, no clear
+- Network errors are logged to `/tmp/pillbox-google.log` with timestamps
+- Auth errors (expired token) send a `notify-send` notification with a "Re-authenticate" action button that opens a terminal running `gcal-fetch --auth`
+
+**`gcal-fetch` fetch window:** 3 months back to 24 months ahead, max 250 events. The wide window lets the calendar panel navigate months client-side without re-fetching.
 
 **Exposes:**
-- `events` — list of upcoming events, each with title and start time
-- `nextEvent` — convenience property pointing to the soonest upcoming event
+- `events` — all events, raw from `gcal-fetch`
+- `nextEvent` — first event with `start >= now` (filters out past events)
+- `todayEvents` — events whose start date is today
+- `weekEvents` — events whose start date is within the next 7 days
+- `eventsByDate` — `"YYYY-MM-DD" → [events]` map for month view dot indicators
 - `lastUpdated` — timestamp of the last successful fetch
+
+**All-day events:** `start` and `end` are date-only strings (`"2026-07-04"`). Timed events use ISO 8601 with timezone (`"2026-07-04T14:00:00+08:00"`). `allDay: bool` distinguishes them. `nextEvent` and date filtering handle both correctly.
+
+---
+
+### TasksProcess
+
+**File:** `root-processes/TasksProcess.qml`
+
+Starts with Pillbox, dies with Pillbox. Fetches tasks from Google Tasks via `gtask-fetch` (a Python script at `helper/tasks/gtask_fetch.py`, symlinked to `~/.local/bin/gtask-fetch`). Follows the same shape as `CalendarProcess`.
+
+**Fetch behaviour:**
+- Same 10-second startup delay and 5-minute repeat as `CalendarProcess`
+- Fetches all incomplete tasks and completed tasks from the last 30 days
+- Network and auth errors handled identically to `CalendarProcess` — logged, notified, last known data retained
+
+**`gtask-fetch` output shape:**
+```json
+{
+  "id": "...",
+  "title": "Task title",
+  "status": "needsAction | completed",
+  "due": "2026-07-04",
+  "notes": "optional description or null",
+  "listTitle": "My Tasks",
+  "listId": "..."
+}
+```
+`due` is `null` if no due date is set. Tasks without a due date are included in `tasks` but excluded from all date-keyed views.
+
+**Exposes:**
+- `tasks` — all tasks, raw from `gtask-fetch`
+- `todayTasks` — tasks due today
+- `weekTasks` — tasks due within the next 7 days
+- `overdueTasks` — incomplete tasks past their due date
+- `tasksByDate` — `"YYYY-MM-DD" → [tasks]` map for date-based display
+- `lastUpdated` — timestamp of the last successful fetch
+
+---
 
 ### TimerProcess
 
@@ -218,18 +268,16 @@ Starts with Pillbox, dies with Pillbox. Owns all timer and stopwatch state. No p
 
 **What we need to make it happen:**
 
-- `ClockProcess` — ticks every second, exposes current time as a formatted string and raw datetime. Required for all three conditions.
-- **User-initiated peek (condition 1)** — two complementary triggers, both set the same `showTime` flag and start the same auto-hide timer:
-  - *Global keybind*: handled by labwc via `rc.xml`. The keybind runs `echo "showTime" > ~/.local/share/pillbox/pillbox.fifo`. The `rc.xml` entry is outside this repo but must be documented so the setup is reproducible.
-  - *Mouse hover zone*: Quickshell renders a thin invisible `MouseArea` strip anchored at the top-center of the screen. When the cursor enters it, `showTime` triggers. Self-contained in Quickshell, no labwc config needed.
-- `CalendarProcess` — fetches upcoming events and exposes the next event's start time. TimePill watches the gap between now and next event; when it drops to 10 minutes, `shouldShow` becomes true. Hides after the event start time passes.
-- `TimerProcess` — tracks user-set countdown state (duration, time started, running/stopped). TimePill watches `active`; when true, `shouldShow` becomes true. Hides when countdown reaches zero or stopwatch is stopped.
+- `ClockProcess` ✓ — ticks every second, exposes current time as a formatted string and raw datetime.
+- **User-initiated peek (condition 1)** — W-1 keybind writes `showTime` to the FIFO. `PillController` handles it as a 5-second toggle peek. Mouse hover zone handled by `HoverZone` → `PillController`.
+- `CalendarProcess` ✓ — `nextEvent.start` is watched; when the gap to now drops to 10 minutes, `shouldShow` becomes true.
+- `TimerProcess` ✓ — `active` is watched; when true, `shouldShow` becomes true.
 
 **Reveal conditions (`shouldShow: bool`):**
 
 | Condition | Trigger | Auto-hide |
 |---|---|---|
-| Manual peek | `showTime` via FIFO or hover zone | 5 seconds |
+| Manual peek | `showTime` via FIFO or hover zone | 5 seconds (PillController) |
 | Calendar imminent | next event ≤ 10 minutes away | when event start time passes |
 | Timer/stopwatch active | `TimerProcess.active === true` | when timer finishes or stopwatch stops |
 
@@ -249,10 +297,76 @@ echo "startStopwatch" > ~/.local/share/pillbox/pillbox.fifo   # stopwatch mode
 
 ---
 
-## Directory Structure
+## Panels
+
+### Calendar
+
+**What we expect from the Calendar panel:**
+
+The panel has two states: **glance** (default, compact) and **expanded** (user-triggered, shows more detail). Both states are within the same panel — not separate panels.
+
+**Glance view** — visible immediately when the panel opens:
+1. Today's date — day of week, day, month, year.
+2. Today's events — list of events for the current day with their times.
+3. Month view — mini calendar grid showing the current month. Days with events are visually marked. Hovering a day shows a tooltip with that day's events. User can navigate forward/backward by month.
+4. Today's weather — current conditions and temperature.
+5. Today's tasks — task list for the current day (from Google Tasks).
+6. Edit button — opens the browser to Google Calendar so the user can edit events there. No in-panel editing.
+
+**Expanded view** — user scrolls or taps to reveal:
+1. 7-day full schedule — all events across the next 7 days.
+2. 7-day tasks — task list across the next 7 days.
+3. 7-day weather forecast — daily conditions and temperature for the week ahead.
+4. Timer/stopwatch — set and control a countdown or stopwatch directly from the panel (sends commands through `TimerProcess` via FIFO, same as keybinds).
+
+**Not in scope (by design):**
+- In-panel event creation or editing — browser handles this. The panel is read-only except for the timer.
+- Multiple calendar account switching — single Google account only.
+
+---
+
+## To-Do: Calendar Panel
+
+Everything required before the Calendar panel is fully functional.
+
+### Data layer
+
+- [x] `CalendarProcess` — fetches events, exposes `nextEvent`, `todayEvents`, `weekEvents`, `eventsByDate`
+- [x] `TasksProcess` — fetches tasks, exposes `todayTasks`, `weekTasks`, `overdueTasks`, `tasksByDate`
+- [x] `gcal-fetch` — Python script, Google Calendar API, auth shared with `gtask-fetch`
+- [x] `gtask-fetch` — Python script, Google Tasks API, shared token
+- [x] `google-auth-notify` — re-auth notification with action button, shared by both scripts
+- [ ] `WeatherProcess` — does not exist yet. Needs to be built. Same shape as `CalendarProcess`: a timer calls a one-shot script, result is exposed as structured properties.
+- [ ] `weather-fetch` — Python script for weather API. The old project had a version — evaluate reusing or replacing it. Must expose current conditions and a 7-day forecast.
+
+### Infrastructure
+
+- [ ] `PanelController.qml` — new `QtObject` in `module-reusable-elements/`. Manages which panel is currently shown. Enforces the one-panel-at-a-time rule: summoning a new panel dismisses the current one. Mirror of `PillController` for panels.
+- [ ] `PanelWindow.qml` — new `PanelWindow` in `module-reusable-elements/`. Visual container for panels, anchored below the pill. Dumb renderer — receives `activePanel` and `shouldShow` from `PanelController`.
+- [ ] **FIFO command** — add `toggleCalendar` (or similar) to `FifoListener` and wire it to `PanelController`.
+- [ ] **labwc keybind** — assign a new keybind in `rc.xml` to write `toggleCalendar` to the FIFO. W-1 is taken (time pill toggle). Keybind TBD.
+
+### Panel UI
+
+- [ ] `CalendarPanel.qml` — the panel component itself, in `module-panels/`. Reads from `CalendarProcess`, `TasksProcess`, `ClockProcess`, and `WeatherProcess`. Two states: glance and expanded.
+  - [ ] Glance: date header
+  - [ ] Glance: today's events list
+  - [ ] Glance: month grid with event dot indicators (uses `eventsByDate`)
+  - [ ] Glance: month navigation (prev/next)
+  - [ ] Glance: today's tasks list (uses `todayTasks`)
+  - [ ] Glance: today's weather (blocked on `WeatherProcess`)
+  - [ ] Glance: edit button (`xdg-open https://calendar.google.com`)
+  - [ ] Expanded: 7-day schedule (uses `weekEvents`)
+  - [ ] Expanded: 7-day tasks (uses `weekTasks`)
+  - [ ] Expanded: 7-day weather forecast (blocked on `WeatherProcess`)
+  - [ ] Expanded: timer/stopwatch controls (writes to FIFO)
+
+---
+
+## File Tree
 
 ```
-quickshell-rewrite/
+quickshell/
 ├── module-panels/
 │   ├── CalendarPanel.qml
 │   ├── MediaPlayerPanel.qml
@@ -274,8 +388,18 @@ quickshell-rewrite/
 │   ├── CalendarProcess.qml   ✓ implemented
 │   ├── ClockProcess.qml      ✓ implemented
 │   ├── FifoListener.qml      ✓ implemented
+│   ├── TasksProcess.qml      ✓ implemented
 │   ├── TimerProcess.qml      ✓ implemented
 │   └── qmldir
 ├── qmldir
 └── shell.qml
+
+helper/
+├── calendar/
+│   └── gcal_fetch.py         ✓ implemented  (symlinked → ~/.local/bin/gcal-fetch)
+├── tasks/
+│   └── gtask_fetch.py        ✓ implemented  (symlinked → ~/.local/bin/gtask-fetch)
+├── google_auth_notify.sh     ✓ implemented  (symlinked → ~/.local/bin/google-auth-notify)
+└── weather/
+    └── weather_fetch.py      ✗ not built yet (symlink → ~/.local/bin/weather-fetch)
 ```

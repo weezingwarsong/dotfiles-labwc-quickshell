@@ -4,8 +4,11 @@ import Quickshell.Io
 Item {
     id: root
 
-    property var events: []
-    property var nextEvent: null
+    property var events: []       // all events, raw from gcal-fetch
+    property var nextEvent: null  // first upcoming event (start >= now)
+    property var todayEvents: []  // events whose start date is today
+    property var weekEvents: []   // events whose start date is within the next 7 days
+    property var eventsByDate: {} // "YYYY-MM-DD" → [events] for month view dot indicators
     property string lastUpdated: ""
 
     function refresh() {
@@ -15,6 +18,48 @@ Item {
         }
     }
 
+    function _processEvents(rawEvents) {
+        var now = new Date()
+        var todayStr   = Qt.formatDate(now, "yyyy-MM-dd")
+        var weekEndStr = Qt.formatDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7), "yyyy-MM-dd")
+
+        var next     = null
+        var today    = []
+        var week     = []
+        var byDate   = {}
+
+        for (var i = 0; i < rawEvents.length; i++) {
+            var e = rawEvents[i]
+            var dateStr = e.start.substring(0, 10)
+
+            // nextEvent: first event whose start is >= now
+            if (!next) {
+                var upcoming = e.allDay ? dateStr >= todayStr : new Date(e.start) >= now
+                if (upcoming) next = e
+            }
+
+            // todayEvents
+            if (dateStr === todayStr) today.push(e)
+
+            // weekEvents: today through today+7
+            if (dateStr >= todayStr && dateStr <= weekEndStr) week.push(e)
+
+            // eventsByDate
+            if (!byDate[dateStr]) byDate[dateStr] = []
+            byDate[dateStr].push(e)
+        }
+
+        root.events       = rawEvents
+        root.nextEvent    = next
+        root.todayEvents  = today
+        root.weekEvents   = week
+        root.eventsByDate = byDate
+        root.lastUpdated  = Qt.formatDateTime(now, "yyyy-MM-dd HH:mm:ss")
+
+        console.log("[CalendarProcess] fetched", rawEvents.length, "events.",
+            "Today:", today.length, "| Next:", next ? next.summary + " at " + next.start : "none")
+    }
+
     Process {
         id: calendarFetch
         command: ["gcal-fetch"]
@@ -22,10 +67,7 @@ Item {
             onStreamFinished: {
                 try {
                     var d = JSON.parse(text)
-                    root.events = d.events || []
-                    root.nextEvent = root.events.length > 0 ? root.events[0] : null
-                    root.lastUpdated = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss")
-                    console.log("[CalendarProcess] fetched", root.events.length, "events. Next:", root.nextEvent ? root.nextEvent.title + " at " + root.nextEvent.start : "none")
+                    root._processEvents(d.events || [])
                 } catch(e) {
                     console.log("[CalendarProcess] parse failed, keeping last known events:", e)
                 }
@@ -36,12 +78,22 @@ Item {
         }
     }
 
-    // Fetch every 5 minutes, and immediately on start
+    // 10s startup delay — lets the network settle before the first fetch
     Timer {
-        interval: 300000
+        interval: 10000
         running: true
+        repeat: false
+        onTriggered: {
+            root.refresh()
+            repeatTimer.start()
+        }
+    }
+
+    // Regular 5-minute repeat after the first fetch
+    Timer {
+        id: repeatTimer
+        interval: 300000
         repeat: true
-        triggeredOnStart: true
         onTriggered: root.refresh()
     }
 
