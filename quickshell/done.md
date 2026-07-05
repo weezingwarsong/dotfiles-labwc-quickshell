@@ -125,3 +125,34 @@ Everything that was required before the Calendar panel was functional.
 - [x] `FifoListener` — `toggleWindowSwitcherRequested` signal, `"toggleWindowSwitcher"` command dispatch.
 - [x] `shell.qml` — `ToplevelProcess { id: toplevels }`, `WindowPill` wired, `panelController.toggle("windowSwitcher")` on FIFO command, `onDismissRequested` from `PanelSurface`, `toplevelProcess` forwarded to `PanelSurface`.
 - [x] labwc `rc.xml` — W-Tab keybind updated from `rofi -show window` to `echo toggleWindowSwitcher > pillbox.fifo`.
+
+---
+
+## MPRIS Pill
+
+### Data layer
+
+- [x] `MprisProcess` — pure QML `Item`, no subprocess. Binds to `Quickshell.Services.Mpris.Mpris.players` (`ObjectModel<MprisPlayer>`). An `Instantiator` creates one `Connections` watcher per player, listening to `onPlaybackStateChanged` and `onTrackChanged`.
+  - `players` — `Mpris.players` (`ObjectModel<MprisPlayer>`). Iterate in JS via `.values`.
+  - `activePlayer` — selected `MprisPlayer` or `null`. Re-evaluated on every state/track change via `_selectPlayer()`: Playing > Paused > first available.
+  - `signal playerUpdated(var player)` — emitted on any playback state change or track change.
+  - Key lesson: `ObjectModel` has no `.length` in JS — must use `.values.length`.
+
+### Pill
+
+- [x] `MprisPill` — binds to `MprisProcess` (injected by `shell.qml`).
+  - `isActive: bool` — true while `activePlayer` is non-null and `trackTitle` is non-empty. Persists for the duration of playback. This is the Stage 1 winner signal — MPRIS holds the winner slot in `PillController` as long as music is playing, regardless of whether the pill is visible.
+  - `shouldShow: bool` — true for 3 seconds after any `playerUpdated` event. Local `Timer` restarts on each event; rapid changes extend the peek window rather than stacking. This is the Stage 2 content-driven trigger only.
+  - `visualComponent` — playback state glyph (`String.fromCodePoint(0xf04b/0xf04c/0xf04d)` via `fontNerd`) + track title (`font.families: [fontMono, fontCJK]`). Title elided right.
+  - Glyph fix: embedded raw Unicode bytes (copy-paste corruption) replaced with explicit `String.fromCodePoint(0xXXXX)` calls throughout MprisPill, WindowPill, and WindowSwitcherPanel.
+
+### Infrastructure
+
+- [x] `PillController` — `isActive` used for MPRIS at Stage 1 (`if (mprisPill && mprisPill.isActive)`), separating winner eligibility from the peek trigger. `shouldShow` on MprisPill still drives Stage 2 content-driven reveal.
+- [x] `shell.qml` — `MprisProcess { id: mpris }`, `MprisPill { id: mprisPill; mprisProcess: mpris }`, `mprisPill` registered with `PillController`.
+- [x] `root-processes/qmldir` — `MprisProcess 1.0 MprisProcess.qml` registered.
+
+### CJK font fallback
+
+- [x] `Style.qml` — added `fontCJK: "Sarasa Mono SC"` (from `ttf-sarasa-gothic`, installed). Sarasa is Iosevka + Source Han Sans — a monospace CJK font that pairs cleanly with JetBrainsMono. Not Nerd Font patched, so `fontNerd` stays as JetBrainsMono Nerd Font.
+- [x] CJK fallback is handled transparently by Qt via fontconfig — `font.families` (list form) is not available in this Qt build. All text items use `font.family: Style.fontMono`; Qt asks fontconfig for missing glyphs and fontconfig resolves to Sarasa for CJK characters. `Style.fontCJK` documents the intent for when `font.families` becomes available.

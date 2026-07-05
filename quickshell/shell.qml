@@ -31,6 +31,7 @@ ShellRoot {
     WeatherProcess    { id: weather }
     WorkspaceProcess  { id: workspace }
     ToplevelProcess   { id: toplevels }
+    MprisProcess      { id: mpris }
 
     TimePill {
         id: timePill
@@ -50,6 +51,11 @@ ShellRoot {
         shouldShow: panelController.activePanel === "windowSwitcher"
     }
 
+    MprisPill {
+        id: mprisPill
+        mprisProcess: mpris
+    }
+
     HoverZone { id: hoverZone }
 
     PillController {
@@ -58,6 +64,7 @@ ShellRoot {
         timePill:      timePill
         workspacePill: workspacePill
         windowPill:    windowPill
+        mprisPill:     mprisPill
     }
 
     PillWindow {

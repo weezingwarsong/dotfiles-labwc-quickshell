@@ -9,7 +9,7 @@ A small rounded rectangle anchored at the top-center of the screen. Hidden by de
 - A single `PanelWindow` anchored top-center of the primary screen. Width is `screen.width * 0.10`, height is `24px`.
 - On multi-screen setups, the pill appears on the primary screen only. Primary is defined as the first entry in `Quickshell.screens`, with a config option to override by index.
 - All pills share this one window. **Only one pill is ever active at a time.** The window acts as a dumb container — it renders whatever the currently active pill exposes as `displayText` via a `Loader`.
-- A priority system determines which pill wins when multiple pills have `shouldShow: true` simultaneously. Priority order (highest → lowest): WindowPill → WorkspacePill → TimePill. Extended as new pills are added.
+- A two-stage priority system governs which pill shows and when. **Stage 1 — winner:** determined by each pill's `isActive` (or `shouldShow` for transient pills) property. Priority order (highest → lowest): WindowPill → WorkspacePill → MprisPill → TimePill. **Stage 2 — show/hide:** three independent triggers — hover, explicit peek (W-1), or content-driven reveal. Stage 1 and Stage 2 are independent: the winner is always pre-computed so the display is instant when Stage 2 opens the gate.
 
 ### Panel
 A larger rounded rectangle that appears below the Pill. **Dumb and passive** — it has no opinion about when to appear. It only opens when the user deliberately calls it, and only closes when the user deliberately dismisses it.
@@ -229,6 +229,21 @@ A lightweight `Instantiator` is kept for add/remove logging only; it does no sta
 
 ---
 
+#### MprisProcess ✓
+
+**File:** `root-processes/MprisProcess.qml`
+
+Pure QML `Item` — no subprocess. Binds to `Quickshell.Services.Mpris.Mpris.players` (`ObjectModel<MprisPlayer>`). An `Instantiator` creates one `Connections` watcher per player, listening to `onPlaybackStateChanged` and `onTrackChanged`.
+
+Unlike `ToplevelProcess`, there is no native "active player" equivalent — `_selectPlayer()` runs on every state change and picks the most relevant player: **Playing > Paused > first available**.
+
+**Exposes:**
+- `players` — `Mpris.players` (`ObjectModel<MprisPlayer>`). Iterate in JS via `.values`. Each `MprisPlayer` has `.playbackState` (`MprisPlaybackState.Playing/Paused/Stopped`), `.trackTitle`, `.trackArtist`, `.trackAlbum`, `.isPlaying`, `.togglePlaying()`, `.next()`, `.previous()`.
+- `activePlayer` — the currently selected `MprisPlayer`, or `null` if no players are connected. Re-evaluated on every player state or track change.
+- `signal playerUpdated(var player)` — emitted on any playback state change or track change. `MprisPill` listens to this to trigger its peek.
+
+---
+
 ### Reusable Elements
 
 #### PillController ✓
@@ -237,14 +252,22 @@ A lightweight `Instantiator` is kept for add/remove logging only; it does no sta
 
 The single source of truth for all pill show/hide decisions. A `QtObject` — no visuals, pure logic. Every input that could influence pill visibility flows into `PillController`; nothing else makes show/hide decisions.
 
-*Stage 1 — Winner:* Which pill has the most relevant content right now. Pre-computed so the display is instant on reveal. Priority order (highest → lowest): WindowPill → WorkspacePill → TimePill.
+*Stage 1 — Winner:* Which pill has the most relevant content right now. Pre-computed so the display is instant on reveal. Priority order (highest → lowest): WindowPill → WorkspacePill → MprisPill → TimePill.
+
+Each pill exposes the relevant eligibility signal used at this stage:
+- `WindowPill.shouldShow` — true while window switcher panel is open
+- `WorkspacePill.shouldShow` — true for 1.5s after workspace switch
+- `MprisPill.isActive` — true while a player has an active track (persists; does not auto-expire)
+- `TimePill` — always the fallback winner
 
 *Stage 2 — Show/hide:* Three independent triggers:
 1. **Hover** — cursor in `HoverZone`. Always works, never suppressible.
 2. **Peek** — W-1 keybind via FIFO. Toggles: first press shows for 5 seconds, second press dismisses immediately.
 3. **Content-driven** — `winner.shouldShow` is true. Blocked by `_userDismissed` so the user can silence an active condition. `_userDismissed` auto-clears when the condition ends naturally.
 
-**Inputs:** `hovered: bool` (from HoverZone), each pill object (reads their `shouldShow`)<br>
+Note: `MprisPill.shouldShow` (the 3-second peek on state change) drives Stage 2's content-driven trigger independently of `isActive`. While music plays with no state changes, `shouldShow` is false — the pill won't auto-reveal — but MPRIS still holds the winner slot, so hover and peek surface it.
+
+**Inputs:** `hovered: bool` (from HoverZone), each pill object (reads their `shouldShow` / `isActive`)<br>
 **Outputs:** `winner`, `shouldShow: bool`, `activePill` (`winner` if `shouldShow`, else `null`)
 
 ---
@@ -298,7 +321,7 @@ Two sections:
 - **Variable Preference** — raw palette tokens: 16-color terminal palette (`color0`–`color15`) seeded with Nord, 2 font families, 7 size steps, 3 border widths, 4 radius steps (`radNone/Light/Med/High`). Intended to be swapped out from wallpaper extraction (pywal/matugen format) in a future phase.
 - **Fixed** — semantic mappings: `pillBgColor`, `panelBorderRadius`, `textPrimary`, `fontContentSize`, etc. All components read only from Fixed — never from Variable directly.
 
-Font: **JetBrains Mono Nerd Font** (`ttf-jetbrains-mono-nerd`) — used for both monospace text and Nerd Font glyphs.
+Fonts: **JetBrains Mono Nerd Font** (`ttf-jetbrains-mono-nerd`) — monospace text and Nerd Font glyphs. **Sarasa Mono SC** (`ttf-sarasa-gothic`) — CJK fallback, handled transparently by Qt via fontconfig (no explicit `font.families` list needed). `Style.fontCJK` documents the intent. All text items use `font.family: Style.fontMono`; Qt falls back through the system font stack for any glyph JetBrainsMono doesn't cover.
 
 ---
 
@@ -323,6 +346,18 @@ Reads from `WorkspaceProcess` (injected). `shouldShow` is true for 1.5 seconds a
 Reads from `ToplevelProcess` (injected). `shouldShow` is set externally by `shell.qml` — true while the window switcher panel is open, false otherwise. This means the pill is visible during active switching, not as a passive always-on indicator.
 
 `visualComponent` shows a Nerd Font app glyph alongside the focused window's `appId`. The glyph is resolved via `_glyphFor(appId)` — same lookup table as `WindowSwitcherPanel`.
+
+---
+
+#### MprisPill ✓
+
+**File:** `module-pills/MprisPill.qml`
+
+Reads from `MprisProcess` (injected). Two separate signals control its behaviour:
+- `isActive` — true while `activePlayer` has a non-empty `trackTitle`. This is the Stage 1 winner signal — MPRIS holds the winner slot for the duration of playback.
+- `shouldShow` — true for 3 seconds after any `playerUpdated` event (track change or playback state change). This is the Stage 2 content-driven peek signal.
+
+`visualComponent` shows a playback state glyph (`String.fromCodePoint(0xf04b/0xf04c/0xf04d)`) via `fontNerd`, and the track title via `font.families: [fontMono, fontCJK]` to support CJK track names. Title elided right.
 
 ---
 
@@ -445,6 +480,38 @@ A transient indicator visible only while the window switcher panel is open. Show
 
 ---
 
+#### MPRIS ✓
+
+**File:** `module-pills/MprisPill.qml`
+
+**What we expect from the MPRIS pill:**
+
+Any time the state of a song changes — play, pause, or new track — the pill peeks briefly to confirm the event. While a track is active the MPRIS pill holds the winner slot over TimePill, so hover and explicit peek always surface MPRIS content.
+
+**What we need to make it happen:**
+
+- `MprisProcess` ✓ — binds to `Mpris.players`. Selects the most relevant player (Playing > Paused > first available). Emits `playerUpdated` on any track or playback state change.
+
+**Eligibility (`isActive: bool`):**
+- True while `activePlayer` is non-null and `trackTitle` is non-empty. Does not auto-expire. Keeps MPRIS as Stage 1 winner for the duration of playback.
+
+**Reveal conditions (`shouldShow: bool` — Stage 2 content-driven peek):**
+
+| Condition | Trigger | Auto-hide |
+|---|---|---|
+| Track changed | `MprisProcess.playerUpdated` (new track) | 3 seconds after last event |
+| Playback state changed | `MprisProcess.playerUpdated` (play/pause/stop) | 3 seconds after last event |
+
+`shouldShow` is driven by a local `Timer` — each `playerUpdated` signal restarts it; when it fires, `shouldShow` goes false. Rapid events extend the peek window rather than stacking.
+
+**Display (`visualComponent`):**
+- Playback state glyph (Nerd Font): `String.fromCodePoint(0xf04b/0xf04c/0xf04d)` — play · pause · stop
+- Track title from `activePlayer.trackTitle`
+
+Layout: `[state glyph]  [trackTitle]` — glyph uses `fontNerd`, title uses `fontMono` (Qt falls back through fontconfig to Sarasa for CJK). Title elided right.
+
+---
+
 ### Panels
 
 #### Calendar
@@ -528,12 +595,31 @@ A keyboard-driven window switcher. W-Tab toggles the panel. When it appears, the
 
 ## To-Do
 
+### Media Player Panel
+
+A panel dedicated to media playback control. Summoned deliberately by the user (keybind TBD), distinct from the MPRIS pill which is passive and auto-reveals.
+
+**Expected layout:**
+- Album art (if available via MPRIS metadata)
+- Track title + artist + album
+- Playback controls: previous · play/pause · next
+- Progress bar with current position and duration
+- Volume control
+
+**What we need:**
+- `MprisProcess` ✓ — already exposes `activePlayer` with all needed properties
+- `MediaPlayerPanel.qml` — panel UI consuming `MprisProcess.activePlayer`
+- FIFO command `toggleMediaPlayer`, wired to `panelController.toggle("mediaPlayer")`
+- `PanelSurface` Loader case for `"mediaPlayer"`
+- labwc keybind (TBD)
+
+---
+
 ### Theme Polish
 
 - [x] Wire `CalendarPanel.qml` fully to the new Fixed property names.
 - [x] Audit all remaining hardcoded values in `CalendarPanel.qml` and map them to `Style` Fixed properties.
 - [ ] Replace Nord placeholder palette with wallpaper-extracted colors. Logic TBD — likely a helper script that reads dominant colors from the current wallpaper and writes them into the Variable section at startup.
-- [ ] Decide on `fontMono` vs `fontNerd` distinction — currently both point to `JetBrainsMono Nerd Font`; may stay that way or split if a separate symbol font is preferred.
 
 ---
 
@@ -547,7 +633,7 @@ quickshell/
 │   ├── WindowSwitcherPanel.qml   ✓ implemented
 │   └── qmldir
 ├── module-pills/
-│   ├── MprisPill.qml
+│   ├── MprisPill.qml             ✓ implemented
 │   ├── ScreenrecPill.qml
 │   ├── TimePill.qml              ✓ implemented
 │   ├── WindowPill.qml            ✓ implemented
@@ -564,6 +650,7 @@ quickshell/
 │   ├── CalendarProcess.qml       ✓ implemented
 │   ├── ClockProcess.qml          ✓ implemented
 │   ├── FifoListener.qml          ✓ implemented
+│   ├── MprisProcess.qml          ✓ implemented
 │   ├── TasksProcess.qml          ✓ implemented
 │   ├── TimerProcess.qml          ✓ implemented
 │   ├── ToplevelProcess.qml       ✓ implemented

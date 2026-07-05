@@ -9,6 +9,7 @@ QtObject {
     property var timePill: null
     property var workspacePill: null
     property var windowPill: null
+    property var mprisPill: null
 
     // ── Stage 1: Winner ───────────────────────────────────────────────────────
     // Which pill has the most relevant content right now, independent of
@@ -21,6 +22,7 @@ QtObject {
     readonly property var winner: {
         if (windowPill    && windowPill.shouldShow)    return windowPill
         if (workspacePill && workspacePill.shouldShow) return workspacePill
+        if (mprisPill     && mprisPill.isActive)       return mprisPill
         if (timePill) return timePill
         return null
     }

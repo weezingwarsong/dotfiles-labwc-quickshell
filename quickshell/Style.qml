@@ -37,6 +37,7 @@ QtObject {
     // ── Fonts ────────────────────────────────────────────────────────────────
     readonly property string fontMono:   "JetBrainsMono Nerd Font"
     readonly property string fontNerd:   "JetBrainsMono Nerd Font"
+    readonly property string fontCJK:    "Sarasa Mono SC"
 
     readonly property int sizeXl:        22
     readonly property int sizeLg:        13
