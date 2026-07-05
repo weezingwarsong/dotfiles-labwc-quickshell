@@ -5,3 +5,4 @@ TimerProcess 1.0 TimerProcess.qml
 TasksProcess 1.0 TasksProcess.qml
 WeatherProcess 1.0 WeatherProcess.qml
 WorkspaceProcess 1.0 WorkspaceProcess.qml
+ToplevelProcess 1.0 ToplevelProcess.qml

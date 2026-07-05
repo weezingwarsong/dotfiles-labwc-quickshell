@@ -140,9 +140,9 @@
       <action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" />
     </keybind>
 
-    <!-- W-Tab: window switcher via rofi (replaces old quickshell window-switch module) -->
+    <!-- W-Tab: toggle Pillbox window switcher panel -->
     <keybind key="W-Tab">
-      <action name="Execute" command="rofi -show window" />
+      <action name="Execute" command="sh -c 'echo toggleWindowSwitcher > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
     <!-- W-1: reveal TimePill via Pillbox FIFO -->
     <keybind key="W-1">

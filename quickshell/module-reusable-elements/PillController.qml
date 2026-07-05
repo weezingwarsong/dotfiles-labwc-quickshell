@@ -8,7 +8,7 @@ QtObject {
     property bool hovered: false
     property var timePill: null
     property var workspacePill: null
-    // future pills registered here in priority order
+    property var windowPill: null
 
     // ── Stage 1: Winner ───────────────────────────────────────────────────────
     // Which pill has the most relevant content right now, independent of
@@ -19,6 +19,7 @@ QtObject {
     //   2. TimePill — calendar imminent, timer active, or default time display
 
     readonly property var winner: {
+        if (windowPill    && windowPill.shouldShow)    return windowPill
         if (workspacePill && workspacePill.shouldShow) return workspacePill
         if (timePill) return timePill
         return null

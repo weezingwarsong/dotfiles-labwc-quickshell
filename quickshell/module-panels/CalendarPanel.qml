@@ -124,9 +124,9 @@ Item {
     // ── Root visual ───────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        radius: Style.radiusPanel
-        color: Style.panelBg
-        border.color: Style.panelBorder
+        radius: Style.panelBorderRadius
+        color: Style.panelBgColor
+        border.color: Style.panelBorderColor
         border.width: 1
         clip: true
 
@@ -153,7 +153,7 @@ Item {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: clockProcess ? Qt.formatDate(clockProcess.now, "ddd, d MMM yyyy") : "--"
-                        color: Style.textPrimary; font.pixelSize: Style.textMd; font.weight: Font.Medium
+                        color: Style.textPrimary; font.pixelSize: Style.fontHeaderSize; font.weight: Font.Medium
                     }
                     Row {
                         anchors.right: parent.right
@@ -163,13 +163,13 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: weatherProcess && weatherProcess.current
                                 ? String.fromCharCode(parseInt(weatherProcess.current.icon, 16)) : ""
-                            color: Style.textSoft; font.family: Style.fontNerd; font.pixelSize: Style.textLg
+                            color: Style.tooltipTextSoft; font.family: Style.fontNerd; font.pixelSize: Style.fontWeatherIcon
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: weatherProcess && weatherProcess.current
                                 ? weatherProcess.current.temp + "°" : "--°"
-                            color: Style.textNormal; font.pixelSize: Style.textMd
+                            color: Style.textNormal; font.pixelSize: Style.fontHeaderSize
                         }
                     }
                 }
@@ -181,7 +181,7 @@ Item {
                         ? weatherProcess.current.condition + "  " +
                           weatherProcess.current.high + "° / " + weatherProcess.current.low + "°"
                         : ""
-                    color: Style.textSubtle; font.pixelSize: Style.textXxs
+                    color: Style.textSubtle; font.pixelSize: Style.fontGridNumSize
                     topPadding: 2; bottomPadding: 10
                 }
 
@@ -190,7 +190,7 @@ Item {
                     x: 12; width: glanceCol.width - 24; height: 18
                     Text {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "‹"; color: Style.textSubtle; font.pixelSize: Style.textSm; font.weight: Font.Bold
+                        text: "‹"; color: Style.textSubtle; font.pixelSize: Style.fontNavSize; font.weight: Font.Bold
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -4
                             onClicked: {
@@ -204,11 +204,11 @@ Item {
                         text: ["January","February","March","April","May","June",
                                "July","August","September","October","November","December"][root._navMonth] +
                               " " + root._navYear
-                        color: Style.textNormal; font.pixelSize: Style.textXs; font.weight: Font.Medium
+                        color: Style.textNormal; font.pixelSize: Style.fontContentSize; font.weight: Font.Medium
                     }
                     Text {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        text: "›"; color: Style.textSubtle; font.pixelSize: Style.textSm; font.weight: Font.Bold
+                        text: "›"; color: Style.textSubtle; font.pixelSize: Style.fontNavSize; font.weight: Font.Bold
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -4
                             onClicked: {
@@ -227,8 +227,8 @@ Item {
                         Text {
                             width: (glanceCol.width - 24) / 7; height: 10
                             text: modelData
-                            color: index >= 5 ? Style.weekend : Style.textDim
-                            font.pixelSize: Style.textXxs; horizontalAlignment: Text.AlignHCenter
+                            color: index >= 5 ? Style.textWeekend : Style.textDim
+                            font.pixelSize: Style.fontGridNumSize; horizontalAlignment: Text.AlignHCenter
                         }
                     }
                 }
@@ -248,22 +248,22 @@ Item {
                             width: (glanceCol.width - 24) / 7; height: 20
 
                             Rectangle {
-                                anchors.centerIn: parent; width: 16; height: 16; radius: Style.radiusToday
-                                color: cellItem.cell.isToday ? Style.accent : "transparent"
+                                anchors.centerIn: parent; width: 16; height: 16; radius: Style.radGridToday
+                                color: cellItem.cell.isToday ? Style.borderAccentColor : "transparent"
                                 visible: cellItem.cell.day > 0
                             }
                             Text {
                                 anchors.centerIn: parent
                                 text: cellItem.cell.day > 0 ? cellItem.cell.day : ""
                                 color: cellItem.cell.isToday ? Style.textPrimary : Style.textLight
-                                font.pixelSize: Style.textXxs
+                                font.pixelSize: Style.fontGridNumSize
                                 font.weight: cellItem.cell.isToday ? Font.Bold : Font.Normal
                             }
                             Rectangle {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.bottom: parent.bottom
                                 width: 3; height: 3; radius: 1.5
-                                color: cellItem.cell.isToday ? Style.accentFaint : Style.accent
+                                color: cellItem.cell.isToday ? Style.dotIndicator : Style.borderAccentColor
                                 visible: cellItem.cell.day > 0 && cellItem.cell.hasContent
                             }
 
@@ -278,32 +278,32 @@ Item {
                                         model: cellItem.cell.events.slice(0, 4)
                                         Text {
                                             text: "• " + (modelData.summary || "")
-                                            color: Style.textSoft; font.pixelSize: Style.textXs
+                                            color: Style.tooltipTextSoft; font.pixelSize: Style.fontContentSize
                                         }
                                     }
                                     Repeater {
                                         model: cellItem.cell.tasks.slice(0, 4)
                                         Text {
                                             text: "○ " + (modelData.title || "")
-                                            color: Style.textMuted; font.pixelSize: Style.textXs
+                                            color: Style.textMuted; font.pixelSize: Style.fontContentSize
                                         }
                                     }
                                 }
                                 background: Rectangle {
-                                    color: Style.surfaceMid; border.color: Style.tooltipBorder; radius: Style.radiusTooltip
+                                    color: Style.surfaceMidColor; border.color: Style.tooltipBorder; radius: Style.radGridTooltip
                                 }
                             }
                         }
                     }
                 }
 
-                Rectangle { x: 12; width: glanceCol.width - 24; height: 1; color: Style.divider }
+                Rectangle { x: 12; width: glanceCol.width - 24; height: 1; color: Style.panelDividerColor }
                 Item { width: 1; height: 8 }
 
                 // Events today
                 Text {
                     x: 12; text: "EVENTS TODAY"
-                    color: Style.textDim; font.pixelSize: Style.textLabel; font.letterSpacing: 0.8; height: 12
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
                 }
                 Item { width: 1; height: 4 }
                 Repeater {
@@ -313,20 +313,20 @@ Item {
                         Text {
                             width: 38; height: parent.height; verticalAlignment: Text.AlignVCenter
                             text: root._eventTime(modelData.start, modelData.allDay)
-                            color: Style.textSubtle; font.pixelSize: Style.textXs
+                            color: Style.textSubtle; font.pixelSize: Style.fontContentSize
                         }
                         Text {
                             width: parent.width - 44; height: parent.height
                             verticalAlignment: Text.AlignVCenter
                             text: modelData.summary || ""
-                            color: Style.textNormal; font.pixelSize: Style.textXs; elide: Text.ElideRight
+                            color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
                         }
                     }
                 }
                 Text {
                     x: 12; height: 16
                     visible: !calendarProcess || calendarProcess.todayEvents.length === 0
-                    text: "No events today"; color: Style.textFaint; font.pixelSize: Style.textXs
+                    text: "No events today"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
                 }
 
                 Item { width: 1; height: 8 }
@@ -334,7 +334,7 @@ Item {
                 // Tasks today
                 Text {
                     x: 12; text: "TASKS TODAY"
-                    color: Style.textDim; font.pixelSize: Style.textLabel; font.letterSpacing: 0.8; height: 12
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
                 }
                 Item { width: 1; height: 4 }
                 Repeater {
@@ -343,42 +343,42 @@ Item {
                         x: 12; width: glanceCol.width - 24; height: 16; spacing: 6
                         Text {
                             height: parent.height; verticalAlignment: Text.AlignVCenter
-                            text: "○"; color: Style.textDim; font.pixelSize: Style.textSm
+                            text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize
                         }
                         Text {
                             width: parent.width - 16; height: parent.height
                             verticalAlignment: Text.AlignVCenter
                             text: modelData.title || ""
-                            color: Style.textNormal; font.pixelSize: Style.textXs; elide: Text.ElideRight
+                            color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
                         }
                     }
                 }
                 Text {
                     x: 12; height: 16
                     visible: !tasksProcess || tasksProcess.todayTasks.length === 0
-                    text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.textXs
+                    text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
                 }
 
                 Item { width: 1; height: 8 }
-                Rectangle { x: 12; width: glanceCol.width - 24; height: 1; color: Style.divider }
+                Rectangle { x: 12; width: glanceCol.width - 24; height: 1; color: Style.panelDividerColor }
                 Item { width: 1; height: 8 }
 
                 // Footer buttons
                 Row {
                     x: 12; width: glanceCol.width - 24; height: 22; spacing: 6
                     Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radiusBtn
-                        color: moreHover.containsMouse ? Style.surfaceMid : Style.surfaceLow
-                        border.color: Style.borderSoft; border.width: 1
-                        Text { anchors.centerIn: parent; text: "More ↓"; color: Style.textBtn; font.pixelSize: Style.textXs }
+                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButton
+                        color: moreHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
+                        border.color: Style.borderSoftColor; border.width: 1
+                        Text { anchors.centerIn: parent; text: "More ↓"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
                         MouseArea { id: moreHover; anchors.fill: parent; hoverEnabled: true
                             onClicked: root._view = "expanded" }
                     }
                     Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radiusBtn
-                        color: editHover.containsMouse ? Style.surfaceMid : Style.surfaceLow
-                        border.color: Style.borderSoft; border.width: 1
-                        Text { anchors.centerIn: parent; text: "Edit ↗"; color: Style.textBtn; font.pixelSize: Style.textXs }
+                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButton
+                        color: editHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
+                        border.color: Style.borderSoftColor; border.width: 1
+                        Text { anchors.centerIn: parent; text: "Edit ↗"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
                         MouseArea { id: editHover; anchors.fill: parent; hoverEnabled: true
                             onClicked: Qt.openUrlExternally("https://calendar.google.com") }
                     }
@@ -406,7 +406,7 @@ Item {
 
                 Text {
                     x: 12; text: "↑ Back"
-                    color: Style.accent; font.pixelSize: Style.textSm; height: 20
+                    color: Style.borderAccentColor; font.pixelSize: Style.fontNavSize; height: 20
                     verticalAlignment: Text.AlignVCenter
                     MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
                 }
@@ -416,7 +416,7 @@ Item {
                 // ── This week — events ────────────────────────────────────────
                 Text {
                     x: 12; text: "THIS WEEK"
-                    color: Style.textDim; font.pixelSize: Style.textLabel; font.letterSpacing: 0.8; height: 12
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
                 }
                 Item { width: 1; height: 4 }
 
@@ -435,7 +435,7 @@ Item {
                             visible: parent.isHeader
                             anchors.bottom: parent.bottom; anchors.bottomMargin: 2
                             text: parent.itemLabel
-                            color: Style.textDim; font.pixelSize: Style.textXxs; font.weight: Font.Medium
+                            color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
                         }
                         Row {
                             visible: !parent.isHeader
@@ -443,13 +443,13 @@ Item {
                             Text {
                                 width: 38; height: parent.height; verticalAlignment: Text.AlignVCenter
                                 text: root._eventTime(parent.itemStart, parent.itemAllDay)
-                                color: Style.textSubtle; font.pixelSize: Style.textXs
+                                color: Style.textSubtle; font.pixelSize: Style.fontContentSize
                             }
                             Text {
                                 width: parent.width - 44; height: parent.height
                                 verticalAlignment: Text.AlignVCenter
                                 text: parent.itemSummary
-                                color: Style.textNormal; font.pixelSize: Style.textXs; elide: Text.ElideRight
+                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
                             }
                         }
                     }
@@ -457,7 +457,7 @@ Item {
                 Text {
                     x: 12; height: 16
                     visible: !calendarProcess || calendarProcess.weekEvents.length === 0
-                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.textXs
+                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
                 }
 
                 Item { width: 1; height: 10 }
@@ -465,7 +465,7 @@ Item {
                 // ── This week — tasks ─────────────────────────────────────────
                 Text {
                     x: 12; text: "TASKS THIS WEEK"
-                    color: Style.textDim; font.pixelSize: Style.textLabel; font.letterSpacing: 0.8; height: 12
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
                 }
                 Item { width: 1; height: 4 }
 
@@ -482,20 +482,20 @@ Item {
                             visible: parent.isHeader
                             anchors.bottom: parent.bottom; anchors.bottomMargin: 2
                             text: parent.itemLabel
-                            color: Style.textDim; font.pixelSize: Style.textXxs; font.weight: Font.Medium
+                            color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
                         }
                         Row {
                             visible: !parent.isHeader
                             anchors.fill: parent; spacing: 6
                             Text {
                                 height: parent.height; verticalAlignment: Text.AlignVCenter
-                                text: "○"; color: Style.textDim; font.pixelSize: Style.textSm
+                                text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize
                             }
                             Text {
                                 width: parent.width - 16; height: parent.height
                                 verticalAlignment: Text.AlignVCenter
                                 text: parent.itemTitle
-                                color: Style.textNormal; font.pixelSize: Style.textXs; elide: Text.ElideRight
+                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
                             }
                         }
                     }
@@ -503,7 +503,7 @@ Item {
                 Text {
                     x: 12; height: 16
                     visible: !tasksProcess || tasksProcess.weekTasks.length === 0
-                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.textXs
+                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
                 }
 
                 Item { width: 1; height: 10 }
@@ -511,7 +511,7 @@ Item {
                 // ── 7-day forecast ────────────────────────────────────────────
                 Text {
                     x: 12; text: "7-DAY FORECAST"
-                    color: Style.textDim; font.pixelSize: Style.textLabel; font.letterSpacing: 0.8; height: 12
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
                 }
                 Item { width: 1; height: 4 }
 
@@ -522,51 +522,51 @@ Item {
                         Text {
                             width: 56; height: parent.height; verticalAlignment: Text.AlignVCenter
                             text: root._dayLabel(modelData.date)
-                            color: Style.textMuted; font.pixelSize: Style.textXs; elide: Text.ElideRight
+                            color: Style.textMuted; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
                         }
                         Text {
                             height: parent.height; verticalAlignment: Text.AlignVCenter
                             text: String.fromCharCode(parseInt(modelData.icon, 16))
-                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.textMd
+                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontHeaderSize
                         }
                         Text {
                             // Fill remaining space minus the temp column
                             width: expandedCol.width - 24 - 56 - 18 - 6*3 - 62
                             height: parent.height; verticalAlignment: Text.AlignVCenter
                             text: modelData.condition
-                            color: Style.textMuted; font.pixelSize: Style.textXs; elide: Text.ElideRight
+                            color: Style.textMuted; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
                         }
                         Text {
                             width: 62; height: parent.height; verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: Text.AlignRight
                             text: modelData.high + "° / " + modelData.low + "°"
-                            color: Style.textNormal; font.pixelSize: Style.textXs
+                            color: Style.textNormal; font.pixelSize: Style.fontContentSize
                         }
                     }
                 }
 
                 Item { width: 1; height: 10 }
-                Rectangle { x: 12; width: expandedCol.width - 24; height: 1; color: Style.divider }
+                Rectangle { x: 12; width: expandedCol.width - 24; height: 1; color: Style.panelDividerColor }
                 Item { width: 1; height: 10 }
 
                 // ── Timer / stopwatch ─────────────────────────────────────────
                 Text {
                     x: 12; text: "TIMER"
-                    color: Style.textDim; font.pixelSize: Style.textLabel; font.letterSpacing: 0.8; height: 12
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
                 }
                 Item { width: 1; height: 8 }
 
                 Text {
                     x: 12; width: expandedCol.width - 24; height: 28
                     text: timerProcess ? timerProcess.displayText : "--:--"
-                    color: Style.textPrimary; font.pixelSize: Style.textXl; font.family: Style.fontMono
+                    color: Style.textPrimary; font.pixelSize: Style.fontTimerSize; font.family: Style.fontMono
                     horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 }
                 Text {
                     x: 12; width: expandedCol.width - 24; height: 14
                     text: timerProcess
                         ? (timerProcess.mode === "timer" ? "Countdown" : "Stopwatch") : ""
-                    color: Style.textDim; font.pixelSize: Style.textXxs
+                    color: Style.textDim; font.pixelSize: Style.fontGridNumSize
                     horizontalAlignment: Text.AlignHCenter
                 }
                 Item { width: 1; height: 6 }
@@ -582,10 +582,10 @@ Item {
                             { label: "25m", cmd: "setTimer:1500" },
                         ]
                         Rectangle {
-                            width: (expandedCol.width - 24 - 8) / 3; height: 20; radius: Style.radiusBtnSm
-                            color: presetHover.containsMouse ? Style.surfaceMid : Style.surfaceLow
-                            border.color: Style.borderSoft; border.width: 1
-                            Text { anchors.centerIn: parent; text: modelData.label; color: Style.textBtn; font.pixelSize: Style.textXs }
+                            width: (expandedCol.width - 24 - 8) / 3; height: 20; radius: Style.radButtonSmall
+                            color: presetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
+                            border.color: Style.borderSoftColor; border.width: 1
+                            Text { anchors.centerIn: parent; text: modelData.label; color: Style.textButton; font.pixelSize: Style.fontContentSize }
                             MouseArea { id: presetHover; anchors.fill: parent; hoverEnabled: true
                                 onClicked: root._send(modelData.cmd) }
                         }
@@ -600,16 +600,16 @@ Item {
                 Row {
                     x: 12; width: expandedCol.width - 24; height: 22; spacing: 6
                     Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radiusBtnSm
-                        color: startHover.containsMouse ? Style.accentBgHover : Style.accentBg
-                        border.color: Style.accent; border.width: 1
+                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButtonSmall
+                        color: startHover.containsMouse ? Style.accentBgHover : Style.accentBgColor
+                        border.color: Style.borderAccentColor; border.width: 1
                         Text {
                             anchors.centerIn: parent
                             text: {
                                 if (!timerProcess || !timerProcess.running) return "Start"
                                 return timerProcess.mode === "stopwatch" ? "Stop" : "Pause"
                             }
-                            color: Style.accentText; font.pixelSize: Style.textXs
+                            color: Style.textAccentColor; font.pixelSize: Style.fontContentSize
                         }
                         MouseArea { id: startHover; anchors.fill: parent; hoverEnabled: true
                             onClicked: {
@@ -622,10 +622,10 @@ Item {
                         }
                     }
                     Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radiusBtnSm
-                        color: resetHover.containsMouse ? Style.surfaceMid : Style.surfaceLow
-                        border.color: Style.borderSoft; border.width: 1
-                        Text { anchors.centerIn: parent; text: "Reset"; color: Style.textBtn; font.pixelSize: Style.textXs }
+                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButtonSmall
+                        color: resetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
+                        border.color: Style.borderSoftColor; border.width: 1
+                        Text { anchors.centerIn: parent; text: "Reset"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
                         MouseArea { id: resetHover; anchors.fill: parent; hoverEnabled: true
                             onClicked: {
                                 if (!timerProcess) return
@@ -646,12 +646,12 @@ Item {
                         ]
                         Rectangle {
                             property bool active: timerProcess && timerProcess.mode === modelData.mode
-                            width: (expandedCol.width - 24 - 6) / 2; height: 18; radius: Style.radiusBtnSm
-                            color: active ? Style.accentBg : (modeHover.containsMouse ? Style.surfaceLow : "transparent")
-                            border.color: active ? Style.accent : Style.borderFaint; border.width: 1
+                            width: (expandedCol.width - 24 - 6) / 2; height: 18; radius: Style.radButtonSmall
+                            color: active ? Style.accentBgColor : (modeHover.containsMouse ? Style.surfaceLowColor : "transparent")
+                            border.color: active ? Style.borderAccentColor : Style.borderFaintColor; border.width: 1
                             Text {
                                 anchors.centerIn: parent; text: modelData.label
-                                color: parent.active ? Style.accentText : Style.textDim; font.pixelSize: Style.textXxs
+                                color: parent.active ? Style.textAccentColor : Style.textDim; font.pixelSize: Style.fontGridNumSize
                             }
                             MouseArea { id: modeHover; anchors.fill: parent; hoverEnabled: true
                                 onClicked: {

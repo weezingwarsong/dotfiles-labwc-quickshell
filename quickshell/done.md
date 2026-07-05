@@ -68,3 +68,60 @@ Everything that was required before the Calendar panel was functional.
 - [x] `WorkspaceProcess { id: workspace }` instantiated in `shell.qml`
 - [x] `WorkspacePill { id: workspacePill; workspaceProcess: workspace }` instantiated in `shell.qml`
 - [x] `PillController` — `workspacePill` registered as priority 1 (beats `timePill` whenever `workspacePill.shouldShow` is true — workspace flash is time-critical)
+
+---
+
+## Style.qml
+
+### Variable palette redesign
+
+- [x] Replaced the interpolated 16-step grayscale ramp with the standard Nord terminal palette (nord0–nord15 in terminal-color order). Same format that pywal/matugen output — future wallpaper extraction is a drop-in swap of the 16 hex values.
+- [x] Removed separate Accent Palette (accent0–accent5) — frost blues folded into color7–color10, aurora accents into color11–color15.
+- [x] Simplified border-radius tokens: `radNone(0)` / `radLight(4)` / `radMed(6)` / `radHigh(10)`, replacing five ad-hoc `rad*` names.
+- [x] All 16 color tokens annotated with Nord name + semantic usage comment.
+
+### Fixed (semantic mapping) updates
+
+- [x] All Fixed properties updated to reference new color0–color15 and radNone/Light/Med/High tokens.
+- [x] `accentBgColor` / `accentBgHover` derived via `Qt.darker(color10, …)` — no orphaned hex literals outside the Variable section.
+- [x] Added `textCritical` (color11 — aurora red) and `textSuccess` (color14 — aurora green) — aurora states now exposed as semantic tokens.
+
+### Wiring
+
+- [x] `CalendarPanel.qml` — all Style references updated to current Fixed property names (54 lines). Old short-form names (`textXs`, `surfaceLow`, `radiusBtn`, `accent`, …) replaced with canonical Fixed names (`fontContentSize`, `surfaceLowColor`, `radButton`, `borderAccentColor`, …).
+- [x] `PillWindow.qml`, `TimePill.qml`, `WorkspacePill.qml` — already using correct Fixed property names; no changes needed.
+
+---
+
+## Window Switcher
+
+### Data layer
+
+- [x] `ToplevelProcess` — pure QML `Item`, no subprocess. Binds to `Quickshell.Wayland.ToplevelManager` (zwlr-foreign-toplevel-management-v1 protocol).
+  - `windows` — `ToplevelManager.toplevels` (`ObjectModel<Toplevel>`). Iterate in JS via `.values`.
+  - `focused` — alias for `ToplevelManager.activeToplevel`. Native compositor tracking — no manual `Instantiator` + `Connections` needed for focus. Updates reactively via `onActiveToplevelChanged`.
+  - A lightweight `Instantiator` kept only for add/remove logging.
+  - Key lesson: `ObjectModel` does not expose `.length` directly in JS — use `.values.length`. `ToplevelManager.activeToplevel` makes manual activated-flag tracking entirely unnecessary.
+
+### Pill
+
+- [x] `WindowPill` — binds to `ToplevelProcess` (injected).
+  - `shouldShow` is set externally by `shell.qml` as `panelController.activePanel === "windowSwitcher"`. Visible only during active switching, not as a passive always-on indicator.
+  - `visualComponent` — Nerd Font app glyph (resolved by `_glyphFor(appId)`) + `focused.appId` text label.
+
+### Panel
+
+- [x] `WindowSwitcherPanel` — `FocusScope`, reads from `ToplevelProcess.windows` (injected).
+  - `filteredWindows` — computed JS array from `toplevelProcess.windows.values`, filtered by case-insensitive `appId + title` match.
+  - `selectedFlat: int` — keyboard cursor; resets to 0 on filter text change, clamped on arrow keys, synced from hover.
+  - Auto-focus: `Qt.callLater(filterInput.forceActiveFocus)` on `Component.onCompleted`.
+  - Enter → `filteredWindows[selectedFlat].activate()` + `dismissed()`. Escape → `dismissed()` only.
+  - `_glyphFor(appId)` — Nerd Font lookup for 13 app categories + fallback.
+
+### Infrastructure
+
+- [x] `PanelSurface` — added `toplevelProcess` property, `dismissRequested()` signal, `WlrKeyboardFocus.Exclusive` when `activePanel === "windowSwitcher"`, `"windowSwitcher"` Loader case, `focus: true` on Loader.
+- [x] `PillController` — `windowPill` registered at highest priority (WindowPill → WorkspacePill → TimePill).
+- [x] `FifoListener` — `toggleWindowSwitcherRequested` signal, `"toggleWindowSwitcher"` command dispatch.
+- [x] `shell.qml` — `ToplevelProcess { id: toplevels }`, `WindowPill` wired, `panelController.toggle("windowSwitcher")` on FIFO command, `onDismissRequested` from `PanelSurface`, `toplevelProcess` forwarded to `PanelSurface`.
+- [x] labwc `rc.xml` — W-Tab keybind updated from `rofi -show window` to `echo toggleWindowSwitcher > pillbox.fifo`.
