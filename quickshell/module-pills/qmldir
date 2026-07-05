@@ -1,3 +1,4 @@
+singleton Style 1.0 ../Style.qml
 TimePill 1.0 TimePill.qml
 WorkspacePill 1.0 WorkspacePill.qml
 WindowPill 1.0 WindowPill.qml

@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 
 Item {
     id: root
@@ -36,9 +37,9 @@ Item {
         Text {
             anchors.centerIn: parent
             text: root.displayText
-            color: "#ffffff"
-            font.pixelSize: 13
-            font.family: "monospace"
+            color: Style.textPrimary
+            font.pixelSize: Style.pillTextSize
+            font.family: Style.fontMono
         }
     }
 

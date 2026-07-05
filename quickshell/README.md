@@ -63,26 +63,19 @@ Each panel is a data + actions component: it binds to root processes and exposes
 | `WindowSwitcherPanel` | `ToplevelProcess` | `switchToWindow(toplevel)` |
 | `MediaPlayerPanel` | `MprisProcess` | `playPause()`, `next()`, `previous()` |
 
-### Phase 4 — Visuals *(in progress)*
+### Phase 4 — Visuals ✓
 - Wrap pills in `PillWindow` — the shared visual container in `module-reusable-elements/` ✓
 - Wrap panels in a shared panel visual shell (larger rect, positioned below pill, shown/hidden by explicit user calls) ✓
 - Reusable visual primitives live in `module-reusable-elements/`
+- `Style.qml` singleton implemented and all components wired ✓
 
-**Every visual value (color, font, radius, spacing) goes through `Style.qml`** — a singleton in the root `quickshell/` directory. No component hardcodes a color or font size directly. Components read from `Style` instead: `color: Style.pillBg`, `font.pixelSize: Style.textSm`, etc.
+**Every visual value (color, font, radius, spacing) goes through `Style.qml`** — a `pragma Singleton` in the root `quickshell/` directory. Registered in the root qmldir and re-exported via each subdirectory's qmldir (`singleton Style 1.0 ../Style.qml`) so all modules can access it without a module import.
 
-`Style.qml` is a stub — the properties need to be extracted from the components that currently hardcode them. The components that carry visual values and need to be migrated are:
+`Style.qml` is split into two sections:
+- **Variable Preference** — raw palette tokens: 16-step color ramp (`color0`–`color15`), 6 accent colors (`accent0`–`accent5`), font families, font sizes, border widths, and radii. Currently seeded with Nord; intended to be extracted from wallpaper in a future phase.
+- **Fixed** — semantic mappings: named constants like `pillBgColor`, `panelBorderRadius`, `textPrimary`, `fontContentSize` that reference the Variable tokens. Components read only from Fixed — never from Variable directly.
 
-| Component | Location | Renders |
-|---|---|---|
-| `PillWindow.qml` | `module-reusable-elements/` | Pill shell — rounded rect, background, border, text color and font for all pills |
-| `TimePill.qml` | `module-pills/` | Time string or timer countdown |
-| `WorkspacePill.qml` | `module-pills/` | Current workspace name/number |
-| `MprisPill.qml` | `module-pills/` | Track title and artist |
-| `ScreenrecPill.qml` | `module-pills/` | Recording indicator |
-| `WindowPill.qml` | `module-pills/` | Active window title |
-| `CalendarPanel.qml` | `module-panels/` | Calendar glance + expanded — date, weather, month grid, events, tasks, timer |
-| `MediaPlayerPanel.qml` | `module-panels/` | MPRIS player controls |
-| `WindowSwitcherPanel.qml` | `module-panels/` | Switchable window list |
+Font: **JetBrains Mono Nerd Font** (`ttf-jetbrains-mono-nerd`) — used for both monospace text and Nerd Font glyphs.
 
 **Wiring (in `shell.qml`):**
 ```
@@ -368,8 +361,18 @@ The panel has two states: **glance** (default, compact) and **expanded** (user-t
 
 ---
 
+## To-Do: Theme Polish
+
+- [ ] Wire `CalendarPanel.qml` fully to the new Fixed property names (currently uses old flat names from the previous Style structure — broken when the panel opens).
+- [ ] Audit all remaining hardcoded values in `CalendarPanel.qml` and map them to `Style` Fixed properties.
+- [ ] Replace Nord placeholder palette with wallpaper-extracted colors. Logic TBD — likely a helper script that reads dominant colors from the current wallpaper and writes them into the Variable section at startup.
+- [ ] Decide on `fontMono` vs `fontNerd` distinction — currently both point to `JetBrainsMono Nerd Font`; may stay that way or split if a separate symbol font is preferred.
+
+---
+
 ## ✓ Calendar Panel — complete
 ## ✓ Workspace Pill — complete
+## ✓ Style.qml — structure complete, theming deferred
 
 See [`done.md`](done.md) for the full breakdown of everything built.
 

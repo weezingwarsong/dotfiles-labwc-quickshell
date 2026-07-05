@@ -1,3 +1,4 @@
+singleton Style 1.0 ../Style.qml
 CalendarPanel 1.0 CalendarPanel.qml
 MediaPlayerPanel 1.0 MediaPlayerPanel.qml
 WindowSwitcherPanel 1.0 WindowSwitcherPanel.qml

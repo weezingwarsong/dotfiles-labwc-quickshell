@@ -1,3 +1,4 @@
+singleton Style 1.0 ../Style.qml
 PillWindow 1.0 PillWindow.qml
 HoverZone 1.0 HoverZone.qml
 PillController 1.0 PillController.qml

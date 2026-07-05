@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 
 Item {
     id: root
@@ -39,9 +40,9 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.displayText
-                color: "#ffffff"
-                font.pixelSize: 13
-                font.family: "monospace"
+                color: Style.textPrimary
+                font.pixelSize: Style.pillTextSize
+                font.family: Style.fontMono
             }
 
             Row {
@@ -54,9 +55,9 @@ Item {
                         text: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
                             ? String.fromCodePoint(0xF0445)
                             : String.fromCodePoint(0xF0444)
-                        color: "#ffffff"
-                        font.family: "Symbols Nerd Font"
-                        font.pixelSize: 13
+                        color: Style.textPrimary
+                        font.family: Style.fontNerd
+                        font.pixelSize: Style.pillTextSize
                     }
                 }
             }
