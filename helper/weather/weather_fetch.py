@@ -108,21 +108,38 @@ def main():
             "https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat}&longitude={lon}"
             "&current=temperature_2m,weather_code,is_day"
-            "&daily=temperature_2m_max,temperature_2m_min"
-            "&temperature_unit=celsius&timezone=auto&forecast_days=1"
+            "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+            "&temperature_unit=celsius&timezone=auto&forecast_days=7"
         )
         data = fetch_json(url)
-        code = data["current"]["weather_code"]
+        current = data["current"]
+        daily = data["daily"]
+
+        code = current["weather_code"]
         day_icon, night_icon = WMO_ICONS.get(code, ("e33d", "e33d"))
+
+        forecast = []
+        for i in range(len(daily["time"])):
+            d_code = daily["weather_code"][i]
+            d_day_icon, _ = WMO_ICONS.get(d_code, ("e33d", "e33d"))
+            forecast.append({
+                "date":      daily["time"][i],
+                "high":      round(daily["temperature_2m_max"][i]),
+                "low":       round(daily["temperature_2m_min"][i]),
+                "condition": WMO_CONDITIONS.get(d_code, "Unknown"),
+                "icon":      d_day_icon,
+            })
+
         print(json.dumps({
-            "temp":      round(data["current"]["temperature_2m"]),
-            "high":      round(data["daily"]["temperature_2m_max"][0]),
-            "low":       round(data["daily"]["temperature_2m_min"][0]),
+            "temp":      round(current["temperature_2m"]),
+            "high":      round(daily["temperature_2m_max"][0]),
+            "low":       round(daily["temperature_2m_min"][0]),
             "condition": WMO_CONDITIONS.get(code, "Unknown"),
-            "icon":      day_icon if data["current"]["is_day"] else night_icon,
+            "icon":      day_icon if current["is_day"] else night_icon,
+            "forecast":  forecast,
         }))
     except Exception:
-        print(json.dumps({"temp": None, "high": None, "low": None, "condition": None, "icon": None}))
+        print(json.dumps({"temp": None, "high": None, "low": None, "condition": None, "icon": None, "forecast": []}))
 
 
 if __name__ == "__main__":

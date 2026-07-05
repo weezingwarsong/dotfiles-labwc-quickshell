@@ -6,6 +6,7 @@ Item {
 
     signal showTimeRequested()
     signal refreshCalendarRequested()
+    signal toggleCalendarRequested()
     signal timerSet(int seconds)
     signal timerStartRequested()
     signal timerPauseRequested()
@@ -34,6 +35,7 @@ Item {
 
                 if      (cmd === "showTime")          root.showTimeRequested()
                 else if (cmd === "refreshCalendar")   root.refreshCalendarRequested()
+                else if (cmd === "toggleCalendar")    root.toggleCalendarRequested()
                 else if (cmd === "startTimer")        root.timerStartRequested()
                 else if (cmd === "pauseTimer")        root.timerPauseRequested()
                 else if (cmd === "resetTimer")        root.timerResetRequested()

@@ -325,41 +325,31 @@ The panel has two states: **glance** (default, compact) and **expanded** (user-t
 
 ---
 
-## To-Do: Calendar Panel
+## ✓ Calendar Panel — complete
 
-Everything required before the Calendar panel is fully functional.
+See [`done.md`](done.md) for the full breakdown of everything built for the Calendar panel.
+
+---
+
+## To-Do: Workspace Pill
 
 ### Data layer
 
-- [x] `CalendarProcess` — fetches events, exposes `nextEvent`, `todayEvents`, `weekEvents`, `eventsByDate`
-- [x] `TasksProcess` — fetches tasks, exposes `todayTasks`, `weekTasks`, `overdueTasks`, `tasksByDate`
-- [x] `gcal-fetch` — Python script, Google Calendar API, auth shared with `gtask-fetch`
-- [x] `gtask-fetch` — Python script, Google Tasks API, shared token
-- [x] `google-auth-notify` — re-auth notification with action button, shared by both scripts
-- [ ] `WeatherProcess` — does not exist yet. Needs to be built. Same shape as `CalendarProcess`: a timer calls a one-shot script, result is exposed as structured properties.
-- [ ] `weather-fetch` — Python script for weather API. The old project had a version — evaluate reusing or replacing it. Must expose current conditions and a 7-day forecast.
+- [ ] `WorkspaceProcess` — runs `qs-watcher` as a persistent process, parses its JSON output, and exposes workspace state. Exposes:
+  - `current` — current workspace name (string)
+  - `list` — ordered list of all workspace names
+  - `signal workspaceChanged()` — emitted on every switch, for the pill's flash trigger
 
-### Infrastructure
+### Pill
 
-- [ ] `PanelController.qml` — new `QtObject` in `module-reusable-elements/`. Manages which panel is currently shown. Enforces the one-panel-at-a-time rule: summoning a new panel dismisses the current one. Mirror of `PillController` for panels.
-- [ ] `PanelWindow.qml` — new `PanelWindow` in `module-reusable-elements/`. Visual container for panels, anchored below the pill. Dumb renderer — receives `activePanel` and `shouldShow` from `PanelController`.
-- [ ] **FIFO command** — add `toggleCalendar` (or similar) to `FifoListener` and wire it to `PanelController`.
-- [ ] **labwc keybind** — assign a new keybind in `rc.xml` to write `toggleCalendar` to the FIFO. W-1 is taken (time pill toggle). Keybind TBD.
+- [ ] `WorkspacePill` — binds to `WorkspaceProcess`. Pure data component, no visuals yet.
+  - `displayText` — current workspace name/number
+  - `shouldShow: bool` — true for ~1 second after each workspace switch, then false. Implemented as a local `Timer` that starts on `workspaceChanged` and sets `shouldShow = false` on timeout. No persistent show — this is a flash-only pill.
 
-### Panel UI
+### Wiring
 
-- [ ] `CalendarPanel.qml` — the panel component itself, in `module-panels/`. Reads from `CalendarProcess`, `TasksProcess`, `ClockProcess`, and `WeatherProcess`. Two states: glance and expanded.
-  - [ ] Glance: date header
-  - [ ] Glance: today's events list
-  - [ ] Glance: month grid with event dot indicators (uses `eventsByDate`)
-  - [ ] Glance: month navigation (prev/next)
-  - [ ] Glance: today's tasks list (uses `todayTasks`)
-  - [ ] Glance: today's weather (blocked on `WeatherProcess`)
-  - [ ] Glance: edit button (`xdg-open https://calendar.google.com`)
-  - [ ] Expanded: 7-day schedule (uses `weekEvents`)
-  - [ ] Expanded: 7-day tasks (uses `weekTasks`)
-  - [ ] Expanded: 7-day weather forecast (blocked on `WeatherProcess`)
-  - [ ] Expanded: timer/stopwatch controls (writes to FIFO)
+- [ ] Instantiate `WorkspaceProcess` in `shell.qml`, inject into `WorkspacePill`.
+- [ ] Register `WorkspacePill` in `PillController` with its priority slot (below `TimePill` content-driven conditions, above nothing — priority order TBD when all pills exist).
 
 ---
 
@@ -368,7 +358,7 @@ Everything required before the Calendar panel is fully functional.
 ```
 quickshell/
 ├── module-panels/
-│   ├── CalendarPanel.qml
+│   ├── CalendarPanel.qml         ✓ implemented
 │   ├── MediaPlayerPanel.qml
 │   ├── WindowSwitcherPanel.qml
 │   └── qmldir
@@ -381,6 +371,8 @@ quickshell/
 │   └── qmldir
 ├── module-reusable-elements/
 │   ├── HoverZone.qml         ✓ implemented
+│   ├── PanelController.qml   ✓ implemented
+│   ├── PanelSurface.qml      ✓ implemented
 │   ├── PillController.qml    ✓ implemented
 │   ├── PillWindow.qml        ✓ implemented
 │   └── qmldir
@@ -390,6 +382,7 @@ quickshell/
 │   ├── FifoListener.qml      ✓ implemented
 │   ├── TasksProcess.qml      ✓ implemented
 │   ├── TimerProcess.qml      ✓ implemented
+│   ├── WeatherProcess.qml    ✓ implemented
 │   └── qmldir
 ├── qmldir
 └── shell.qml
@@ -401,5 +394,5 @@ helper/
 │   └── gtask_fetch.py        ✓ implemented  (symlinked → ~/.local/bin/gtask-fetch)
 ├── google_auth_notify.sh     ✓ implemented  (symlinked → ~/.local/bin/google-auth-notify)
 └── weather/
-    └── weather_fetch.py      ✗ not built yet (symlink → ~/.local/bin/weather-fetch)
+    └── weather_fetch.py      ✓ implemented  (symlinked → ~/.local/bin/weather-fetch)
 ```

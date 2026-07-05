@@ -13,6 +13,7 @@ ShellRoot {
 
         onShowTimeRequested:         controller.triggerPeek()
         onRefreshCalendarRequested:  calendar.refresh()
+        onToggleCalendarRequested:   panelController.toggle("calendar")
         onTimerSet:                  function(secs) { timer.setTimer(secs) }
         onTimerStartRequested:       timer.startTimer()
         onTimerPauseRequested:       timer.pauseTimer()
@@ -26,6 +27,7 @@ ShellRoot {
     CalendarProcess { id: calendar }
     TasksProcess    { id: tasks }
     TimerProcess    { id: timer }
+    WeatherProcess  { id: weather }
 
     TimePill {
         id: timePill
@@ -45,6 +47,20 @@ ShellRoot {
     PillWindow {
         activePill: controller.activePill
         shouldShow: controller.shouldShow
+    }
+
+    PanelController {
+        id: panelController
+    }
+
+    PanelSurface {
+        activePanel:     panelController.activePanel
+        shouldShow:      panelController.shouldShow
+        clockProcess:    clock
+        calendarProcess: calendar
+        tasksProcess:    tasks
+        weatherProcess:  weather
+        timerProcess:    timer
     }
 }
 
