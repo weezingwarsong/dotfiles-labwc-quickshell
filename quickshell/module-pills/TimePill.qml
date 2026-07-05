@@ -30,6 +30,18 @@ Item {
         return "--:--"
     }
 
+    // ── Visual component ─────────────────────────────────────────────────────
+
+    property Component visualComponent: Component {
+        Text {
+            anchors.centerIn: parent
+            text: root.displayText
+            color: "#ffffff"
+            font.pixelSize: 13
+            font.family: "monospace"
+        }
+    }
+
     // ── Logging ──────────────────────────────────────────────────────────────
 
     onShouldShowChanged: console.log("[TimePill] shouldShow:", shouldShow,

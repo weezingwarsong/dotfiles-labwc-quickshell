@@ -39,3 +39,32 @@ Everything that was required before the Calendar panel was functional.
   - [x] Expanded: 7-day tasks grouped by due date
   - [x] Expanded: 7-day weather forecast (icon + condition + high/low per day)
   - [x] Expanded: timer/stopwatch controls (preset durations, start/pause/reset, mode switcher — all write to FIFO)
+
+---
+
+## Workspace Pill
+
+### Data layer
+
+- [x] `WorkspaceProcess` — pure QML `Item`, no subprocess. Binds to `Quickshell.WindowManager`. `Instantiator` over `WindowManager.windowsets` creates one `Connections` watcher per `Windowset`. When any `Windowset.active` flips true, `current` updates and `workspaceChanged` fires.
+  - `current` — the active `Windowset` object (has `.name`, `.active`, `.activate()`)
+  - `list` — ordered array of all workspace names, computed binding over `WindowManager.windowsets`
+  - `currentIndex` — index of `current` in `WindowManager.windowsets`, compared by object reference
+  - `signal workspaceChanged(var workspace)` — emitted on every switch
+
+### Pill
+
+- [x] `WorkspacePill` — binds to `WorkspaceProcess`.
+  - `shouldShow: bool` — true for 1.5 seconds after each `workspaceChanged`. Local `Timer` restarts on rapid switches so the pill stays visible until the user settles.
+  - `displayText: string` — `workspaceProcess.current.name`
+  - `visualComponent: Component` — workspace name on the left + Nerd Font radiobox glyphs (one per workspace, `nf-md-radiobox_marked` U+F0445 for active, `nf-md-radiobox_blank` U+F0444 for inactive). Count is dynamic from `workspaceProcess.list.length` — not hardcoded.
+
+### Visual layer
+
+- [x] `PillWindow` switched from hardcoded `Text` to `Loader { sourceComponent: activePill.visualComponent }` — each pill now owns its own visual component. `TimePill` has a simple `Text` visualComponent; `WorkspacePill` has the name + dots layout. Left/right margins: 20px. Gap from screen top: `Screen.height * 0.01`.
+
+### Wiring
+
+- [x] `WorkspaceProcess { id: workspace }` instantiated in `shell.qml`
+- [x] `WorkspacePill { id: workspacePill; workspaceProcess: workspace }` instantiated in `shell.qml`
+- [x] `PillController` — `workspacePill` registered as priority 1 (beats `timePill` whenever `workspacePill.shouldShow` is true — workspace flash is time-critical)

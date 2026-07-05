@@ -23,11 +23,12 @@ ShellRoot {
         onStopwatchResetRequested:   timer.resetStopwatch()
     }
 
-    ClockProcess    { id: clock }
-    CalendarProcess { id: calendar }
-    TasksProcess    { id: tasks }
-    TimerProcess    { id: timer }
-    WeatherProcess  { id: weather }
+    ClockProcess      { id: clock }
+    CalendarProcess   { id: calendar }
+    TasksProcess      { id: tasks }
+    TimerProcess      { id: timer }
+    WeatherProcess    { id: weather }
+    WorkspaceProcess  { id: workspace }
 
     TimePill {
         id: timePill
@@ -36,12 +37,18 @@ ShellRoot {
         timerProcess:    timer
     }
 
+    WorkspacePill {
+        id: workspacePill
+        workspaceProcess: workspace
+    }
+
     HoverZone { id: hoverZone }
 
     PillController {
         id: controller
-        hovered:  hoverZone.hovered
-        timePill: timePill
+        hovered:       hoverZone.hovered
+        timePill:      timePill
+        workspacePill: workspacePill
     }
 
     PillWindow {

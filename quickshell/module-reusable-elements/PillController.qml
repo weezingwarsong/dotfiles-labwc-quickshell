@@ -7,15 +7,19 @@ QtObject {
 
     property bool hovered: false
     property var timePill: null
+    property var workspacePill: null
     // future pills registered here in priority order
 
     // ── Stage 1: Winner ───────────────────────────────────────────────────────
     // Which pill has the most relevant content right now, independent of
     // whether anything is showing. Pre-computed so display is instant on reveal.
+    //
+    // Priority order (highest → lowest):
+    //   1. WorkspacePill — workspace flash is time-critical; always wins if active
+    //   2. TimePill — calendar imminent, timer active, or default time display
 
     readonly property var winner: {
-        // TBA: priority order across all pills.
-        // For now TimePill is always the winner — it is the only pill.
+        if (workspacePill && workspacePill.shouldShow) return workspacePill
         if (timePill) return timePill
         return null
     }

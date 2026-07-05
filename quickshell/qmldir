@@ -1,3 +1,5 @@
 # Quickshell configuration root — required to import local subfolders
 
 module Quickshell
+
+singleton Style 1.0 Style.qml

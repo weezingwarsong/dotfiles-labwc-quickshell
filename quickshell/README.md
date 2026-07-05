@@ -65,8 +65,24 @@ Each panel is a data + actions component: it binds to root processes and exposes
 
 ### Phase 4 — Visuals *(in progress)*
 - Wrap pills in `PillWindow` — the shared visual container in `module-reusable-elements/` ✓
-- Wrap panels in a shared panel visual shell (larger rect, positioned below pill, shown/hidden by explicit user calls)
+- Wrap panels in a shared panel visual shell (larger rect, positioned below pill, shown/hidden by explicit user calls) ✓
 - Reusable visual primitives live in `module-reusable-elements/`
+
+**Every visual value (color, font, radius, spacing) goes through `Style.qml`** — a singleton in the root `quickshell/` directory. No component hardcodes a color or font size directly. Components read from `Style` instead: `color: Style.pillBg`, `font.pixelSize: Style.textSm`, etc.
+
+`Style.qml` is a stub — the properties need to be extracted from the components that currently hardcode them. The components that carry visual values and need to be migrated are:
+
+| Component | Location | Renders |
+|---|---|---|
+| `PillWindow.qml` | `module-reusable-elements/` | Pill shell — rounded rect, background, border, text color and font for all pills |
+| `TimePill.qml` | `module-pills/` | Time string or timer countdown |
+| `WorkspacePill.qml` | `module-pills/` | Current workspace name/number |
+| `MprisPill.qml` | `module-pills/` | Track title and artist |
+| `ScreenrecPill.qml` | `module-pills/` | Recording indicator |
+| `WindowPill.qml` | `module-pills/` | Active window title |
+| `CalendarPanel.qml` | `module-panels/` | Calendar glance + expanded — date, weather, month grid, events, tasks, timer |
+| `MediaPlayerPanel.qml` | `module-panels/` | MPRIS player controls |
+| `WindowSwitcherPanel.qml` | `module-panels/` | Switchable window list |
 
 **Wiring (in `shell.qml`):**
 ```
@@ -80,7 +96,7 @@ The single source of truth for all show/hide decisions. A `QtObject` — no visu
 
 Two explicit stages:
 
-*Stage 1 — Winner:* Which pill has the most relevant content right now, computed independently of whether anything is showing. Pre-computed so the display is instant on reveal. Priority order is TBD and will be defined as pills are completed. Currently `TimePill` is always the winner — it is the only pill.
+*Stage 1 — Winner:* Which pill has the most relevant content right now, computed independently of whether anything is showing. Pre-computed so the display is instant on reveal. Priority order (highest → lowest): WorkspacePill (workspace flash, time-critical) → TimePill (calendar imminent, timer active, or default time display).
 
 *Stage 2 — Show/hide:* Whether to show the pill at all. Three independent triggers evaluated in order:
 1. **Hover** — cursor in `HoverZone`. Always works, never suppressible.
@@ -102,7 +118,7 @@ Outputs:
 - `implicitWidth: Screen.width * 0.10`, `implicitHeight: 24`
 - `mask: Region {}` — fully pointer-transparent so `HoverZone` below it always receives the cursor
 - Receives `activePill` and `shouldShow` as injected properties from `shell.qml`
-- Renders `activePill.displayText` inside a rounded `Rectangle`
+- `Loader { sourceComponent: activePill.visualComponent }` — each pill owns its own visual component; `PillWindow` just mounts it. 20px horizontal margins. `margins.top: Screen.height * 0.01` gap from screen edge.
 - Completely dumb — no logic, no opinions. All decisions are made upstream in `PillController`.
 
 **`HoverZone.qml`** (`module-reusable-elements/HoverZone.qml`):
@@ -297,6 +313,33 @@ echo "startStopwatch" > ~/.local/share/pillbox/pillbox.fifo   # stopwatch mode
 
 ---
 
+### Workspace
+
+**File:** `module-pills/WorkspacePill.qml`
+
+**What we expect from the Workspace pill:**
+
+A workspace OSD — the same role labwc's built-in workspace indicator fills, but routed through the pill. Any time the active workspace changes, regardless of what caused it (keybind, `rofi -show window` jumping to a window on another workspace, a script, anything), the pill surfaces briefly to confirm the switch, then retreats.
+
+**What we need to make it happen:**
+
+- `WorkspaceProcess` — a thin QML `QtObject` that binds to `WindowManager.windowsets` from `import Quickshell.WindowManager`. No subprocess. Derives `current` (the `Windowset` where `active === true`) and `list` (all workspace names). Emits `workspaceChanged` whenever `current` changes.
+
+**Reveal conditions (`shouldShow: bool`):**
+
+| Condition | Trigger | Auto-hide |
+|---|---|---|
+| Workspace switched | `WorkspaceProcess.workspaceChanged` | 1.5 seconds after the last change |
+
+`shouldShow` is driven entirely by a local `Timer` inside `WorkspacePill` — on `workspaceChanged`, the timer (re)starts; when it fires, `shouldShow` goes false. No persistent show. Re-triggering before the timer expires resets the countdown, so rapid switches don't stack.
+
+**Display text (`displayText: string`):**
+- Current workspace name — e.g. `"1"`, `"2"`, or a named workspace like `"web"`
+
+**Process reference** (`workspaceProcess`) injected by `shell.qml` as a property, same pattern as other pills.
+
+---
+
 ## Panels
 
 ### Calendar
@@ -326,30 +369,9 @@ The panel has two states: **glance** (default, compact) and **expanded** (user-t
 ---
 
 ## ✓ Calendar Panel — complete
+## ✓ Workspace Pill — complete
 
-See [`done.md`](done.md) for the full breakdown of everything built for the Calendar panel.
-
----
-
-## To-Do: Workspace Pill
-
-### Data layer
-
-- [ ] `WorkspaceProcess` — runs `qs-watcher` as a persistent process, parses its JSON output, and exposes workspace state. Exposes:
-  - `current` — current workspace name (string)
-  - `list` — ordered list of all workspace names
-  - `signal workspaceChanged()` — emitted on every switch, for the pill's flash trigger
-
-### Pill
-
-- [ ] `WorkspacePill` — binds to `WorkspaceProcess`. Pure data component, no visuals yet.
-  - `displayText` — current workspace name/number
-  - `shouldShow: bool` — true for ~1 second after each workspace switch, then false. Implemented as a local `Timer` that starts on `workspaceChanged` and sets `shouldShow = false` on timeout. No persistent show — this is a flash-only pill.
-
-### Wiring
-
-- [ ] Instantiate `WorkspaceProcess` in `shell.qml`, inject into `WorkspacePill`.
-- [ ] Register `WorkspacePill` in `PillController` with its priority slot (below `TimePill` content-driven conditions, above nothing — priority order TBD when all pills exist).
+See [`done.md`](done.md) for the full breakdown of everything built.
 
 ---
 
@@ -367,7 +389,7 @@ quickshell/
 │   ├── ScreenrecPill.qml
 │   ├── TimePill.qml          ✓ implemented
 │   ├── WindowPill.qml
-│   ├── WorkspacePill.qml
+│   ├── WorkspacePill.qml     ✓ implemented
 │   └── qmldir
 ├── module-reusable-elements/
 │   ├── HoverZone.qml         ✓ implemented
@@ -383,9 +405,11 @@ quickshell/
 │   ├── TasksProcess.qml      ✓ implemented
 │   ├── TimerProcess.qml      ✓ implemented
 │   ├── WeatherProcess.qml    ✓ implemented
+│   ├── WorkspaceProcess.qml  ✓ implemented
 │   └── qmldir
 ├── qmldir
-└── shell.qml
+├── shell.qml
+└── Style.qml                     ✗ stub — visual constants not yet extracted
 
 helper/
 ├── calendar/
