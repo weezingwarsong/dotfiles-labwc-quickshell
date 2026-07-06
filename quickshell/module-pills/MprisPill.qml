@@ -12,6 +12,7 @@ Item {
     readonly property bool _playing: mprisProcess !== null
         && mprisProcess.activePlayer !== null
         && mprisProcess.activePlayer.trackTitle !== ""
+        && mprisProcess.activePlayer.playbackState === MprisPlaybackState.Playing
 
     property bool _peeking: false
 
