@@ -37,7 +37,7 @@ Item {
 
     property Component visualComponent: Component {
         Row {
-            anchors.centerIn: parent
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 6
 
             Text {
@@ -56,6 +56,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, 200)
                 text: root.mprisProcess && root.mprisProcess.activePlayer
                     ? root.mprisProcess.activePlayer.trackTitle
                     : ""

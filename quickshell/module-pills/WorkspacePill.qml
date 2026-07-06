@@ -38,42 +38,31 @@ Item {
     // ── Visual component ──────────────────────────────────────────────────────
     property Component visualComponent: Component {
         Row {
-            anchors.fill: parent
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
 
-            // Left half — workspace name
-            Item {
-                width: parent.width / 2
-                height: parent.height
-
-                Text {
-                    anchors.centerIn: parent
-                    text: root.displayText
-                    color: Style.textPrimary
-                    font.pixelSize: Style.pillTextSize
-                    font.family: Style.fontMono
-                }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.displayText
+                color: Style.textPrimary
+                font.pixelSize: Style.pillTextSize
+                font.family: Style.fontMono
             }
 
-            // Right half — workspace glyphs
-            Item {
-                width: parent.width / 2
-                height: parent.height
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
 
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 2
-
-                    Repeater {
-                        model: root.workspaceProcess ? root.workspaceProcess.list.length : 0
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
-                                ? String.fromCodePoint(0xf444)
-                                : String.fromCodePoint(0xf4c3)
-                            color: Style.textPrimary
-                            font.family: Style.fontNerd
-                            font.pixelSize: Style.pillTextSize
-                        }
+                Repeater {
+                    model: root.workspaceProcess ? root.workspaceProcess.list.length : 0
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
+                            ? String.fromCodePoint(0xf444)
+                            : String.fromCodePoint(0xf4c3)
+                        color: Style.textPrimary
+                        font.family: Style.fontNerd
+                        font.pixelSize: Style.pillTextSize
                     }
                 }
             }

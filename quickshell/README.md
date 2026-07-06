@@ -623,40 +623,20 @@ A keyboard-driven window switcher. W-Tab toggles the panel. When it appears, the
 
 ## To-Do
 
-### PillController — Priority-based winner selection
+### PillWindow — Content-driven width
 
-**Problem:** Stage 1 winner is a hardcoded `if`-chain in `PillController.qml` that requires bespoke knowledge of each pill's API (`shouldShow` for most, `isActive` for MPRIS). Adding a new pill means editing `PillController`. The inconsistent interface also caused bugs where TimePill shows on hover while music is playing instead of MprisPill.
+**Problem:** `PillWindow.implicitWidth` is hardcoded as `Screen.width * 0.10`. Pill visual components use `anchors.fill: parent`, deriving their size from the window rather than driving it. The pill is the same width regardless of content — too wide for a short clock string, arbitrary for variable-length content like track titles.
 
-**Design:** Each pill exposes two reactive bindings. `PillController` only reads these — never pill-specific properties.
+**Design:** Reverse the sizing direction — content declares its natural `implicitWidth`, `PillWindow` binds to it.
 
-- `priority: int` — who wins Stage 1. Higher number wins. Computed binding (never mutated externally). TimePill holds `1` at idle (permanent fallback); other pills return `0` when inactive and rise above `1` when active.
-- `shouldReveal: bool` — drives Stage 2 content-driven trigger. Decoupled from `priority` so a pill can be the silent winner (high priority, `shouldReveal: false`) before a second threshold triggers auto-reveal.
+- Each pill's `visualComponent` drops `anchors.fill: parent` / `anchors.centerIn: parent` in favour of self-sizing. Keeps only `anchors.verticalCenter: parent.verticalCenter` (no horizontal constraint imposed).
+- `Loader` in `PillWindow` sets `width: item ? item.implicitWidth : 0`. `PillWindow.implicitWidth` binds to that + 40px (20px padding each side).
+- No left/right anchor set on `PillWindow` — layer-shell protocol centers the surface automatically when only `anchors.top` is set.
+- Height stays fixed (`implicitHeight: 24`). Vertical margin stays `Screen.height * 0.01`.
+- Variable-length text (MprisPill track title, WindowPill app ID) gets a pixel cap + `elide: Text.ElideRight` to prevent unconstrained growth.
+- `WorkspacePill.visualComponent` simplified from two half-width `Item` columns to a flat `Row` — the split-half layout only makes sense at a fixed parent width.
 
-**Stage 1** becomes a max-picker with no pill-specific logic:
-```qml
-readonly property var winner: {
-    var pills = [windowPill, workspacePill, mprisPill, timePill].filter(p => p)
-    return pills.reduce(function(best, p) {
-        return p.priority > (best ? best.priority : -1) ? p : best
-    }, null)
-}
-```
-
-**Stage 2** content-driven trigger replaces `winner.shouldShow` / `winner.isActive` inconsistency:
-```qml
-property bool contentActive: winner ? winner.shouldReveal : false
-```
-
-**Per-pill mappings:**
-
-| Pill | `priority` | `shouldReveal` |
-|---|---|---|
-| `TimePill` | `10` when calendar ≤10min or timer active; `1` idle | `true` when calendar ≤10min or timer active |
-| `MprisPill` | `5` while playing; `0` idle | `true` for 3s after track/state change |
-| `WorkspacePill` | `100` during switch; `0` idle | same as priority > 0 |
-| `WindowPill` | `200` while switcher open; `0` idle | same as priority > 0 |
-
-**Files to change:** `PillController.qml`, `TimePill.qml`, `MprisPill.qml`, `WorkspacePill.qml`, `WindowPill.qml`. Remove `isActive` from `MprisPill` (replaced by `priority`). No changes to `shell.qml` or any process file.
+**Files to change:** `PillWindow.qml`, `TimePill.qml`, `MprisPill.qml`, `WorkspacePill.qml`, `WindowPill.qml`.
 
 ---
 

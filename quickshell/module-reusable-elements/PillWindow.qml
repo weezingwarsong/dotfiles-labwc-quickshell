@@ -14,7 +14,7 @@ PanelWindow {
     exclusiveZone: 0
     color: "transparent"
 
-    implicitWidth: Screen.width * 0.10
+    implicitWidth: (contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40
     implicitHeight: 24
 
     visible: shouldShow
@@ -26,9 +26,10 @@ PanelWindow {
         color: Style.pillBgColor
 
         Loader {
-            anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            id: contentLoader
+            anchors.centerIn: parent
+            width: item ? item.implicitWidth : 0
+            height: parent.height
             sourceComponent: activePill ? activePill.visualComponent : null
         }
     }

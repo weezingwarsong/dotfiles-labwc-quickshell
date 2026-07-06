@@ -2,6 +2,15 @@
 
 ---
 
+## PillController — Priority-based winner selection
+
+- [x] Replaced hardcoded `if`-chain Stage 1 winner with a `priority`-based max-picker. Each pill exposes `priority: int` and `shouldReveal: bool` — `PillController` reads only these, never pill-specific properties. Adding a new pill no longer requires touching `PillController`.
+- [x] `priority` determines Stage 1 winner (highest wins). `shouldReveal` drives Stage 2 content-driven trigger, decoupled from `priority` to support "silent winner" — a pill can hold the winner position before auto-surfacing at a second threshold.
+- [x] Priority table (comment block in `PillController.qml`): `WindowPill` 200 (switcher open), `WorkspacePill` 100 (workspace flash), `TimePill` 10 (urgent) / 1 (idle fallback), `MprisPill` 5 (actively playing) / 0 (paused or idle).
+- [x] `MprisPill.isActive` removed. `_playing` now requires `playbackState === MprisPlaybackState.Playing` — paused tracks drop to priority 0 and `TimePill` wins. `_peeking` (3s after `playerUpdated`) replaced the old `shouldShow`.
+
+---
+
 ## Calendar Panel
 
 Everything that was required before the Calendar panel was functional.

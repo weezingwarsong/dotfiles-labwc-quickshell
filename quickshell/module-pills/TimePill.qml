@@ -35,7 +35,7 @@ Item {
 
     property Component visualComponent: Component {
         Text {
-            anchors.centerIn: parent
+            anchors.verticalCenter: parent.verticalCenter
             text: root.displayText
             color: Style.textPrimary
             font.pixelSize: Style.pillTextSize
