@@ -17,6 +17,15 @@ Item {
     // ── View state ────────────────────────────────────────────────────────────
     property string _view: "glance"  // "glance" | "expanded" | "timer"
 
+    // Content height for the active view — PanelSurface reads this to size the window.
+    // +24 accounts for anchors.margins: 12 on each ColumnLayout (top + bottom).
+    implicitHeight: {
+        if (_view === "glance")   return glanceFlick.contentHeight   + 24
+        if (_view === "expanded") return expandedFlick.contentHeight  + 24
+        if (_view === "timer")    return timerFlick.contentHeight     + 24
+        return 0
+    }
+
     // ── Month navigation ──────────────────────────────────────────────────────
     property int _navYear:  0
     property int _navMonth: 0

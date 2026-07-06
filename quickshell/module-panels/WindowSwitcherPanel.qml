@@ -26,6 +26,10 @@ FocusScope {
         return result
     }
 
+    // Content height — PanelSurface reads this to size the window.
+    // col has topMargin: 8; add 16 for top + bottom symmetry.
+    implicitHeight: col.implicitHeight + 16
+
     Component.onCompleted: Qt.callLater(function() { filterInput.forceActiveFocus() })
 
     function _activateSelected() {

@@ -27,8 +27,14 @@ PanelWindow {
     color: "transparent"
     margins.top: Screen.width * 0.10
 
+    // Max height at the symmetry point: gap above == gap below.
+    // margins.top is the gap above; solve for h: margins.top == Screen.height - (margins.top + h)
+    readonly property real _maxHeight: Screen.height - 2 * margins.top
+
     implicitWidth:  Screen.width * 0.15
-    implicitHeight: Screen.width * 0.15
+    implicitHeight: loader.item
+        ? Math.min(loader.item.implicitHeight, _maxHeight)
+        : Screen.width * 0.15
 
     visible: shouldShow
 
