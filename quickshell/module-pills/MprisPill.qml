@@ -7,18 +7,21 @@ Item {
     // Injected by shell.qml
     property var mprisProcess: null
 
-    // ── Stage 1: winner eligibility ──────────────────────────────────────────
-    readonly property bool isActive: mprisProcess !== null
+    // ── Priority interface (read by PillController) ───────────────────────────
+
+    readonly property bool _playing: mprisProcess !== null
         && mprisProcess.activePlayer !== null
         && mprisProcess.activePlayer.trackTitle !== ""
 
-    // ── Stage 2: content-driven peek ─────────────────────────────────────────
-    property bool shouldShow: false
+    property bool _peeking: false
+
+    readonly property int  priority:     _playing ? 5 : 0
+    readonly property bool shouldReveal: _peeking
 
     Connections {
         target: mprisProcess
         function onPlayerUpdated(player) {
-            root.shouldShow = true
+            root._peeking = true
             _hideTimer.restart()
         }
     }
@@ -26,7 +29,7 @@ Item {
     Timer {
         id: _hideTimer
         interval: 3000
-        onTriggered: root.shouldShow = false
+        onTriggered: root._peeking = false
     }
 
     // ── Visual component ──────────────────────────────────────────────────────
@@ -64,7 +67,8 @@ Item {
     }
 
     // ── Logging ───────────────────────────────────────────────────────────────
-    onShouldShowChanged: console.log("[MprisPill] shouldShow:", shouldShow,
+    onPriorityChanged:     console.log("[MprisPill] priority:", priority, "| playing:", _playing)
+    onShouldRevealChanged: console.log("[MprisPill] shouldReveal:", shouldReveal,
         "| track:", mprisProcess && mprisProcess.activePlayer
             ? mprisProcess.activePlayer.trackTitle : "none")
 

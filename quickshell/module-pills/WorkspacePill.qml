@@ -7,13 +7,17 @@ Item {
     // Injected by shell.qml
     property var workspaceProcess: null
 
-    // ── Reveal condition ──────────────────────────────────────────────────────
-    property bool shouldShow: false
+    // ── Priority interface (read by PillController) ───────────────────────────
+
+    property bool _active: false
+
+    readonly property int  priority:     _active ? 100 : 0
+    readonly property bool shouldReveal: _active
 
     Connections {
         target: workspaceProcess
         function onWorkspaceChanged() {
-            root.shouldShow = true
+            root._active = true
             _hideTimer.restart()
         }
     }
@@ -21,7 +25,7 @@ Item {
     Timer {
         id: _hideTimer
         interval: 1500
-        onTriggered: root.shouldShow = false
+        onTriggered: root._active = false
     }
 
     // ── Display text ──────────────────────────────────────────────────────────
@@ -77,7 +81,7 @@ Item {
     }
 
     // ── Logging ───────────────────────────────────────────────────────────────
-    onShouldShowChanged: console.log("[WorkspacePill] shouldShow:", shouldShow,
+    onShouldRevealChanged: console.log("[WorkspacePill] shouldReveal:", shouldReveal,
         "| workspace:", displayText)
 
     Component.onCompleted: console.log("[WorkspacePill] started")

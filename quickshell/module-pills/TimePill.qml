@@ -9,8 +9,7 @@ Item {
     property var calendarProcess: null
     property var timerProcess: null
 
-    // ── Reveal conditions (content-driven only) ──────────────────────────────
-    // User-initiated triggers (hover, FIFO peek) live in PillController, not here.
+    // ── Priority interface (read by PillController) ───────────────────────────
 
     readonly property bool _calendarImminent: {
         if (!calendarProcess || !calendarProcess.nextEvent) return false
@@ -21,7 +20,8 @@ Item {
 
     readonly property bool _timerActive: timerProcess ? timerProcess.active : false
 
-    readonly property bool shouldShow: _calendarImminent || _timerActive
+    readonly property int  priority:     (_calendarImminent || _timerActive) ? 10 : 1
+    readonly property bool shouldReveal: _calendarImminent || _timerActive
 
     // ── Display text ─────────────────────────────────────────────────────────
 
@@ -45,8 +45,8 @@ Item {
 
     // ── Logging ──────────────────────────────────────────────────────────────
 
-    onShouldShowChanged: console.log("[TimePill] shouldShow:", shouldShow,
-        "| calendarImminent:", _calendarImminent, "| timerActive:", _timerActive)
+    onShouldRevealChanged: console.log("[TimePill] shouldReveal:", shouldReveal,
+        "| priority:", priority, "| calendarImminent:", _calendarImminent, "| timerActive:", _timerActive)
 
     Component.onCompleted: console.log("[TimePill] started")
 }

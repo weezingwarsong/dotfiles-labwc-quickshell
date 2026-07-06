@@ -12,19 +12,18 @@ QtObject {
     property var mprisPill: null
 
     // ── Stage 1: Winner ───────────────────────────────────────────────────────
-    // Which pill has the most relevant content right now, independent of
-    // whether anything is showing. Pre-computed so display is instant on reveal.
-    //
-    // Priority order (highest → lowest):
-    //   1. WorkspacePill — workspace flash is time-critical; always wins if active
-    //   2. TimePill — calendar imminent, timer active, or default time display
+    // Each pill exposes priority: int. Highest wins. No pill-specific logic here —
+    // adding a new pill never requires touching PillController.
 
     readonly property var winner: {
-        if (windowPill    && windowPill.shouldShow)    return windowPill
-        if (workspacePill && workspacePill.shouldShow) return workspacePill
-        if (mprisPill     && mprisPill.isActive)       return mprisPill
-        if (timePill) return timePill
-        return null
+        var pills = []
+        if (windowPill)    pills.push(windowPill)
+        if (workspacePill) pills.push(workspacePill)
+        if (mprisPill)     pills.push(mprisPill)
+        if (timePill)      pills.push(timePill)
+        return pills.reduce(function(best, p) {
+            return (!best || p.priority > best.priority) ? p : best
+        }, null)
     }
 
     // ── Stage 2: Show/hide ────────────────────────────────────────────────────
@@ -34,9 +33,9 @@ QtObject {
     property bool _peekActive: false
     property bool _userDismissed: false
 
-    // Mirrors winner.shouldShow — when a content condition ends naturally,
+    // Mirrors winner.shouldReveal — when a content condition ends naturally,
     // clear the dismiss gate so future conditions are not silenced.
-    property bool contentActive: winner ? winner.shouldShow : false
+    property bool contentActive: winner ? winner.shouldReveal : false
     onContentActiveChanged: {
         if (!contentActive) _userDismissed = false
     }
@@ -67,7 +66,7 @@ QtObject {
     readonly property bool shouldShow: {
         if (hovered)     return true                                         // hover always works
         if (_peekActive) return true                                         // explicit peek
-        if (!_userDismissed && winner && winner.shouldShow) return true      // content-driven
+        if (!_userDismissed && winner && winner.shouldReveal) return true     // content-driven
         return false
     }
 

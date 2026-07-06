@@ -4,9 +4,13 @@ Item {
     id: root
 
     // Injected by shell.qml
-    property var toplevelProcess: null
+    property var  toplevelProcess: null
     // Externally controlled — true while window switcher panel is open
     property bool shouldShow: false
+
+    // ── Priority interface (read by PillController) ───────────────────────────
+    readonly property int  priority:     shouldShow ? 200 : 0
+    readonly property bool shouldReveal: shouldShow
 
     readonly property string _appId: {
         if (toplevelProcess && toplevelProcess.focused)
