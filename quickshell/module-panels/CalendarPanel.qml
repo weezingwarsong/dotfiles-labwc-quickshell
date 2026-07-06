@@ -1,7 +1,8 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
+import QtQml.Models
 import Quickshell
-import Quickshell.Io
 
 Item {
     id: root
@@ -14,7 +15,7 @@ Item {
     property var timerProcess:    null
 
     // ── View state ────────────────────────────────────────────────────────────
-    property string _view: "glance"  // "glance" | "expanded"
+    property string _view: "glance"  // "glance" | "expanded" | "timer"
 
     // ── Month navigation ──────────────────────────────────────────────────────
     property int _navYear:  0
@@ -30,7 +31,6 @@ Item {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
     function _pad(n) { return n < 10 ? "0" + n : "" + n }
 
     function _eventTime(start, allDay) {
@@ -55,7 +55,6 @@ Item {
         return new Date(year, month + 1, 0).getDate()
     }
 
-    // Month grid: 42 cells (6 rows × 7 cols), Monday-first
     readonly property var _gridCells: {
         var firstDay    = _firstDayOfMonth(_navYear, _navMonth)
         var totalDays   = _daysInMonth(_navYear, _navMonth)
@@ -68,21 +67,17 @@ Item {
         for (var i = 0; i < 42; i++) {
             var d = i - firstDay + 1
             if (d < 1 || d > totalDays) {
-                cells.push({ day: 0, isToday: false, hasContent: false,
-                             dateStr: "", events: [], tasks: [] })
+                cells.push({ day: 0, isToday: false, hasContent: false, dateStr: "", events: [], tasks: [] })
             } else {
                 var ds   = _navYear + "-" + _pad(_navMonth + 1) + "-" + _pad(d)
                 var evts = byDate[ds]      || []
                 var tsks = tasksByDate[ds] || []
-                cells.push({ day: d, isToday: d === todayDay,
-                             hasContent: evts.length > 0 || tsks.length > 0,
-                             dateStr: ds, events: evts, tasks: tsks })
+                cells.push({ day: d, isToday: d === todayDay, hasContent: evts.length > 0 || tsks.length > 0, dateStr: ds, events: evts, tasks: tsks })
             }
         }
         return cells
     }
 
-    // Flat event list with date-header sentinels for the week view
     readonly property var _weekItems: {
         var evts  = calendarProcess ? calendarProcess.weekEvents : []
         var items = []
@@ -90,13 +85,11 @@ Item {
         for (var i = 0; i < evts.length; i++) {
             var ds = evts[i].start.substring(0, 10)
             if (ds !== last) { items.push({ type: "header", label: _dayLabel(ds) }); last = ds }
-            items.push({ type: "event", summary: evts[i].summary || "",
-                         start: evts[i].start, allDay: evts[i].allDay || false })
+            items.push({ type: "event", summary: evts[i].summary || "", start: evts[i].start, allDay: evts[i].allDay || false })
         }
         return items
     }
 
-    // Flat task list with date-header sentinels for the week view
     readonly property var _weekTaskItems: {
         var tsks  = tasksProcess ? tasksProcess.weekTasks : []
         var items = []
@@ -109,19 +102,7 @@ Item {
         return items
     }
 
-    // ── FIFO writer ───────────────────────────────────────────────────────────
-    Process {
-        id: fifoWriter
-    }
-    function _send(cmd) {
-        if (!fifoWriter.running) {
-            fifoWriter.command = ["sh", "-c",
-                "echo '" + cmd + "' > $HOME/.local/share/pillbox/pillbox.fifo"]
-            fifoWriter.running = true
-        }
-    }
-
-    // ── Root visual ───────────────────────────────────────────────────────────
+    // ── Root visual container ─────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
         radius: Style.panelBorderRadius
@@ -135,40 +116,34 @@ Item {
             id: glanceFlick
             anchors.fill: parent
             contentHeight: glanceCol.implicitHeight
-            clip: true
             visible: root._view === "glance"
             flickableDirection: Flickable.VerticalFlick
+            clip: true
 
-            Column {
+            ColumnLayout {
                 id: glanceCol
-                width: parent.width
-                spacing: 0
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 8
 
-                Item { width: 1; height: 12 }
-
-                // Date + weather
-                Item {
-                    x: 12; width: glanceCol.width - 24; height: 20
+                // Date + weather row
+                RowLayout {
+                    Layout.fillWidth: true
                     Text {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
                         text: clockProcess ? Qt.formatDate(clockProcess.now, "ddd, d MMM yyyy") : "--"
                         color: Style.textPrimary; font.pixelSize: Style.fontHeaderSize; font.weight: Font.Medium
+                        Layout.alignment: Qt.AlignVCenter
                     }
-                    Row {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
+                    Item { Layout.fillWidth: true }
+                    RowLayout {
                         spacing: 4
+                        Layout.alignment: Qt.AlignVCenter
                         Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: weatherProcess && weatherProcess.current
-                                ? String.fromCharCode(parseInt(weatherProcess.current.icon, 16)) : ""
+                            text: weatherProcess && weatherProcess.current ? String.fromCharCode(parseInt(weatherProcess.current.icon, 16)) : ""
                             color: Style.tooltipTextSoft; font.family: Style.fontNerd; font.pixelSize: Style.fontWeatherIcon
                         }
                         Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: weatherProcess && weatherProcess.current
-                                ? weatherProcess.current.temp + "°" : "--°"
+                            text: weatherProcess && weatherProcess.current ? weatherProcess.current.temp + "°" : "--°"
                             color: Style.textNormal; font.pixelSize: Style.fontHeaderSize
                         }
                     }
@@ -176,20 +151,16 @@ Item {
 
                 // Condition + high/low
                 Text {
-                    x: 12; width: glanceCol.width - 24
-                    text: weatherProcess && weatherProcess.current
-                        ? weatherProcess.current.condition + "  " +
-                          weatherProcess.current.high + "° / " + weatherProcess.current.low + "°"
-                        : ""
+                    text: weatherProcess && weatherProcess.current ? weatherProcess.current.condition + "  " + weatherProcess.current.high + "° / " + weatherProcess.current.low + "°" : ""
                     color: Style.textSubtle; font.pixelSize: Style.fontGridNumSize
-                    topPadding: 2; bottomPadding: 10
+                    Layout.fillWidth: true
                 }
 
-                // Month nav
-                Item {
-                    x: 12; width: glanceCol.width - 24; height: 18
+                // Month navigation
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
                     Text {
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: "‹"; color: Style.textSubtle; font.pixelSize: Style.fontNavSize; font.weight: Font.Bold
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -4
@@ -199,15 +170,13 @@ Item {
                             }
                         }
                     }
+                    Item { Layout.fillWidth: true }
                     Text {
-                        anchors.centerIn: parent
-                        text: ["January","February","March","April","May","June",
-                               "July","August","September","October","November","December"][root._navMonth] +
-                              " " + root._navYear
+                        text: ["January","February","March","April","May","June","July","August","September","October","November","December"][root._navMonth] + " " + root._navYear
                         color: Style.textNormal; font.pixelSize: Style.fontContentSize; font.weight: Font.Medium
                     }
+                    Item { Layout.fillWidth: true }
                     Text {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         text: "›"; color: Style.textSubtle; font.pixelSize: Style.fontNavSize; font.weight: Font.Bold
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -4
@@ -220,32 +189,36 @@ Item {
                 }
 
                 // Day-of-week headers
-                Row {
-                    x: 12; width: glanceCol.width - 24; height: 16; topPadding: 6
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    spacing: 0
                     Repeater {
                         model: ["M","T","W","T","F","S","S"]
                         Text {
-                            width: (glanceCol.width - 24) / 7; height: 10
                             text: modelData
                             color: index >= 5 ? Style.textWeekend : Style.textDim
-                            font.pixelSize: Style.fontGridNumSize; horizontalAlignment: Text.AlignHCenter
+                            font.pixelSize: Style.fontGridNumSize
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.fillWidth: true
                         }
                     }
                 }
 
                 // Month grid
-                Grid {
-                    x: 12; width: glanceCol.width - 24; columns: 7
-                    topPadding: 2; bottomPadding: 4
-
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 7
+                    columnSpacing: 0
+                    rowSpacing: 4
+                    Layout.topMargin: 2
                     Repeater {
                         model: root._gridCells
-
                         Item {
                             id: cellItem
-                            // Capture modelData before inner Repeaters shadow it
-                            property var cell: modelData
-                            width: (glanceCol.width - 24) / 7; height: 20
+                            property var cell: modelData  // capture before inner Repeaters shadow it
+                            Layout.fillWidth: true
+                            implicitHeight: 20
 
                             Rectangle {
                                 anchors.centerIn: parent; width: 16; height: 16; radius: Style.radGridToday
@@ -269,24 +242,17 @@ Item {
 
                             HoverHandler { id: cellHover }
                             ToolTip {
-                                visible: cellHover.hovered && cellItem.cell.day > 0 &&
-                                         (cellItem.cell.events.length > 0 || cellItem.cell.tasks.length > 0)
+                                visible: cellHover.hovered && cellItem.cell.day > 0 && (cellItem.cell.events.length > 0 || cellItem.cell.tasks.length > 0)
                                 delay: 300
-                                contentItem: Column {
+                                contentItem: ColumnLayout {
                                     spacing: 2
                                     Repeater {
                                         model: cellItem.cell.events.slice(0, 4)
-                                        Text {
-                                            text: "• " + (modelData.summary || "")
-                                            color: Style.tooltipTextSoft; font.pixelSize: Style.fontContentSize
-                                        }
+                                        Text { text: "• " + (modelData.summary || ""); color: Style.tooltipTextSoft; font.pixelSize: Style.fontContentSize }
                                     }
                                     Repeater {
                                         model: cellItem.cell.tasks.slice(0, 4)
-                                        Text {
-                                            text: "○ " + (modelData.title || "")
-                                            color: Style.textMuted; font.pixelSize: Style.fontContentSize
-                                        }
+                                        Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontContentSize }
                                     }
                                 }
                                 background: Rectangle {
@@ -297,94 +263,131 @@ Item {
                     }
                 }
 
-                Rectangle { x: 12; width: glanceCol.width - 24; height: 1; color: Style.panelDividerColor }
-                Item { width: 1; height: 8 }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Style.panelDividerColor; Layout.topMargin: 4 }
 
                 // Events today
                 Text {
-                    x: 12; text: "EVENTS TODAY"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
+                    text: "EVENTS TODAY"
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                    Layout.fillWidth: true; Layout.topMargin: 4
                 }
-                Item { width: 1; height: 4 }
-                Repeater {
-                    model: calendarProcess ? calendarProcess.todayEvents.slice(0, 3) : []
-                    Row {
-                        x: 12; width: glanceCol.width - 24; height: 16; spacing: 6
-                        Text {
-                            width: 38; height: parent.height; verticalAlignment: Text.AlignVCenter
-                            text: root._eventTime(modelData.start, modelData.allDay)
-                            color: Style.textSubtle; font.pixelSize: Style.fontContentSize
-                        }
-                        Text {
-                            width: parent.width - 44; height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-                            text: modelData.summary || ""
-                            color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: calendarProcess ? calendarProcess.todayEvents.slice(0, 3) : []
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Text {
+                                text: root._eventTime(modelData.start, modelData.allDay)
+                                color: Style.textSubtle; font.pixelSize: Style.fontContentSize
+                                Layout.preferredWidth: 38
+                            }
+                            Text {
+                                text: modelData.summary || ""
+                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
                         }
                     }
                 }
                 Text {
-                    x: 12; height: 16
                     visible: !calendarProcess || calendarProcess.todayEvents.length === 0
                     text: "No events today"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    Layout.fillWidth: true
                 }
-
-                Item { width: 1; height: 8 }
 
                 // Tasks today
                 Text {
-                    x: 12; text: "TASKS TODAY"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
+                    text: "TASKS TODAY"
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                    Layout.fillWidth: true; Layout.topMargin: 4
                 }
-                Item { width: 1; height: 4 }
-                Repeater {
-                    model: tasksProcess ? tasksProcess.todayTasks.slice(0, 3) : []
-                    Row {
-                        x: 12; width: glanceCol.width - 24; height: 16; spacing: 6
-                        Text {
-                            height: parent.height; verticalAlignment: Text.AlignVCenter
-                            text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize
-                        }
-                        Text {
-                            width: parent.width - 16; height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-                            text: modelData.title || ""
-                            color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: tasksProcess ? tasksProcess.todayTasks.slice(0, 3) : []
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Text { text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize }
+                            Text {
+                                text: modelData.title || ""
+                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
                         }
                     }
                 }
                 Text {
-                    x: 12; height: 16
                     visible: !tasksProcess || tasksProcess.todayTasks.length === 0
                     text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    Layout.fillWidth: true
                 }
 
-                Item { width: 1; height: 8 }
-                Rectangle { x: 12; width: glanceCol.width - 24; height: 1; color: Style.panelDividerColor }
-                Item { width: 1; height: 8 }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Style.panelDividerColor; Layout.topMargin: 4 }
 
-                // Footer buttons
-                Row {
-                    x: 12; width: glanceCol.width - 24; height: 22; spacing: 6
+                // Footer actions
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
                     Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButton
+                        Layout.fillWidth: true
+                        height: 22; radius: Style.radButton
                         color: moreHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
                         border.color: Style.borderSoftColor; border.width: 1
                         Text { anchors.centerIn: parent; text: "More ↓"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                        MouseArea { id: moreHover; anchors.fill: parent; hoverEnabled: true
-                            onClicked: root._view = "expanded" }
+                        MouseArea { id: moreHover; anchors.fill: parent; hoverEnabled: true; onClicked: root._view = "expanded" }
                     }
                     Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButton
+                        Layout.fillWidth: true
+                        height: 22; radius: Style.radButton
+                        color: timerHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
+                        border.color: Style.borderSoftColor; border.width: 1
+                        Text { anchors.centerIn: parent; text: "Timer"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
+                        MouseArea { id: timerHover; anchors.fill: parent; hoverEnabled: true; onClicked: root._view = "timer" }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 22; radius: Style.radButton
                         color: editHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
                         border.color: Style.borderSoftColor; border.width: 1
                         Text { anchors.centerIn: parent; text: "Edit ↗"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                        MouseArea { id: editHover; anchors.fill: parent; hoverEnabled: true
-                            onClicked: Qt.openUrlExternally("https://calendar.google.com") }
+                        MouseArea { id: editHover; anchors.fill: parent; hoverEnabled: true; onClicked: Qt.openUrlExternally("https://calendar.google.com") }
                     }
                 }
+            }
+        }
 
-                Item { width: 1; height: 12 }
+        // ── Timer view ───────────────────────────────────────────────────────
+        Flickable {
+            id: timerFlick
+            anchors.fill: parent
+            contentHeight: timerCol.implicitHeight
+            visible: root._view === "timer"
+            flickableDirection: Flickable.VerticalFlick
+            clip: true
+
+            ColumnLayout {
+                id: timerCol
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 8
+
+                Text {
+                    text: "↑ Back"
+                    color: Style.borderAccentColor; font.pixelSize: Style.fontNavSize
+                    Layout.fillWidth: true
+                    MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
+                }
+
+                TimerWidget {
+                    Layout.fillWidth: true
+                    timerProcess: root.timerProcess
+                }
             }
         }
 
@@ -393,277 +396,146 @@ Item {
             id: expandedFlick
             anchors.fill: parent
             contentHeight: expandedCol.implicitHeight
-            clip: true
             visible: root._view === "expanded"
             flickableDirection: Flickable.VerticalFlick
+            clip: true
 
-            Column {
+            ColumnLayout {
                 id: expandedCol
-                width: parent.width
-                spacing: 0
-
-                Item { width: 1; height: 12 }
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 8
 
                 Text {
-                    x: 12; text: "↑ Back"
-                    color: Style.borderAccentColor; font.pixelSize: Style.fontNavSize; height: 20
-                    verticalAlignment: Text.AlignVCenter
+                    text: "↑ Back"
+                    color: Style.borderAccentColor; font.pixelSize: Style.fontNavSize
+                    Layout.fillWidth: true
                     MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
                 }
 
-                Item { width: 1; height: 10 }
-
-                // ── This week — events ────────────────────────────────────────
+                // This week — events
                 Text {
-                    x: 12; text: "THIS WEEK"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
+                    text: "THIS WEEK"
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                    Layout.fillWidth: true; Layout.topMargin: 4
                 }
-                Item { width: 1; height: 4 }
-
-                Repeater {
-                    model: root._weekItems
-                    Item {
-                        x: 12; width: expandedCol.width - 24
-                        height: modelData.type === "header" ? 18 : 16
-                        property bool isHeader: modelData.type === "header"
-                        property string itemLabel:   modelData.type === "header" ? modelData.label : ""
-                        property string itemSummary: modelData.type === "event"  ? modelData.summary : ""
-                        property string itemStart:   modelData.type === "event"  ? modelData.start   : ""
-                        property bool   itemAllDay:  modelData.type === "event"  && modelData.allDay
-
-                        Text {
-                            visible: parent.isHeader
-                            anchors.bottom: parent.bottom; anchors.bottomMargin: 2
-                            text: parent.itemLabel
-                            color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
-                        }
-                        Row {
-                            visible: !parent.isHeader
-                            anchors.fill: parent; spacing: 6
-                            Text {
-                                width: 38; height: parent.height; verticalAlignment: Text.AlignVCenter
-                                text: root._eventTime(parent.itemStart, parent.itemAllDay)
-                                color: Style.textSubtle; font.pixelSize: Style.fontContentSize
-                            }
-                            Text {
-                                width: parent.width - 44; height: parent.height
-                                verticalAlignment: Text.AlignVCenter
-                                text: parent.itemSummary
-                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
-                            }
-                        }
-                    }
-                }
-                Text {
-                    x: 12; height: 16
-                    visible: !calendarProcess || calendarProcess.weekEvents.length === 0
-                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
-                }
-
-                Item { width: 1; height: 10 }
-
-                // ── This week — tasks ─────────────────────────────────────────
-                Text {
-                    x: 12; text: "TASKS THIS WEEK"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
-                }
-                Item { width: 1; height: 4 }
-
-                Repeater {
-                    model: root._weekTaskItems
-                    Item {
-                        x: 12; width: expandedCol.width - 24
-                        height: modelData.type === "header" ? 18 : 16
-                        property bool   isHeader:  modelData.type === "header"
-                        property string itemLabel: modelData.type === "header" ? modelData.label : ""
-                        property string itemTitle: modelData.type === "task"   ? modelData.title : ""
-
-                        Text {
-                            visible: parent.isHeader
-                            anchors.bottom: parent.bottom; anchors.bottomMargin: 2
-                            text: parent.itemLabel
-                            color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
-                        }
-                        Row {
-                            visible: !parent.isHeader
-                            anchors.fill: parent; spacing: 6
-                            Text {
-                                height: parent.height; verticalAlignment: Text.AlignVCenter
-                                text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize
-                            }
-                            Text {
-                                width: parent.width - 16; height: parent.height
-                                verticalAlignment: Text.AlignVCenter
-                                text: parent.itemTitle
-                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
-                            }
-                        }
-                    }
-                }
-                Text {
-                    x: 12; height: 16
-                    visible: !tasksProcess || tasksProcess.weekTasks.length === 0
-                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
-                }
-
-                Item { width: 1; height: 10 }
-
-                // ── 7-day forecast ────────────────────────────────────────────
-                Text {
-                    x: 12; text: "7-DAY FORECAST"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
-                }
-                Item { width: 1; height: 4 }
-
-                Repeater {
-                    model: weatherProcess ? weatherProcess.forecast : []
-                    Row {
-                        x: 12; width: expandedCol.width - 24; height: 18; spacing: 6
-                        Text {
-                            width: 56; height: parent.height; verticalAlignment: Text.AlignVCenter
-                            text: root._dayLabel(modelData.date)
-                            color: Style.textMuted; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
-                        }
-                        Text {
-                            height: parent.height; verticalAlignment: Text.AlignVCenter
-                            text: String.fromCharCode(parseInt(modelData.icon, 16))
-                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontHeaderSize
-                        }
-                        Text {
-                            // Fill remaining space minus the temp column
-                            width: expandedCol.width - 24 - 56 - 18 - 6*3 - 62
-                            height: parent.height; verticalAlignment: Text.AlignVCenter
-                            text: modelData.condition
-                            color: Style.textMuted; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
-                        }
-                        Text {
-                            width: 62; height: parent.height; verticalAlignment: Text.AlignVCenter
-                            horizontalAlignment: Text.AlignRight
-                            text: modelData.high + "° / " + modelData.low + "°"
-                            color: Style.textNormal; font.pixelSize: Style.fontContentSize
-                        }
-                    }
-                }
-
-                Item { width: 1; height: 10 }
-                Rectangle { x: 12; width: expandedCol.width - 24; height: 1; color: Style.panelDividerColor }
-                Item { width: 1; height: 10 }
-
-                // ── Timer / stopwatch ─────────────────────────────────────────
-                Text {
-                    x: 12; text: "TIMER"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8; height: 12
-                }
-                Item { width: 1; height: 8 }
-
-                Text {
-                    x: 12; width: expandedCol.width - 24; height: 28
-                    text: timerProcess ? timerProcess.displayText : "--:--"
-                    color: Style.textPrimary; font.pixelSize: Style.fontTimerSize; font.family: Style.fontMono
-                    horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                }
-                Text {
-                    x: 12; width: expandedCol.width - 24; height: 14
-                    text: timerProcess
-                        ? (timerProcess.mode === "timer" ? "Countdown" : "Stopwatch") : ""
-                    color: Style.textDim; font.pixelSize: Style.fontGridNumSize
-                    horizontalAlignment: Text.AlignHCenter
-                }
-                Item { width: 1; height: 6 }
-
-                // Countdown presets (shown only in timer mode)
-                Row {
-                    x: 12; width: expandedCol.width - 24; height: 22; spacing: 4
-                    visible: !timerProcess || timerProcess.mode === "timer"
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
                     Repeater {
-                        model: [
-                            { label: "5m",  cmd: "setTimer:300"  },
-                            { label: "10m", cmd: "setTimer:600"  },
-                            { label: "25m", cmd: "setTimer:1500" },
-                        ]
-                        Rectangle {
-                            width: (expandedCol.width - 24 - 8) / 3; height: 20; radius: Style.radButtonSmall
-                            color: presetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                            border.color: Style.borderSoftColor; border.width: 1
-                            Text { anchors.centerIn: parent; text: modelData.label; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                            MouseArea { id: presetHover; anchors.fill: parent; hoverEnabled: true
-                                onClicked: root._send(modelData.cmd) }
-                        }
-                    }
-                }
-                Item {
-                    width: 1; height: 4
-                    visible: !timerProcess || timerProcess.mode === "timer"
-                }
+                        model: root._weekItems
+                        Item {
+                            Layout.fillWidth: true
+                            implicitHeight: modelData.type === "header" ? 18 : 16
+                            property bool isHeader: modelData.type === "header"
 
-                // Start/pause + reset
-                Row {
-                    x: 12; width: expandedCol.width - 24; height: 22; spacing: 6
-                    Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButtonSmall
-                        color: startHover.containsMouse ? Style.accentBgHover : Style.accentBgColor
-                        border.color: Style.borderAccentColor; border.width: 1
-                        Text {
-                            anchors.centerIn: parent
-                            text: {
-                                if (!timerProcess || !timerProcess.running) return "Start"
-                                return timerProcess.mode === "stopwatch" ? "Stop" : "Pause"
-                            }
-                            color: Style.textAccentColor; font.pixelSize: Style.fontContentSize
-                        }
-                        MouseArea { id: startHover; anchors.fill: parent; hoverEnabled: true
-                            onClicked: {
-                                if (!timerProcess) return
-                                if (timerProcess.mode === "stopwatch")
-                                    root._send(timerProcess.running ? "stopStopwatch" : "startStopwatch")
-                                else
-                                    root._send(timerProcess.running ? "pauseTimer" : "startTimer")
-                            }
-                        }
-                    }
-                    Rectangle {
-                        width: (parent.width - 6) / 2; height: 20; radius: Style.radButtonSmall
-                        color: resetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                        border.color: Style.borderSoftColor; border.width: 1
-                        Text { anchors.centerIn: parent; text: "Reset"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                        MouseArea { id: resetHover; anchors.fill: parent; hoverEnabled: true
-                            onClicked: {
-                                if (!timerProcess) return
-                                root._send(timerProcess.mode === "stopwatch" ? "resetStopwatch" : "resetTimer")
-                            }
-                        }
-                    }
-                }
-                Item { width: 1; height: 4 }
-
-                // Mode switcher tabs
-                Row {
-                    x: 12; width: expandedCol.width - 24; height: 22; spacing: 6
-                    Repeater {
-                        model: [
-                            { label: "Countdown", mode: "timer",     startCmd: "startTimer"     },
-                            { label: "Stopwatch", mode: "stopwatch", startCmd: "startStopwatch" },
-                        ]
-                        Rectangle {
-                            property bool active: timerProcess && timerProcess.mode === modelData.mode
-                            width: (expandedCol.width - 24 - 6) / 2; height: 18; radius: Style.radButtonSmall
-                            color: active ? Style.accentBgColor : (modeHover.containsMouse ? Style.surfaceLowColor : "transparent")
-                            border.color: active ? Style.borderAccentColor : Style.borderFaintColor; border.width: 1
                             Text {
-                                anchors.centerIn: parent; text: modelData.label
-                                color: parent.active ? Style.textAccentColor : Style.textDim; font.pixelSize: Style.fontGridNumSize
+                                visible: parent.isHeader
+                                anchors.bottom: parent.bottom
+                                text: modelData.label || ""
+                                color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
                             }
-                            MouseArea { id: modeHover; anchors.fill: parent; hoverEnabled: true
-                                onClicked: {
-                                    if (!timerProcess || timerProcess.mode !== modelData.mode)
-                                        root._send(modelData.startCmd)
+                            RowLayout {
+                                visible: !parent.isHeader
+                                anchors.fill: parent; spacing: 6
+                                Text {
+                                    text: root._eventTime(modelData.start, modelData.allDay)
+                                    color: Style.textSubtle; font.pixelSize: Style.fontContentSize
+                                    Layout.preferredWidth: 38
+                                }
+                                Text {
+                                    text: modelData.summary || ""
+                                    color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                    Layout.fillWidth: true
                                 }
                             }
                         }
                     }
                 }
+                Text {
+                    visible: !calendarProcess || calendarProcess.weekEvents.length === 0
+                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    Layout.fillWidth: true
+                }
 
-                Item { width: 1; height: 12 }
+                // This week — tasks
+                Text {
+                    text: "TASKS THIS WEEK"
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                    Layout.fillWidth: true; Layout.topMargin: 4
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: root._weekTaskItems
+                        Item {
+                            Layout.fillWidth: true
+                            implicitHeight: modelData.type === "header" ? 18 : 16
+                            property bool isHeader: modelData.type === "header"
+
+                            Text {
+                                visible: parent.isHeader
+                                anchors.bottom: parent.bottom
+                                text: modelData.label || ""
+                                color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
+                            }
+                            RowLayout {
+                                visible: !parent.isHeader
+                                anchors.fill: parent; spacing: 6
+                                Text { text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize }
+                                Text {
+                                    text: modelData.title || ""
+                                    color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    visible: !tasksProcess || tasksProcess.weekTasks.length === 0
+                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    Layout.fillWidth: true
+                }
+
+                // 7-day forecast
+                Text {
+                    text: "7-DAY FORECAST"
+                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                    Layout.fillWidth: true; Layout.topMargin: 4
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: weatherProcess ? weatherProcess.forecast : []
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Text {
+                                text: root._dayLabel(modelData.date)
+                                color: Style.textMuted; font.pixelSize: Style.fontContentSize
+                                Layout.preferredWidth: 56
+                            }
+                            Text {
+                                text: String.fromCharCode(parseInt(modelData.icon, 16))
+                                color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontHeaderSize
+                            }
+                            Text {
+                                text: modelData.condition
+                                color: Style.textMuted; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            Text {
+                                text: modelData.high + "° / " + modelData.low + "°"
+                                color: Style.textNormal; font.pixelSize: Style.fontContentSize
+                                Layout.alignment: Qt.AlignRight
+                            }
+                        }
+                    }
+                }
+
             }
         }
     }

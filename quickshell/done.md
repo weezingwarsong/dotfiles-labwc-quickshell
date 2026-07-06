@@ -27,18 +27,38 @@ Everything that was required before the Calendar panel was functional.
 
 ### Panel UI
 
-- [x] `CalendarPanel.qml` — in `module-panels/`. Reads from `CalendarProcess`, `TasksProcess`, `ClockProcess`, `WeatherProcess`, and `TimerProcess` (injected via `PanelSurface.qml`'s `onLoaded`). Two states: glance and expanded, both scrollable via `Flickable`.
+- [x] `CalendarPanel.qml` — in `module-panels/`. Reads from `CalendarProcess`, `TasksProcess`, `ClockProcess`, `WeatherProcess`, and `TimerProcess` (injected via `PanelSurface.qml`'s `onLoaded`). Three views: glance, expanded, timer — each a separate `Flickable`, navigated by explicit buttons. `Quickshell.Io` import and FIFO writer removed; timer calls `TimerProcess` methods directly.
   - [x] Glance: date header + weather (icon, temp, condition, high/low)
   - [x] Glance: today's events list (up to 3, time + title)
   - [x] Glance: month grid with event/task dot indicators, today highlighted
   - [x] Glance: month navigation (prev/next)
   - [x] Glance: today's tasks list (up to 3)
   - [x] Glance: today's weather
-  - [x] Glance: edit button (`Qt.openUrlExternally("https://calendar.google.com")`)
+  - [x] Glance: footer row — `More ↓` (→ expanded), `Timer` (→ timer view), `Edit ↗` (Google Calendar in browser)
+  - [x] Expanded: `↑ Back` → glance
   - [x] Expanded: 7-day schedule grouped by date
   - [x] Expanded: 7-day tasks grouped by due date
   - [x] Expanded: 7-day weather forecast (icon + condition + high/low per day)
-  - [x] Expanded: timer/stopwatch controls (preset durations, start/pause/reset, mode switcher — all write to FIFO)
+  - [x] Timer view: `↑ Back` + `TimerWidget`
+
+- [x] **Layout refactor** — `CalendarPanel.qml` migrated from `Column`/`Row`/`Grid` with manual `x: 12` / `width: parent.width - 24` arithmetic to `ColumnLayout`/`RowLayout`/`GridLayout` with `anchors.margins: 12`. Forecast row width calculation replaced with `Layout.fillWidth: true`. Tooltip `contentItem` uses `ColumnLayout`.
+
+- [x] `TimerWidget.qml` — new component in `module-panels/`. Injected with `timerProcess: var`. Calls `TimerProcess` methods directly (no FIFO round-trip).
+  - [x] Clock face: large `HH:MM:SS` monospace display + `.cs` centiseconds in smaller text (bottom-aligned). Single `Text` binding on `timerProcess.displayText`; centiseconds from `timerProcess.displayCenti`.
+  - [x] Mode toggle button — cycles countdown ↔ countup via `timerProcess.setMode(m)`. Resets and stops without starting.
+  - [x] Start/Stop button — routes to `startTimer`/`pauseTimer` or `startStopwatch`/`stopStopwatch` per mode.
+  - [x] Duration button (countdown mode only) — label shows current duration formatted as `Xh:Xm:Xs` (e.g. `1m:30s`, `25m`). Click expands inline `TextInput`; scroll up/down via `WheelHandler` adjusts by ±5s (min 5s).
+  - [x] Expandable duration input — parses `Xh:Xm:Xs` free-form (e.g. `25m`, `1h:30m`, `1h:1m:30s`). Confirms on Enter, cancels on Escape or focus loss. Auto-hides when mode switches to countup.
+  - [x] Reset button — `resetTimer()` or `resetStopwatch()` per mode.
+
+- [x] **`TimerProcess` rewrite** — 50ms tick interval (`Date.now()` delta tracking — drift-free vs. tick-counting). `displayText` changed from `"M:SS"` to `"HH:MM:SS"`. Added `displayCenti: string` — `.cs` suffix shown always in countup, and in countdown's last 10 active seconds only. Default `duration: 90` (1m 30s) initialised in `Component.onCompleted`. Added `setMode(m)` for mode switching without starting. All existing FIFO-facing method names preserved (`startTimer`, `pauseTimer`, `resetTimer`, `startStopwatch`, `stopStopwatch`, `resetStopwatch`, `setTimer`).
+
+---
+
+## Theme Polish
+
+- [x] Wire `CalendarPanel.qml` fully to the new Fixed property names.
+- [x] Audit all remaining hardcoded values in `CalendarPanel.qml` and map them to `Style` Fixed properties.
 
 ---
 

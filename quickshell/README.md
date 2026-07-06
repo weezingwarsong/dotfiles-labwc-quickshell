@@ -157,19 +157,28 @@ Fetches tasks from Google Tasks via `gtask-fetch` (`helper/tasks/gtask_fetch.py`
 
 **File:** `root-processes/TimerProcess.qml`
 
-Owns all timer and stopwatch state. No pill or panel holds timer state directly — they all read from here. Controlled entirely via FIFO commands.
+Owns all timer and stopwatch state. No pill or panel holds timer state directly — they all read from here. `TimerWidget` calls these methods directly; `FifoListener` calls the same methods in response to keybind commands.
 
 **Modes:**
 - *Countdown* — counts down from a user-set duration to zero
-- *Stopwatch* — counts up from zero indefinitely
+- *Countup* — counts up from zero indefinitely
 
 **Exposes:**
-- `mode` — `"timer"` or `"stopwatch"`
-- `running` — bool
-- `duration` — total seconds set (countdown only)
+- `mode` — `"idle"` | `"timer"` | `"stopwatch"`
+- `active` — bool, true while ticking
+- `duration` — total seconds set (countdown); default 90 (1m 30s)
 - `remaining` — seconds left (countdown only)
-- `elapsed` — seconds passed (stopwatch)
-- `displayText` — human-readable string (e.g. `"4:32"`) ready for direct display
+- `elapsed` — seconds passed (countup only)
+- `displayText` — `"HH:MM:SS"` string ready for direct display (e.g. `"00:01:30"`)
+
+**Methods (called directly by `TimerWidget`):**
+- `setTimer(seconds)` — set countdown duration; updates `duration` and `remaining`, resets display
+- `startTimer()` — start or resume countdown
+- `pauseTimer()` — pause countdown
+- `resetTimer()` — stop and restore `remaining` to `duration`
+- `startStopwatch()` — switch to countup mode and begin from zero
+- `stopStopwatch()` — pause countup
+- `resetStopwatch()` — stop and return `elapsed` to zero
 
 | FIFO Command | Effect |
 |---|---|
@@ -177,9 +186,9 @@ Owns all timer and stopwatch state. No pill or panel holds timer state directly 
 | `startTimer` | Start or resume the countdown |
 | `pauseTimer` | Pause the countdown |
 | `resetTimer` | Reset countdown to original duration |
-| `startStopwatch` | Start stopwatch mode |
-| `stopStopwatch` | Stop the stopwatch |
-| `resetStopwatch` | Reset stopwatch to zero |
+| `startStopwatch` | Start countup mode |
+| `stopStopwatch` | Stop the countup |
+| `resetStopwatch` | Reset countup to zero |
 
 ---
 
@@ -367,7 +376,7 @@ Reads from `MprisProcess` (injected). Two separate signals control its behaviour
 
 **File:** `module-panels/CalendarPanel.qml`
 
-Reads from `CalendarProcess`, `TasksProcess`, `ClockProcess`, `WeatherProcess`, `TimerProcess` — all injected via `PanelSurface.onLoaded`. Two scrollable states: **glance** (date, weather, today events, month grid, today tasks, edit button) and **expanded** (7-day schedule, 7-day tasks, 7-day forecast, timer/stopwatch controls). Timer controls write commands to the FIFO rather than mutating `TimerProcess` directly.
+Reads from `CalendarProcess`, `TasksProcess`, `ClockProcess`, `WeatherProcess`, `TimerProcess` — all injected via `PanelSurface.onLoaded`. Three views navigated by explicit buttons: **glance** (date, weather, today events, month grid, today tasks, footer nav buttons), **expanded** (7-day schedule, 7-day tasks, 7-day forecast), and **timer** (rendered by `TimerWidget`, injected with `timerProcess`). `TimerWidget` calls `TimerProcess` methods directly — no FIFO round-trip.
 
 #### WindowSwitcherPanel ✓
 
@@ -518,25 +527,44 @@ Layout: `[state glyph]  [trackTitle]` — glyph uses `fontNerd`, title uses `fon
 
 **What we expect from the Calendar panel:**
 
-The panel has two states: **glance** (default, compact) and **expanded** (user-triggered, shows more detail). Both states are within the same panel — not separate panels.
+The panel has three views: **glance** (default, compact), **expanded** (full week detail), and **timer** (dedicated timer/stopwatch widget). Navigation between views is explicit — each view has a back button or footer nav. No scrolling between views; each fills the panel surface independently.
 
 **Glance view** — visible immediately when the panel opens:
 1. Today's date — day of week, day, month, year.
-2. Today's events — list of events for the current day with their times.
-3. Month view — mini calendar grid showing the current month. Days with events are visually marked. Hovering a day shows a tooltip with that day's events. User can navigate forward/backward by month.
-4. Today's weather — current conditions and temperature.
-5. Today's tasks — task list for the current day (from Google Tasks).
-6. Edit button — opens the browser to Google Calendar so the user can edit events there. No in-panel editing.
+2. Today's weather — current conditions, temperature, high/low.
+3. Month view — mini calendar grid showing the current month. Days with events or tasks are visually marked with a dot indicator. Hovering a day shows a tooltip with that day's events and tasks. User can navigate forward/backward by month.
+4. Today's events — list of events for the current day with their times (max 3, elided).
+5. Today's tasks — task list for the current day (max 3, elided).
+6. Footer buttons — `More ↓` (→ expanded view), `Timer` (→ timer view), `Edit ↗` (opens Google Calendar in browser).
 
-**Expanded view** — user scrolls or taps to reveal:
-1. 7-day full schedule — all events across the next 7 days.
-2. 7-day tasks — task list across the next 7 days.
-3. 7-day weather forecast — daily conditions and temperature for the week ahead.
-4. Timer/stopwatch — set and control a countdown or stopwatch directly from the panel (sends commands through `TimerProcess` via FIFO, same as keybinds).
+**Expanded view** — full week detail, navigated to from the glance footer:
+1. `↑ Back` — returns to glance view.
+2. This week — all events across the next 7 days, grouped by date header.
+3. Tasks this week — all tasks due in the next 7 days, grouped by date header.
+4. 7-day forecast — daily weather conditions and high/low temperatures.
+
+**Timer view** — dedicated timer/stopwatch, navigated to from the glance footer:
+
+`_view === "timer"` in `CalendarPanel`. Content is rendered by `TimerWidget` (a separate component injected with `timerProcess`).
+
+Layout (top to bottom):
+
+1. `↑ Back` — returns to glance view.
+2. **Display** — large monospaced `HH:MM:SS` digital clock face. Shows remaining time (countdown) or elapsed time (countup). Default state: `00:01:30`.
+3. **Row 1** — two equal-width buttons:
+   - `[Countdown | Countup]` — mode toggle. Clicking cycles between countdown and countup; switches `timerProcess.mode` and resets the display.
+   - `[Start | Stop]` — running toggle. Starts or pauses the active mode.
+4. **Row 2** — two equal-width buttons:
+   - `[Xh:Xm:Xs]` — countdown duration button. Visible in countdown mode only. Label reflects the current `timerProcess.duration` formatted as the largest meaningful unit (e.g. `1m:30s`, `25m`, `1h`).
+     - **Click** — expands an inline input field below the button. Accepts free-form time string in `Xh:Xm:Xs` format (each segment optional; e.g. `25m`, `1h:30m`, `1h:1m:1s`). Parsed on Enter; click outside dismisses without applying. Calls `timerProcess.setTimer(parsed)` on confirm.
+     - **Scroll up** — `timerProcess.setTimer(timerProcess.duration + 5)`, minimum 5s.
+     - **Scroll down** — `timerProcess.setTimer(Math.max(5, timerProcess.duration - 5))`.
+   - `[Reset]` — stops and resets. Countdown: restores `remaining` to `duration`. Countup: resets `elapsed` to zero.
 
 **Not in scope (by design):**
 - In-panel event creation or editing — browser handles this. The panel is read-only except for the timer.
 - Multiple calendar account switching — single Google account only.
+- Timer persistence across Pillbox restarts — duration defaults to 1m 30s on each launch.
 
 ---
 
@@ -617,8 +645,6 @@ A panel dedicated to media playback control. Summoned deliberately by the user (
 
 ### Theme Polish
 
-- [x] Wire `CalendarPanel.qml` fully to the new Fixed property names.
-- [x] Audit all remaining hardcoded values in `CalendarPanel.qml` and map them to `Style` Fixed properties.
 - [ ] Replace Nord placeholder palette with wallpaper-extracted colors. Logic TBD — likely a helper script that reads dominant colors from the current wallpaper and writes them into the Variable section at startup.
 
 ---
@@ -630,6 +656,7 @@ quickshell/
 ├── module-panels/
 │   ├── CalendarPanel.qml         ✓ implemented
 │   ├── MediaPlayerPanel.qml
+│   ├── TimerWidget.qml           ✓ implemented
 │   ├── WindowSwitcherPanel.qml   ✓ implemented
 │   └── qmldir
 ├── module-pills/
