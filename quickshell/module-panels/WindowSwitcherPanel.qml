@@ -83,8 +83,8 @@ FocusScope {
     Rectangle {
         anchors.fill: parent
         color: Style.panelBgColor
-        radius: Style.panelBorderRadius
-        border.width: Style.borderThin
+        radius: Style.radLg
+        border.width: Style.elementBorderWidth
         border.color: Style.panelBorderColor
 
         Column {
@@ -100,8 +100,8 @@ FocusScope {
                 width: parent.width
                 height: 26
                 color: Style.surfaceMidColor
-                radius: Style.radButton
-                border.width: Style.borderThin
+                radius: Style.radSm
+                border.width: Style.elementBorderWidth
                 border.color: Style.borderSoftColor
 
                 Text {
@@ -109,9 +109,9 @@ FocusScope {
                     anchors.leftMargin: 8
                     verticalAlignment: Text.AlignVCenter
                     text: "Filter…"
-                    color: Style.textDim
+                    color: Style.textMuted
                     font.family: Style.fontMono
-                    font.pixelSize: Style.fontContentSize
+                    font.pixelSize: Style.fontSizeBody
                     visible: filterInput.text.length === 0
                 }
 
@@ -124,7 +124,7 @@ FocusScope {
                     focus: true
                     color: Style.textPrimary
                     font.family: Style.fontMono
-                    font.pixelSize: Style.fontContentSize
+                    font.pixelSize: Style.fontSizeBody
                     selectionColor: Style.accentBgColor
 
                     onTextChanged: root.selectedFlat = 0
@@ -192,10 +192,10 @@ FocusScope {
                         horizontalAlignment: Text.AlignHCenter
                         text: root._glyphFor(winItem.modelData.appId)
                         color: winItem.isSelected  ? Style.textPrimary
-                             : winItem.isActivated ? Style.textAccentColor
+                             : winItem.isActivated ? Style.textAccent
                              :                       Style.textMuted
                         font.family: Style.fontNerd
-                        font.pixelSize: Style.fontContentSize
+                        font.pixelSize: Style.fontSizeBody
                     }
 
                     // App ID
@@ -207,10 +207,10 @@ FocusScope {
                         width: Math.round(parent.width * 0.25)
                         text: winItem.modelData.appId
                         color: winItem.isSelected  ? Style.textPrimary
-                             : winItem.isActivated ? Style.textLight
+                             : winItem.isActivated ? Style.textSecondary
                              :                       Style.textNormal
                         font.family: Style.fontMono
-                        font.pixelSize: Style.fontContentSize
+                        font.pixelSize: Style.fontSizeBody
                         elide: Text.ElideRight
                     }
 
@@ -222,11 +222,11 @@ FocusScope {
                         anchors.right: parent.right
                         anchors.rightMargin: 6
                         text: winItem.modelData.title
-                        color: winItem.isSelected  ? Style.textLight
-                             : winItem.isActivated ? Style.textSubtle
+                        color: winItem.isSelected  ? Style.textSecondary
+                             : winItem.isActivated ? Style.textMuted
                              :                       Style.textMuted
                         font.family: Style.fontMono
-                        font.pixelSize: Style.fontContentSize
+                        font.pixelSize: Style.fontSizeBody
                         elide: Text.ElideRight
                     }
                 }

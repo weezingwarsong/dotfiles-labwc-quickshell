@@ -28,7 +28,7 @@ Item {
                 text: root._glyphFor(root._appId)
                 color: Style.textPrimary
                 font.family: Style.fontNerd
-                font.pixelSize: Style.pillTextSize
+                font.pixelSize: Style.fontSizePill
             }
 
             Text {
@@ -36,7 +36,7 @@ Item {
                 width: Math.min(implicitWidth, 200)
                 text: root._appId
                 color: Style.textPrimary
-                font.pixelSize: Style.pillTextSize
+                font.pixelSize: Style.fontSizePill
                 font.family: Style.fontMono
                 elide: Text.ElideRight
                 visible: root._appId.length > 0

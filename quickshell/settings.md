@@ -94,21 +94,137 @@ passed to `weather-fetch --location`. An immediate re-fetch fires when the locat
 
 ---
 
-## Appearance tab — design phase
+## Appearance tab — spec
 
-### What users will be able to change
+### Tab bar
 
-1. **Palette** — 16 color swatches (`color0`–`color15`). Clicking a swatch opens an inline hex
-   input. Changes update the UI live. Stored as overrides in `pillbox.conf`; unedited slots fall
-   back to the compiled Nord defaults.
+`SettingsPanel` gains a two-position `TogglePair` at the top:
 
-2. **Timing constants** — three sliders with live value labels:
-   - Calendar warning threshold — minutes before an event the pill enters urgency state. Default 10, range 1–60.
-   - MPRIS peek duration — seconds the pill stays visible after a track/state change. Default 3, range 1–10.
-   - Workspace flash duration — seconds the workspace pill stays visible after a switch. Default 1.5, range 0.5–5.
+```
+[ Services ]  [ Appearance ]
+```
 
-3. **Save / Reset** — Save writes all staged changes to the user layer; Reset clears all user-layer
-   keys and restores compiled defaults.
+Internal state: `property string _tab: "services"` (or `"appearance"`). The TogglePair drives it.
+Services content and Appearance content are rendered as two separate `ColumnLayout` children with
+`visible: root._tab === "..."`. No routing change needed in `PanelController` — it still just
+opens `"settings"`.
+
+---
+
+### Controls (v1) — what Prefs.qml already exposes
+
+All 7 Prefs properties get a control. Changes apply **live** — no staged draft, no Save needed.
+The `Prefs.set*()` setters write directly to `pillbox.conf`; Style re-derives on the same frame.
+Only a **Reset to defaults** button is needed (calls every setter with the default value).
+
+#### Typography section
+
+```
+Pill text size    [ – ]  13  [ + ]      range 10–18 · Prefs.fontSizePill
+Panel text size   [ – ]  10  [ + ]      range  8–14 · Prefs.fontSizeBase
+Mono font         [ JetBrainsMono Nerd Font          ]   · Prefs.fontMono   (apply on Enter/blur)
+Glyph font        [ JetBrainsMono Nerd Font          ]   · Prefs.fontNerd   (apply on Enter/blur)
+```
+
+Controls:
+- **Stepper** — `RowLayout` with two `PanelButton` items (`label: "–"` / `label: "+"`) flanking
+  a `Text` showing the current value. The `-` button is disabled at the lower bound, `+` at the
+  upper bound (implemented by `variant: root._at_min ? "default" : "default"` + guard in
+  `onClicked`). No new reusable component needed — inline in the Appearance section.
+- **Font text input** — same `Rectangle + TextInput + placeholder Text` pattern used in the
+  Weather Location card. `onAccepted` and `onEditingFinished` both call the Prefs setter.
+
+#### Corner rounding section
+
+```
+Corner rounding   [ None ]  [ Subtle ]  [ ● Default ]
+                    0.0        0.5          1.0
+```
+
+Control: three `PanelButton` items in a `RowLayout` with `Layout.fillWidth: true` on each. The
+active choice uses `variant: "accent"`; the others use `variant: "default"`. A local property
+`_radiusChoice` mirrors `Prefs.radiusScale` (`0` = none, `1` = subtle, `2` = default) and drives
+the variant. Tapping calls `Prefs.setRadiusScale(value)`.
+
+#### Borders section
+
+Two rows, same three-way layout:
+
+```
+Container border  [ Off ]  [ ● Thin ]  [ Thick ]     · Prefs.borderWidth        (0 / 1 / 2)
+Element border    [ Off ]  [ ● Thin ]  [ Thick ]     · Prefs.elementBorderWidth (0 / 1 / 2)
+```
+
+Same pattern as corner rounding — three `PanelButton` items, active one = `variant: "accent"`.
+
+#### Reset
+
+```
+[ Reset to defaults ]    critical variant · calls all Prefs set*() with their default values
+```
+
+A single `PanelButton { variant: "critical"; label: "Reset to defaults" }` at the bottom.
+
+---
+
+### Layout structure
+
+```qml
+// inside SettingsPanel's outer ColumnLayout (_col):
+
+TogglePair {
+    labelA: "Services"
+    labelB: "Appearance"
+    selected: root._tab === "appearance" ? 1 : 0
+    onToggled: (i) => root._tab = (i === 0 ? "services" : "appearance")
+}
+
+// ── Services content ──────────────────────────────────────────────────
+ColumnLayout {
+    visible: root._tab === "services"
+    Layout.fillWidth: true
+    // ... Google Account + Divider + Weather Location (existing)
+}
+
+// ── Appearance content ────────────────────────────────────────────────
+ColumnLayout {
+    visible: root._tab === "appearance"
+    Layout.fillWidth: true
+    spacing: 12
+
+    Text { text: "Typography"; ... }
+    PanelCard {
+        ColumnLayout {
+            // font size steppers + font text inputs
+        }
+    }
+
+    Text { text: "Corner rounding"; ... }
+    PanelCard {
+        RowLayout { PanelButton×3 }
+    }
+
+    Text { text: "Borders"; ... }
+    PanelCard {
+        ColumnLayout {
+            RowLayout { Text "Container"; PanelButton×3 }
+            RowLayout { Text "Elements";  PanelButton×3 }
+        }
+    }
+
+    PanelButton { label: "Reset to defaults"; variant: "critical" }
+}
+```
+
+---
+
+### v2 (deferred)
+
+- **Palette** — 16 color swatches (`color0`–`color15`), inline hex `TextInput` per swatch.
+  Requires adding `color0`–`color15` override properties to `Prefs.qml` and fallback logic in
+  `Style.qml` (`color0: Prefs.color0Override || "#2E3440"`).
+- **Timing constants** — calendar warning threshold, MPRIS peek duration, workspace flash duration.
+  Requires wiring `CalendarProcess`, `MprisPill`, `WorkspacePill` to Prefs values.
 
 ---
 
@@ -499,30 +615,30 @@ Glyph font        [text input]     default "JetBrainsMono Nerd Font"
 
 ---
 
-## Build order (once design discussion is complete)
+## Build order
 
-1. **Audit** all panels and pills ✓ — token tables complete (pending typography). Style.qml
-   cleanup list identified. Reusable element candidates identified.
-2. **Finalize** the Fixed section token set in this document.
-3. **Create** reusable elements: `PanelButton`, `SectionLabel`, `PanelDivider`, `TogglePair`, `StatusDot`.
-4. **Refactor** existing panels (CalendarPanel, SettingsPanel, WindowSwitcherPanel) to use them.
-   Remove one-off tokens from Style.qml Fixed section.
-5. **Add** `Prefs.qml` singleton + wire `Style.qml` color primitives through it.
-6. **Wire** timing constants: `CalendarProcess`, `MprisPill`, `WorkspacePill` read from Prefs.
-7. **Build** Appearance tab: tab bar, palette swatches, timing sliders, Save / Reset.
-8. **Refactor** `SettingsPanel.qml` to use the new reusable elements throughout.
+1. ✓ **Audit** all panels and pills — token tables complete. Style.qml cleanup list identified.
+2. ✓ **Add** `Prefs.qml` singleton — persists font, radius, border prefs to `pillbox.conf`.
+3. ✓ **Extend** `Style.qml` — Prefs-derived Fixed section (`fontSizeBody`, `radSm`/`Md`/`Lg`,
+   `borderWidth`, `elementBorderWidth`, etc.). Old aliases kept for backward compat.
+4. ✓ **Create** reusable elements — `PanelButton`, `SectionLabel`, `PanelDivider`, `TogglePair`,
+   `StatusDot`, `PanelCard`.
+5. ✓ **Refactor** `SettingsPanel`, `CalendarPanel`, `WindowSwitcherPanel` — components wired,
+   new token names used throughout.
+6. → **Clean up** `Style.qml` — fix `PillWindow.pillBorderRadius → radLg`, then remove all
+   backward-compat aliases (`fontContentSize`, `fontHeaderSize`, `radButton`, `radLight`,
+   `radHigh`, `panelBorderRadius`, `textLight`, `textButton`, `textSubtle`, `textDim`,
+   `borderNone/Thin/Thick`, etc.).
+7. → **Build** Appearance tab — tab bar (`TogglePair`), Typography card (stepper + text inputs),
+   Corner rounding card (3-way selector), Borders card (3-way × 2), Reset button. Spec: see above.
+8. (v2) **Wire** timing constants (`CalendarProcess`, `MprisPill`, `WorkspacePill`) through Prefs.
+9. (v2) **Build** Palette section — 16 color swatches + hex inputs; extend `Prefs.qml`.
 
 ---
 
 ## Open questions
 
-- **Palette UX** — pure hex `TextInput` per swatch, or a `ColorDialog`? Hex-only is lightweight
-  and consistent with the existing TextInput style; ColorDialog is richer but heavier.
+- **Palette UX** (v2) — pure hex `TextInput` per swatch, or a `ColorDialog`? Hex-only is
+  lightweight and consistent with the existing TextInput style; ColorDialog is richer but heavier.
 
-- **Save vs. live preview** — the spec says staged until Save. Given palette and timing changes
-  are cheap to apply immediately, is live-preview-on-type (no Save, just Reset) more appealing?
-
-- **Tab bar style** — same pill-style toggle as the Auto/Manual weather pair, or a different
-  treatment (e.g. underline indicator)?
-
-- **Style.qml Fixed audit** — all tables complete except typography. See cleanup notes in each shared table.
+- **Timing constants** (v2) — separate "Tuning" tab, or folded into a third SettingsPanel tab?

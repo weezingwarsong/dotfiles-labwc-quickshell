@@ -1,6 +1,13 @@
 singleton Style 1.0 ../Style.qml
+singleton Prefs 1.0 ../Prefs.qml
 PillWindow 1.0 PillWindow.qml
 HoverZone 1.0 HoverZone.qml
 PillController 1.0 PillController.qml
 PanelController 1.0 PanelController.qml
 PanelSurface 1.0 PanelSurface.qml
+PanelDivider 1.0 PanelDivider.qml
+SectionLabel 1.0 SectionLabel.qml
+StatusDot 1.0 StatusDot.qml
+PanelButton 1.0 PanelButton.qml
+PanelCard 1.0 PanelCard.qml
+TogglePair 1.0 TogglePair.qml

@@ -5,17 +5,16 @@ QtObject {
     id: style
 
     // =========================================================================
-    // ─── Variable Preference (Primitives/Tokens) ─────────────────────────────
+    // ─── Variable (Primitives) ───────────────────────────────────────────────
     // =========================================================================
 
     // ── Colors ──────────────────────────────────────────────────────────────
     // Standard 16-color terminal palette, seeded with Nord.
-    // Future: extracted from the active wallpaper (pywal / matugen format).
-    // color0  = deepest background
-    // color1–3  = dark surfaces and borders (Polar Night)
-    // color4–6  = text on dark backgrounds (Snow Storm)
-    // color7–10 = frost blues (accents, focus, indicators)
-    // color11–15 = aurora (semantic states: critical, success, …)
+    // color0      = deepest background
+    // color1–3    = dark surfaces and borders (Polar Night)
+    // color4–6    = text on dark backgrounds (Snow Storm)
+    // color7–10   = frost blues (accents, focus, indicators)
+    // color11–15  = aurora (semantic states: critical, success, …)
     readonly property color transparent: "transparent"
     readonly property color color0:  "#2E3440"   // nord0  — background
     readonly property color color1:  "#3B4252"   // nord1  — low surface, faint border
@@ -35,88 +34,66 @@ QtObject {
     readonly property color color15: "#B48EAD"   // nord15 — aurora purple (unassigned)
 
     // ── Fonts ────────────────────────────────────────────────────────────────
-    readonly property string fontMono:   "JetBrainsMono Nerd Font"
-    readonly property string fontNerd:   "JetBrainsMono Nerd Font"
-    readonly property string fontCJK:    "Sarasa Mono SC"
-
-    readonly property int sizeXl:        22
-    readonly property int sizeLg:        13
-    readonly property int sizeMd:        12
-    readonly property int sizeSm:        11
-    readonly property int sizeXs:        10
-    readonly property int sizeXxs:        9
-    readonly property int sizeLabel:      8
-
-    // ── Borders & Radii ──────────────────────────────────────────────────────
-    readonly property real borderNone:   0
-    readonly property real borderThin:   1
-    readonly property real borderThick:  2
-
-    readonly property real radNone:      0
-    readonly property real radLight:     4
-    readonly property real radMed:       6
-    readonly property real radHigh:     10
-
+    readonly property string fontMono: Prefs.fontMono   // user-adjustable
+    readonly property string fontNerd: Prefs.fontNerd   // user-adjustable
+    readonly property string fontCJK:  "Sarasa Mono SC" // constant — not user-adjustable in v1
 
     // =========================================================================
-    // ─── Fixed (Component Semantic Mapping) ──────────────────────────────────
+    // ─── Fixed (Semantic Tokens) ─────────────────────────────────────────────
     // =========================================================================
 
-    // ── Pill ─────────────────────────────────────────────────────────────────
-    readonly property color  pillBgColor:      style.color0
-    readonly property real   pillBorderRadius: style.radHigh
-    readonly property string pillFontMono:     style.fontMono
-    readonly property string pillFontNerd:     style.fontNerd
-    readonly property int    pillTextSize:     style.sizeLg
-    readonly property color  pillTextColor:    style.color6
-
-    // ── Panel Shell ──────────────────────────────────────────────────────────
+    // ── Surfaces & Structure ─────────────────────────────────────────────────
+    readonly property color pillBgColor:       style.color0
     readonly property color panelBgColor:      style.color0
     readonly property color panelBorderColor:  style.color1
-    readonly property real  panelBorderRadius: style.radHigh
     readonly property color panelDividerColor: style.color2
-
-    // ── Intermediary Surfaces / Buttons ──────────────────────────────────────
     readonly property color surfaceLowColor:   style.color1
     readonly property color surfaceMidColor:   style.color2
+
+    // ── Borders ──────────────────────────────────────────────────────────────
     readonly property color borderSoftColor:   style.color3
     readonly property color borderFaintColor:  style.color1
-
-    readonly property color accentBgColor:     Qt.darker(style.color10, 2.4)
-    readonly property color accentBgHover:     Qt.darker(style.color10, 1.8)
     readonly property color borderAccentColor: style.color10
-    readonly property color textAccentColor:   style.color9
 
-    // ── Component Specific Radii ─────────────────────────────────────────────
-    readonly property real radButton:          style.radLight
-    readonly property real radButtonSmall:     style.radLight
-    readonly property real radGridToday:       style.radMed
-    readonly property real radGridTooltip:     style.radMed
+    // ── Accent ───────────────────────────────────────────────────────────────
+    readonly property color accentBgColor:   Qt.darker(style.color10, 2.4)
+    readonly property color accentBgHover:   Qt.darker(style.color10, 1.8)
+    readonly property color accentColor:     style.color10
+    readonly property color criticalBgColor: Qt.darker(style.color11, 2.4)
+    readonly property color successBgColor:  Qt.darker(style.color14, 2.4)
 
-    // ── Tooltips ─────────────────────────────────────────────────────────────
-    readonly property color tooltipBorder:     style.color2
-    readonly property color tooltipTextSoft:   style.color4
+    // ── Text ─────────────────────────────────────────────────────────────────
+    readonly property color textPrimary:   style.color6   // headings, pill text
+    readonly property color textNormal:    style.color5   // standard body
+    readonly property color textSecondary: style.color4   // secondary content, labels
+    readonly property color textMuted:     style.color4   // de-emphasised / timestamps
+    readonly property color textFaint:     style.color2   // barely-visible anchors
+    readonly property color textAccent:    style.color9   // accent links, highlighted text
+    readonly property color textCritical:  style.color11  // error / alert
+    readonly property color textSuccess:   style.color14  // completion / positive
+    readonly property color textWeekend:   style.color10  // calendar weekend day numbers
+    readonly property color dotIndicator:  style.color8   // calendar event dot markers
 
-    // ── Typography Scale ─────────────────────────────────────────────────────
-    readonly property int fontTimerSize:       style.sizeXl
-    readonly property int fontWeatherIcon:     style.sizeLg
-    readonly property int fontHeaderSize:      style.sizeMd
-    readonly property int fontNavSize:         style.sizeSm
-    readonly property int fontContentSize:     style.sizeXs
-    readonly property int fontGridNumSize:     style.sizeXxs
-    readonly property int fontLabelSize:       style.sizeLabel
+    // ── Layout constants ──────────────────────────────────────────────────────
+    readonly property int buttonHeight: 22
+    readonly property int panelMargin:  12
 
-    // ── Content Color Map ────────────────────────────────────────────────────
-    readonly property color textPrimary:       style.color6   // headings, pill text
-    readonly property color textNormal:        style.color5   // standard body
-    readonly property color textLight:         style.color4   // secondary body
-    readonly property color textMuted:         style.color4   // de-emphasised content
-    readonly property color textButton:        style.color4   // labels on dark button bg
-    readonly property color textSubtle:        style.color3   // timestamps, sub-labels
-    readonly property color textDim:           style.color3   // inactive / placeholder
-    readonly property color textFaint:         style.color2   // barely-visible anchors
-    readonly property color textWeekend:       style.color10  // weekend day numbers
-    readonly property color dotIndicator:      style.color8   // calendar dot markers
-    readonly property color textCritical:      style.color11  // error / alert text
-    readonly property color textSuccess:       style.color14  // completion / positive
+    // =========================================================================
+    // ─── Prefs-derived (user-adjustable) ─────────────────────────────────────
+    // =========================================================================
+
+    // ── Typography ───────────────────────────────────────────────────────────
+    readonly property int fontSizePill:    Prefs.fontSizePill         // pill text — independent
+    readonly property int fontSizeHeading: Prefs.fontSizeBase + 2     // panel section headers
+    readonly property int fontSizeBody:    Prefs.fontSizeBase         // standard panel content
+    readonly property int fontSizeSubtle:  Prefs.fontSizeBase - 1     // smallest panel text
+
+    // ── Radius (scale-driven) ────────────────────────────────────────────────
+    readonly property real radSm: Math.round(4  * Prefs.radiusScale)  // buttons, small elements
+    readonly property real radMd: Math.round(6  * Prefs.radiusScale)  // cards, tooltips
+    readonly property real radLg: Math.round(10 * Prefs.radiusScale)  // pills, panels
+
+    // ── Border widths ────────────────────────────────────────────────────────
+    readonly property int borderWidth:        Prefs.borderWidth         // pill + panel containers
+    readonly property int elementBorderWidth: Prefs.elementBorderWidth  // buttons, inputs
 }

@@ -51,7 +51,7 @@ Item {
                 }
                 color: Style.textPrimary
                 font.family: Style.fontNerd
-                font.pixelSize: Style.pillTextSize
+                font.pixelSize: Style.fontSizePill
             }
 
             Text {
@@ -62,7 +62,7 @@ Item {
                     : ""
                 color: Style.textPrimary
                 font.family: Style.fontMono
-                font.pixelSize: Style.pillTextSize
+                font.pixelSize: Style.fontSizePill
                 elide: Text.ElideRight
             }
         }

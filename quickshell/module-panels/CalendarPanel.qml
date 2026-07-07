@@ -17,6 +17,9 @@ Item {
     // ── View state ────────────────────────────────────────────────────────────
     property string _view: "glance"  // "glance" | "expanded" | "timer"
 
+    // Nav arrows and task bullets — fixed at 11px (between body and heading)
+    readonly property int _navSize: 11
+
     // Content height for the active view — PanelSurface reads this to size the window.
     // +24 accounts for anchors.margins: 12 on each ColumnLayout (top + bottom).
     implicitHeight: {
@@ -114,7 +117,7 @@ Item {
     // ── Root visual container ─────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        radius: Style.panelBorderRadius
+        radius: Style.radLg
         color: Style.panelBgColor
         border.color: Style.panelBorderColor
         border.width: 1
@@ -140,7 +143,7 @@ Item {
                     Layout.fillWidth: true
                     Text {
                         text: clockProcess ? Qt.formatDate(clockProcess.now, "ddd, d MMM yyyy") : "--"
-                        color: Style.textPrimary; font.pixelSize: Style.fontHeaderSize; font.weight: Font.Medium
+                        color: Style.textPrimary; font.pixelSize: Style.fontSizeHeading; font.weight: Font.Medium
                         Layout.alignment: Qt.AlignVCenter
                     }
                     Item { Layout.fillWidth: true }
@@ -149,11 +152,11 @@ Item {
                         Layout.alignment: Qt.AlignVCenter
                         Text {
                             text: weatherProcess && weatherProcess.current ? String.fromCharCode(parseInt(weatherProcess.current.icon, 16)) : ""
-                            color: Style.tooltipTextSoft; font.family: Style.fontNerd; font.pixelSize: Style.fontWeatherIcon
+                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
                         }
                         Text {
                             text: weatherProcess && weatherProcess.current ? weatherProcess.current.temp + "°" : "--°"
-                            color: Style.textNormal; font.pixelSize: Style.fontHeaderSize
+                            color: Style.textNormal; font.pixelSize: Style.fontSizeHeading
                         }
                     }
                 }
@@ -161,7 +164,7 @@ Item {
                 // Condition + high/low
                 Text {
                     text: weatherProcess && weatherProcess.current ? weatherProcess.current.condition + "  " + weatherProcess.current.high + "° / " + weatherProcess.current.low + "°" : ""
-                    color: Style.textSubtle; font.pixelSize: Style.fontGridNumSize
+                    color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle
                     Layout.fillWidth: true
                 }
 
@@ -170,7 +173,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.topMargin: 4
                     Text {
-                        text: "‹"; color: Style.textSubtle; font.pixelSize: Style.fontNavSize; font.weight: Font.Bold
+                        text: "‹"; color: Style.textMuted; font.pixelSize: root._navSize; font.weight: Font.Bold
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -4
                             onClicked: {
@@ -182,11 +185,11 @@ Item {
                     Item { Layout.fillWidth: true }
                     Text {
                         text: ["January","February","March","April","May","June","July","August","September","October","November","December"][root._navMonth] + " " + root._navYear
-                        color: Style.textNormal; font.pixelSize: Style.fontContentSize; font.weight: Font.Medium
+                        color: Style.textNormal; font.pixelSize: Style.fontSizeBody; font.weight: Font.Medium
                     }
                     Item { Layout.fillWidth: true }
                     Text {
-                        text: "›"; color: Style.textSubtle; font.pixelSize: Style.fontNavSize; font.weight: Font.Bold
+                        text: "›"; color: Style.textMuted; font.pixelSize: root._navSize; font.weight: Font.Bold
                         MouseArea {
                             anchors.fill: parent; anchors.margins: -4
                             onClicked: {
@@ -206,8 +209,8 @@ Item {
                         model: ["M","T","W","T","F","S","S"]
                         Text {
                             text: modelData
-                            color: index >= 5 ? Style.textWeekend : Style.textDim
-                            font.pixelSize: Style.fontGridNumSize
+                            color: index >= 5 ? Style.textWeekend : Style.textMuted
+                            font.pixelSize: Style.fontSizeSubtle
                             horizontalAlignment: Text.AlignHCenter
                             Layout.fillWidth: true
                         }
@@ -230,15 +233,15 @@ Item {
                             implicitHeight: 20
 
                             Rectangle {
-                                anchors.centerIn: parent; width: 16; height: 16; radius: Style.radGridToday
+                                anchors.centerIn: parent; width: 16; height: 16; radius: Style.radMd
                                 color: cellItem.cell.isToday ? Style.borderAccentColor : "transparent"
                                 visible: cellItem.cell.day > 0
                             }
                             Text {
                                 anchors.centerIn: parent
                                 text: cellItem.cell.day > 0 ? cellItem.cell.day : ""
-                                color: cellItem.cell.isToday ? Style.textPrimary : Style.textLight
-                                font.pixelSize: Style.fontGridNumSize
+                                color: cellItem.cell.isToday ? Style.textPrimary : Style.textSecondary
+                                font.pixelSize: Style.fontSizeSubtle
                                 font.weight: cellItem.cell.isToday ? Font.Bold : Font.Normal
                             }
                             Rectangle {
@@ -257,27 +260,26 @@ Item {
                                     spacing: 2
                                     Repeater {
                                         model: cellItem.cell.events.slice(0, 4)
-                                        Text { text: "• " + (modelData.summary || ""); color: Style.tooltipTextSoft; font.pixelSize: Style.fontContentSize }
+                                        Text { text: "• " + (modelData.summary || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
                                     }
                                     Repeater {
                                         model: cellItem.cell.tasks.slice(0, 4)
-                                        Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontContentSize }
+                                        Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
                                     }
                                 }
                                 background: Rectangle {
-                                    color: Style.surfaceMidColor; border.color: Style.tooltipBorder; radius: Style.radGridTooltip
+                                    color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.radMd
                                 }
                             }
                         }
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Style.panelDividerColor; Layout.topMargin: 4 }
+                PanelDivider { Layout.topMargin: 4 }
 
                 // Events today
-                Text {
-                    text: "EVENTS TODAY"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                SectionLabel {
+                    text: "Events Today"
                     Layout.fillWidth: true; Layout.topMargin: 4
                 }
                 ColumnLayout {
@@ -290,12 +292,12 @@ Item {
                             spacing: 6
                             Text {
                                 text: root._eventTime(modelData.start, modelData.allDay)
-                                color: Style.textSubtle; font.pixelSize: Style.fontContentSize
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody
                                 Layout.preferredWidth: 38
                             }
                             Text {
                                 text: modelData.summary || ""
-                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
                         }
@@ -303,14 +305,13 @@ Item {
                 }
                 Text {
                     visible: !calendarProcess || calendarProcess.todayEvents.length === 0
-                    text: "No events today"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    text: "No events today"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
                     Layout.fillWidth: true
                 }
 
                 // Tasks today
-                Text {
-                    text: "TASKS TODAY"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                SectionLabel {
+                    text: "Tasks Today"
                     Layout.fillWidth: true; Layout.topMargin: 4
                 }
                 ColumnLayout {
@@ -321,10 +322,10 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 6
-                            Text { text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize }
+                            Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
                             Text {
                                 text: modelData.title || ""
-                                color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
                         }
@@ -332,40 +333,31 @@ Item {
                 }
                 Text {
                     visible: !tasksProcess || tasksProcess.todayTasks.length === 0
-                    text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
                     Layout.fillWidth: true
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Style.panelDividerColor; Layout.topMargin: 4 }
+                PanelDivider { Layout.topMargin: 4 }
 
                 // Footer actions
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.topMargin: 4
                     spacing: 6
-                    Rectangle {
+                    PanelButton {
                         Layout.fillWidth: true
-                        height: 22; radius: Style.radButton
-                        color: moreHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                        border.color: Style.borderSoftColor; border.width: 1
-                        Text { anchors.centerIn: parent; text: "More ↓"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                        MouseArea { id: moreHover; anchors.fill: parent; hoverEnabled: true; onClicked: root._view = "expanded" }
+                        label: "More ↓"
+                        onClicked: root._view = "expanded"
                     }
-                    Rectangle {
+                    PanelButton {
                         Layout.fillWidth: true
-                        height: 22; radius: Style.radButton
-                        color: timerHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                        border.color: Style.borderSoftColor; border.width: 1
-                        Text { anchors.centerIn: parent; text: "Timer"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                        MouseArea { id: timerHover; anchors.fill: parent; hoverEnabled: true; onClicked: root._view = "timer" }
+                        label: "Timer"
+                        onClicked: root._view = "timer"
                     }
-                    Rectangle {
+                    PanelButton {
                         Layout.fillWidth: true
-                        height: 22; radius: Style.radButton
-                        color: editHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                        border.color: Style.borderSoftColor; border.width: 1
-                        Text { anchors.centerIn: parent; text: "Edit ↗"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-                        MouseArea { id: editHover; anchors.fill: parent; hoverEnabled: true; onClicked: Qt.openUrlExternally("https://calendar.google.com") }
+                        label: "Edit ↗"
+                        onClicked: Qt.openUrlExternally("https://calendar.google.com")
                     }
                 }
             }
@@ -388,7 +380,7 @@ Item {
 
                 Text {
                     text: "↑ Back"
-                    color: Style.borderAccentColor; font.pixelSize: Style.fontNavSize
+                    color: Style.borderAccentColor; font.pixelSize: root._navSize
                     Layout.fillWidth: true
                     MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
                 }
@@ -417,15 +409,14 @@ Item {
 
                 Text {
                     text: "↑ Back"
-                    color: Style.borderAccentColor; font.pixelSize: Style.fontNavSize
+                    color: Style.borderAccentColor; font.pixelSize: root._navSize
                     Layout.fillWidth: true
                     MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
                 }
 
                 // This week — events
-                Text {
-                    text: "THIS WEEK"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                SectionLabel {
+                    text: "This Week"
                     Layout.fillWidth: true; Layout.topMargin: 4
                 }
                 ColumnLayout {
@@ -442,19 +433,19 @@ Item {
                                 visible: parent.isHeader
                                 anchors.bottom: parent.bottom
                                 text: modelData.label || ""
-                                color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
                             }
                             RowLayout {
                                 visible: !parent.isHeader
                                 anchors.fill: parent; spacing: 6
                                 Text {
                                     text: root._eventTime(modelData.start, modelData.allDay)
-                                    color: Style.textSubtle; font.pixelSize: Style.fontContentSize
+                                    color: Style.textMuted; font.pixelSize: Style.fontSizeBody
                                     Layout.preferredWidth: 38
                                 }
                                 Text {
                                     text: modelData.summary || ""
-                                    color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                    color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
                                     Layout.fillWidth: true
                                 }
                             }
@@ -463,14 +454,13 @@ Item {
                 }
                 Text {
                     visible: !calendarProcess || calendarProcess.weekEvents.length === 0
-                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
                     Layout.fillWidth: true
                 }
 
                 // This week — tasks
-                Text {
-                    text: "TASKS THIS WEEK"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                SectionLabel {
+                    text: "Tasks This Week"
                     Layout.fillWidth: true; Layout.topMargin: 4
                 }
                 ColumnLayout {
@@ -487,15 +477,15 @@ Item {
                                 visible: parent.isHeader
                                 anchors.bottom: parent.bottom
                                 text: modelData.label || ""
-                                color: Style.textDim; font.pixelSize: Style.fontGridNumSize; font.weight: Font.Medium
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
                             }
                             RowLayout {
                                 visible: !parent.isHeader
                                 anchors.fill: parent; spacing: 6
-                                Text { text: "○"; color: Style.textDim; font.pixelSize: Style.fontNavSize }
+                                Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
                                 Text {
                                     text: modelData.title || ""
-                                    color: Style.textNormal; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                    color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
                                     Layout.fillWidth: true
                                 }
                             }
@@ -504,14 +494,13 @@ Item {
                 }
                 Text {
                     visible: !tasksProcess || tasksProcess.weekTasks.length === 0
-                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontContentSize
+                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
                     Layout.fillWidth: true
                 }
 
                 // 7-day forecast
-                Text {
-                    text: "7-DAY FORECAST"
-                    color: Style.textDim; font.pixelSize: Style.fontLabelSize; font.letterSpacing: 0.8
+                SectionLabel {
+                    text: "7-Day Forecast"
                     Layout.fillWidth: true; Layout.topMargin: 4
                 }
                 ColumnLayout {
@@ -524,21 +513,21 @@ Item {
                             spacing: 8
                             Text {
                                 text: root._dayLabel(modelData.date)
-                                color: Style.textMuted; font.pixelSize: Style.fontContentSize
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody
                                 Layout.preferredWidth: 56
                             }
                             Text {
                                 text: String.fromCharCode(parseInt(modelData.icon, 16))
-                                color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontHeaderSize
+                                color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
                             }
                             Text {
                                 text: modelData.condition
-                                color: Style.textMuted; font.pixelSize: Style.fontContentSize; elide: Text.ElideRight
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
                             Text {
                                 text: modelData.high + "° / " + modelData.low + "°"
-                                color: Style.textNormal; font.pixelSize: Style.fontContentSize
+                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody
                                 Layout.alignment: Qt.AlignRight
                             }
                         }

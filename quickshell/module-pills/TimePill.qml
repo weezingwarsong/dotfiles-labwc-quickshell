@@ -38,7 +38,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: root.displayText
             color: Style.textPrimary
-            font.pixelSize: Style.pillTextSize
+            font.pixelSize: Style.fontSizePill
             font.family: Style.fontMono
         }
     }

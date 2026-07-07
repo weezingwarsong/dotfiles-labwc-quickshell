@@ -45,7 +45,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.displayText
                 color: Style.textPrimary
-                font.pixelSize: Style.pillTextSize
+                font.pixelSize: Style.fontSizePill
                 font.family: Style.fontMono
             }
 
@@ -62,7 +62,7 @@ Item {
                             : String.fromCodePoint(0xf4c3)
                         color: Style.textPrimary
                         font.family: Style.fontNerd
-                        font.pixelSize: Style.pillTextSize
+                        font.pixelSize: Style.fontSizePill
                     }
                 }
             }

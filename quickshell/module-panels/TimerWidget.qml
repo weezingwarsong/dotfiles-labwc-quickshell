@@ -64,14 +64,14 @@ Item {
                     id: mainTime
                     text: root.timerProcess ? root.timerProcess.displayText : "00:01:30"
                     color: Style.textPrimary
-                    font.pixelSize: Style.fontTimerSize
+                    font.pixelSize: 22
                     font.family: Style.fontMono
                     verticalAlignment: Text.AlignBottom
                 }
                 Text {
                     text: root.timerProcess ? root.timerProcess.displayCenti : ""
-                    color: Style.textSubtle
-                    font.pixelSize: Math.round(Style.fontTimerSize * 0.55)
+                    color: Style.textMuted
+                    font.pixelSize: Math.round(22 * 0.55)
                     font.family: Style.fontMono
                     height: mainTime.implicitHeight
                     verticalAlignment: Text.AlignBottom
@@ -87,13 +87,13 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 20; radius: Style.radButtonSmall
+                height: 20; radius: Style.radSm
                 color: modeHover.containsMouse ? Style.surfaceLowColor : "transparent"
                 border.color: Style.borderFaintColor; border.width: 1
                 Text {
                     anchors.centerIn: parent
                     text: root.timerProcess && root.timerProcess.mode === "stopwatch" ? "Countup" : "Countdown"
-                    color: Style.textDim; font.pixelSize: Style.fontGridNumSize
+                    color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle
                 }
                 MouseArea {
                     id: modeHover; anchors.fill: parent; hoverEnabled: true
@@ -107,13 +107,13 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 20; radius: Style.radButtonSmall
+                height: 20; radius: Style.radSm
                 color: startHover.containsMouse ? Style.accentBgHover : Style.accentBgColor
                 border.color: Style.borderAccentColor; border.width: 1
                 Text {
                     anchors.centerIn: parent
                     text: root.timerProcess && root.timerProcess.active ? "Stop" : "Start"
-                    color: Style.textAccentColor; font.pixelSize: Style.fontContentSize
+                    color: Style.textAccent; font.pixelSize: Style.fontSizeBody
                 }
                 MouseArea {
                     id: startHover; anchors.fill: parent; hoverEnabled: true
@@ -139,7 +139,7 @@ Item {
             Rectangle {
                 id: durationBtn
                 Layout.fillWidth: true
-                height: 20; radius: Style.radButtonSmall
+                height: 20; radius: Style.radSm
                 visible: !root.timerProcess || root.timerProcess.mode !== "stopwatch"
                 color: durationHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
                 border.color: root._inputExpanded ? Style.borderAccentColor : Style.borderSoftColor
@@ -147,7 +147,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: root.timerProcess ? root._formatDuration(root.timerProcess.duration) : "1m:30s"
-                    color: Style.textButton; font.pixelSize: Style.fontContentSize
+                    color: Style.textSecondary; font.pixelSize: Style.fontSizeBody
                 }
                 MouseArea {
                     id: durationHover; anchors.fill: parent; hoverEnabled: true
@@ -166,10 +166,10 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 20; radius: Style.radButtonSmall
+                height: 20; radius: Style.radSm
                 color: resetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
                 border.color: Style.borderSoftColor; border.width: 1
-                Text { anchors.centerIn: parent; text: "Reset"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
+                Text { anchors.centerIn: parent; text: "Reset"; color: Style.textSecondary; font.pixelSize: Style.fontSizeBody }
                 MouseArea {
                     id: resetHover; anchors.fill: parent; hoverEnabled: true
                     onClicked: {
@@ -184,7 +184,7 @@ Item {
         // Expandable duration input (countdown mode only)
         Rectangle {
             Layout.fillWidth: true
-            height: 28; radius: Style.radButtonSmall
+            height: 28; radius: Style.radSm
             visible: root._inputExpanded && (!root.timerProcess || root.timerProcess.mode !== "stopwatch")
             color: Style.surfaceLowColor
             border.color: Style.borderAccentColor; border.width: 1
@@ -196,7 +196,7 @@ Item {
                 anchors.fill: parent; anchors.leftMargin: 8
                 verticalAlignment: Text.AlignVCenter
                 text: "e.g.  25m   1h:30m   1h:1m:30s"
-                color: Style.textDim; font.pixelSize: Style.fontContentSize; font.family: Style.fontMono
+                color: Style.textMuted; font.pixelSize: Style.fontSizeBody; font.family: Style.fontMono
                 visible: durationInput.text === ""
             }
 
@@ -204,7 +204,7 @@ Item {
                 id: durationInput
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
                 verticalAlignment: TextInput.AlignVCenter
-                color: Style.textNormal; font.pixelSize: Style.fontContentSize; font.family: Style.fontMono
+                color: Style.textNormal; font.pixelSize: Style.fontSizeBody; font.family: Style.fontMono
 
                 Keys.onReturnPressed: {
                     var secs = root._parseDuration(text)

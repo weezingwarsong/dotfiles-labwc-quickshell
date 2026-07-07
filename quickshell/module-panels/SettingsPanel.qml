@@ -17,14 +17,12 @@ Item {
     property bool   _revoking:      false
 
     // ── Revoke process ────────────────────────────────────────────────────────
-    // Runs gcal-fetch --revoke on disconnect; then updates SettingsProcess state.
     Process {
         id: revokeProcess
         command: ["gcal-fetch", "--revoke"]
-        stdout: SplitParser { onRead: function(line) {} }  // discard output
+        stdout: SplitParser { onRead: function(line) {} }
         onExited: function(code, signal) {
             root._revoking = false
-            // Delete log file regardless of revocation result
             clearLogProcess.running = true
             root.settingsProcess.disconnect()
             console.log("[SettingsPanel] revoke exited:", code)
@@ -37,7 +35,6 @@ Item {
         running: false
     }
 
-    // Sends the re-auth notification (handles terminal detection internally).
     Process {
         id: authNotifyProcess
         command: ["google-auth-notify"]
@@ -69,15 +66,15 @@ Item {
     function _calendarStatusColor() {
         if (!calendarProcess) return Style.textMuted
         if (calendarProcess.lastError === "auth")    return Style.textCritical
-        if (calendarProcess.lastError === "network") return Style.textLight
-        return Style.textLight
+        if (calendarProcess.lastError === "network") return Style.textSecondary
+        return Style.textSecondary
     }
 
     function _tasksStatusColor() {
         if (!tasksProcess) return Style.textMuted
         if (tasksProcess.lastError === "auth")    return Style.textCritical
-        if (tasksProcess.lastError === "network") return Style.textLight
-        return Style.textLight
+        if (tasksProcess.lastError === "network") return Style.textSecondary
+        return Style.textSecondary
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────
@@ -93,42 +90,28 @@ Item {
             text: "Google Account"
             color: Style.textPrimary
             font.family: Style.fontMono
-            font.pixelSize: Style.fontHeaderSize
+            font.pixelSize: Style.fontSizeHeading
             font.bold: true
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            color: Style.surfaceLowColor
-            radius: Style.panelBorderRadius
-            implicitHeight: _googleCol.implicitHeight + 16
-
+        PanelCard {
             ColumnLayout {
-                id: _googleCol
-                anchors { left: parent.left; right: parent.right; margins: 12; verticalCenter: parent.verticalCenter }
+                y: parent.padding
+                anchors { left: parent.left; right: parent.right; margins: parent.padding }
                 spacing: 8
 
-                // Status row
                 RowLayout {
                     spacing: 6
-                    Text {
-                        text: (settingsProcess && settingsProcess.googleConnected)
-                            ? "●" : "○"
-                        color: (settingsProcess && settingsProcess.googleConnected)
-                            ? Style.textSuccess : Style.textMuted
-                        font.family: Style.fontMono
-                        font.pixelSize: Style.fontContentSize
-                    }
+                    StatusDot { active: settingsProcess && settingsProcess.googleConnected }
                     Text {
                         text: (settingsProcess && settingsProcess.googleConnected)
                             ? "Connected" : "Not connected"
                         color: Style.textNormal
                         font.family: Style.fontMono
-                        font.pixelSize: Style.fontContentSize
+                        font.pixelSize: Style.fontSizeBody
                     }
                 }
 
-                // Per-service rows (only when connected)
                 ColumnLayout {
                     visible: settingsProcess && settingsProcess.googleConnected
                     Layout.fillWidth: true
@@ -138,16 +121,16 @@ Item {
                         spacing: 8
                         Text {
                             text: "Calendar"
-                            color: Style.textLight
+                            color: Style.textSecondary
                             font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
+                            font.pixelSize: Style.fontSizeBody
                             Layout.minimumWidth: 60
                         }
                         Text {
                             text: root._calendarStatus()
                             color: root._calendarStatusColor()
                             font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
+                            font.pixelSize: Style.fontSizeBody
                         }
                     }
 
@@ -155,75 +138,41 @@ Item {
                         spacing: 8
                         Text {
                             text: "Tasks"
-                            color: Style.textLight
+                            color: Style.textSecondary
                             font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
+                            font.pixelSize: Style.fontSizeBody
                             Layout.minimumWidth: 60
                         }
                         Text {
                             text: root._tasksStatus()
                             color: root._tasksStatusColor()
                             font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
+                            font.pixelSize: Style.fontSizeBody
                         }
                     }
                 }
 
-                // Action buttons
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
 
-                    // Re-authenticate / Connect button
-                    Rectangle {
-                        implicitWidth: _authLabel.implicitWidth + 16
-                        implicitHeight: 22
-                        radius: Style.radButton
-                        color: Style.surfaceMidColor
-
-                        Text {
-                            id: _authLabel
-                            anchors.centerIn: parent
-                            text: (settingsProcess && settingsProcess.googleConnected)
-                                ? "Re-authenticate" : "Connect"
-                            color: Style.textButton
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (settingsProcess && !settingsProcess.googleConnected)
-                                    settingsProcess.reconnect()
-                                authNotifyProcess.running = true
-                            }
+                    PanelButton {
+                        label: (settingsProcess && settingsProcess.googleConnected)
+                            ? "Re-authenticate" : "Connect"
+                        variant: "accent"
+                        onClicked: {
+                            if (settingsProcess && !settingsProcess.googleConnected)
+                                settingsProcess.reconnect()
+                            authNotifyProcess.running = true
                         }
                     }
 
-                    // Disconnect button (only when connected)
-                    Rectangle {
+                    PanelButton {
                         visible: settingsProcess && settingsProcess.googleConnected
-                        implicitWidth: _disconnectLabel.implicitWidth + 16
-                        implicitHeight: 22
-                        radius: Style.radButton
-                        color: root._revoking ? Style.surfaceLowColor : Style.surfaceMidColor
-
-                        Text {
-                            id: _disconnectLabel
-                            anchors.centerIn: parent
-                            text: root._revoking ? "Disconnecting…" : "Disconnect"
-                            color: root._revoking ? Style.textMuted : Style.textCritical
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            enabled: !root._revoking
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
+                        label: root._revoking ? "Disconnecting…" : "Disconnect"
+                        variant: root._revoking ? "default" : "critical"
+                        onClicked: {
+                            if (!root._revoking) {
                                 root._revoking = true
                                 revokeProcess.running = true
                             }
@@ -235,11 +184,7 @@ Item {
 
         // ── Divider ───────────────────────────────────────────────────────────
 
-        Rectangle {
-            Layout.fillWidth: true
-            height: 1
-            color: Style.panelDividerColor
-        }
+        PanelDivider {}
 
         // ── Weather Location ──────────────────────────────────────────────────
 
@@ -247,58 +192,26 @@ Item {
             text: "Weather Location"
             color: Style.textPrimary
             font.family: Style.fontMono
-            font.pixelSize: Style.fontHeaderSize
+            font.pixelSize: Style.fontSizeHeading
             font.bold: true
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            color: Style.surfaceLowColor
-            radius: Style.panelBorderRadius
-            implicitHeight: _weatherCol.implicitHeight + 16
-
+        PanelCard {
             ColumnLayout {
-                id: _weatherCol
-                anchors { left: parent.left; right: parent.right; margins: 12; verticalCenter: parent.verticalCenter }
+                y: parent.padding
+                anchors { left: parent.left; right: parent.right; margins: parent.padding }
                 spacing: 8
 
-                // Auto / Manual toggle
-                RowLayout {
-                    spacing: 6
-
-                    Repeater {
-                        model: ["Auto", "Manual"]
-                        Rectangle {
-                            required property string modelData
-                            readonly property bool _active: settingsProcess
-                                && settingsProcess.locationMode === modelData.toLowerCase()
-                            implicitWidth: _modeLabel.implicitWidth + 16
-                            implicitHeight: 22
-                            radius: Style.radButton
-                            color: _active ? Style.accentBgColor : Style.surfaceMidColor
-
-                            Text {
-                                id: _modeLabel
-                                anchors.centerIn: parent
-                                text: modelData
-                                color: _active ? Style.textPrimary : Style.textButton
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontContentSize
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (settingsProcess)
-                                        settingsProcess.setLocationMode(modelData.toLowerCase())
-                                }
-                            }
-                        }
+                TogglePair {
+                    labelA: "Auto"
+                    labelB: "Manual"
+                    selected: settingsProcess && settingsProcess.locationMode === "manual" ? 1 : 0
+                    onToggled: (index) => {
+                        if (settingsProcess)
+                            settingsProcess.setLocationMode(index === 0 ? "auto" : "manual")
                     }
                 }
 
-                // Manual input row
                 RowLayout {
                     visible: settingsProcess && settingsProcess.locationMode === "manual"
                     Layout.fillWidth: true
@@ -307,7 +220,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: 22
-                        radius: Style.radButton
+                        radius: Style.radSm
                         color: Style.surfaceMidColor
 
                         TextInput {
@@ -316,7 +229,7 @@ Item {
                             text: root._locationDraft
                             color: Style.textNormal
                             font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
+                            font.pixelSize: Style.fontSizeBody
                             selectByMouse: true
                             clip: true
 
@@ -324,9 +237,9 @@ Item {
                                 visible: !parent.text && !parent.activeFocus
                                 anchors.fill: parent
                                 text: "City name or lat,lon"
-                                color: Style.textDim
+                                color: Style.textMuted
                                 font.family: Style.fontMono
-                                font.pixelSize: Style.fontContentSize
+                                font.pixelSize: Style.fontSizeBody
                                 verticalAlignment: Text.AlignVCenter
                             }
 
@@ -335,32 +248,14 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: _applyLabel.implicitWidth + 16
-                        implicitHeight: 22
-                        radius: Style.radButton
-                        color: Style.surfaceMidColor
-
-                        Text {
-                            id: _applyLabel
-                            anchors.centerIn: parent
-                            text: "Apply"
-                            color: Style.textButton
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontContentSize
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: _applyLocation()
-                        }
+                    PanelButton {
+                        label: "Apply"
+                        onClicked: _applyLocation()
                     }
                 }
             }
         }
 
-        // Bottom spacer so last card doesn't clip the panel border
         Item { implicitHeight: 0 }
     }
 

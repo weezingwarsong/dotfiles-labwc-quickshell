@@ -22,7 +22,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        radius: Style.pillBorderRadius
+        radius: Style.radLg
         color: Style.pillBgColor
 
         Loader {
