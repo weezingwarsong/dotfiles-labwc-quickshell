@@ -256,6 +256,10 @@ Unlike `ToplevelProcess`, there is no native "active player" equivalent — `_se
 
 ### Reusable Elements
 
+Next-phase visual components (PanelButton, SectionLabel, PanelDivider, PanelCard, TogglePair,
+StatusDot) are fully spec'd in **[components.md](components.md)**. These depend on the
+`Prefs.qml` + `Style.qml` refactor and will be built in that order.
+
 #### PillController ✓
 
 **File:** `module-reusable-elements/PillController.qml`
@@ -636,10 +640,14 @@ Summary: two tabs — **Services** (Google account + weather location, ✓ built
 
 ## To-Do
 
+### Visual Components + Style Refactor
+
+Build order: `Prefs.qml` (new) → `Style.qml` refactor → reusable components → panel refactors.
+Component specs in **[components.md](components.md)**. Token system in **[settings.md](settings.md)**.
+
 ### Settings Panel — Appearance tab
 
-Design system work (Style.qml audit, reusable elements) precedes this. See **[settings.md](settings.md)**
-for the full plan and open questions.
+Depends on the visual components above. See **[settings.md](settings.md)** for the full plan.
 
 ---
 
