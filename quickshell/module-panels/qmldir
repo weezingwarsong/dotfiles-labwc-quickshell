@@ -1,7 +1,9 @@
 singleton Style 1.0 ../Style.qml
 singleton Prefs 1.0 ../Prefs.qml
+NavButton 1.0 ../module-reusable-elements/NavButton.qml
 PanelButton 1.0 ../module-reusable-elements/PanelButton.qml
 PanelDivider 1.0 ../module-reusable-elements/PanelDivider.qml
+PanelNavBar 1.0 ../module-reusable-elements/PanelNavBar.qml
 SectionLabel 1.0 ../module-reusable-elements/SectionLabel.qml
 StatusDot 1.0 ../module-reusable-elements/StatusDot.qml
 PanelCard 1.0 ../module-reusable-elements/PanelCard.qml

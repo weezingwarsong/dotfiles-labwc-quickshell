@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import "./root-processes"
 import "./module-pills"
@@ -77,25 +76,6 @@ ShellRoot {
 
     PanelController {
         id: panelController
-    }
-
-    // Fullscreen transparent overlay below PanelSurface (created first = lower z-order).
-    // Catches clicks outside the panel and dismisses it.
-    // Not shown for window switcher — it has its own dismiss path.
-    PanelWindow {
-        anchors.left:   true
-        anchors.right:  true
-        anchors.top:    true
-        anchors.bottom: true
-        exclusiveZone:  0
-        color:          "transparent"
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        visible: panelController.shouldShow && panelController.activePanel !== "windowSwitcher"
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: panelController.toggle(panelController.activePanel)
-        }
     }
 
     PanelSurface {

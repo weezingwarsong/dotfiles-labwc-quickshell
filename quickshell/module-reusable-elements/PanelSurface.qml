@@ -2,9 +2,9 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 
-// Separate window surface for panels, anchored below the pill.
-// Dumb renderer — no logic. All show/hide decisions come from PanelController.
-// Geometry authority: all panels share this fixed size and position.
+// Fullscreen transparent overlay that hosts the active panel.
+// The visible panel content sits in a sized Item at the center-top of the screen.
+// A fullscreen MouseArea behind the panel dismisses on click-outside.
 PanelWindow {
     id: root
 
@@ -24,93 +24,103 @@ PanelWindow {
     signal navigateRequested(int direction)
 
     screen: Quickshell.screens[0]
-    anchors.top: true
-    exclusiveZone: 0
-    color: "transparent"
-    margins.top: Screen.width * 0.10
+    anchors.left:   true
+    anchors.right:  true
+    anchors.top:    true
+    anchors.bottom: true
+    exclusiveZone:  0
+    color:          "transparent"
 
-    // Max height at the symmetry point: gap above == gap below.
-    readonly property real _maxHeight: Screen.height - 2 * margins.top
-
-    // Strip above the panel rectangle reserved for the floating nav buttons.
-    // Zero for window switcher — excluded from nav, no bar needed.
-    readonly property int _navBarHeight: root.activePanel !== "windowSwitcher" ? 30 : 0
-
-    implicitWidth:  Screen.width * 0.15
-    implicitHeight: loader.item
-        ? Math.min(loader.item.implicitHeight + _navBarHeight, _maxHeight)
-        : Screen.width * 0.15
+    // Panel position — same geometry as before, now expressed as coordinates
+    // within the fullscreen window rather than window anchors+margins.
+    readonly property real _panelY:     Screen.width * 0.10
+    readonly property real _panelWidth: Screen.width * 0.15
+    readonly property real _maxHeight:  Screen.height - 2 * _panelY
 
     visible: shouldShow
 
-    // All panels grab exclusive keyboard focus immediately on open — ESC and
-    // arrow keys work without requiring a click first.
+    // All panels grab exclusive keyboard focus on open so ESC and arrow keys
+    // work immediately without a click first.
     WlrLayershell.keyboardFocus: root.shouldShow
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
-    // Floating ‹ › nav buttons above the panel rectangle. Hidden for window switcher.
-    Row {
-        visible: root.activePanel !== "" && root.activePanel !== "windowSwitcher"
-        anchors { top: parent.top; right: parent.right; topMargin: 4; rightMargin: 4 }
-        spacing: 4
-
-        PanelButton {
-            label: "‹"
-            onClicked: root.navigateRequested(-1)
-        }
-        PanelButton {
-            label: "›"
-            onClicked: root.navigateRequested(+1)
-        }
+    // ── Click-outside dismiss layer ───────────────────────────────────────────
+    // Fullscreen, behind the panel container (z:0). Not shown for window
+    // switcher — it has its own dismiss path via activated() / ESC.
+    MouseArea {
+        anchors.fill: parent
+        z: 0
+        enabled: root.activePanel !== "windowSwitcher"
+        onClicked: root.dismissRequested()
     }
 
-    Loader {
-        id: loader
-        anchors { fill: parent; topMargin: root._navBarHeight }
-        focus: true
+    // ── Panel container ───────────────────────────────────────────────────────
+    // Sized to the loaded panel content. A blocking MouseArea (z:0) inside it
+    // prevents uncaught clicks from propagating to the dismiss layer above.
+    Item {
+        id: _container
+        x: Math.round((parent.width - root._panelWidth) / 2)
+        y: root._panelY
+        width: root._panelWidth
+        height: loader.height
+        z: 1
 
-        Keys.onEscapePressed: (event) => {
-            root.dismissRequested()
-            event.accepted = true
-        }
-        Keys.onLeftPressed: (event) => {
-            if (root.activePanel !== "windowSwitcher") {
-                root.navigateRequested(-1)
+        MouseArea { anchors.fill: parent; z: 0 }
+
+        Loader {
+            id: loader
+            x: 0; y: 0
+            width: root._panelWidth
+            height: item ? Math.min(item.implicitHeight, root._maxHeight) : root._panelWidth
+            z: 1
+            focus: true
+
+            Keys.onEscapePressed: (event) => {
+                root.dismissRequested()
                 event.accepted = true
             }
-        }
-        Keys.onRightPressed: (event) => {
-            if (root.activePanel !== "windowSwitcher") {
-                root.navigateRequested(+1)
-                event.accepted = true
+            Keys.onLeftPressed: (event) => {
+                if (root.activePanel !== "windowSwitcher") {
+                    root.navigateRequested(-1)
+                    event.accepted = true
+                }
             }
-        }
+            Keys.onRightPressed: (event) => {
+                if (root.activePanel !== "windowSwitcher") {
+                    root.navigateRequested(+1)
+                    event.accepted = true
+                }
+            }
 
-        source: {
-            if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
-            if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
-            if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
-            return ""
-        }
-        onLoaded: {
-            if (!item) return
-            if (root.activePanel === "windowSwitcher") {
-                item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
-                item.dismissed.connect(function() { root.dismissRequested() })
-                return
+            source: {
+                if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
+                if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
+                if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
+                return ""
             }
-            if (root.activePanel === "settings") {
-                item.settingsProcess  = Qt.binding(function() { return root.settingsProcess  })
-                item.calendarProcess  = Qt.binding(function() { return root.calendarProcess  })
-                item.tasksProcess     = Qt.binding(function() { return root.tasksProcess     })
-                return
+            onLoaded: {
+                if (!item) return
+                if (root.activePanel === "windowSwitcher") {
+                    item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
+                    item.dismissed.connect(function() { root.dismissRequested() })
+                    return
+                }
+                if (root.activePanel === "settings") {
+                    item.settingsProcess = Qt.binding(function() { return root.settingsProcess })
+                    item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
+                    item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
+                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
+                    return
+                }
+                // calendar
+                item.clockProcess    = Qt.binding(function() { return root.clockProcess    })
+                item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
+                item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
+                item.weatherProcess  = Qt.binding(function() { return root.weatherProcess  })
+                item.timerProcess    = Qt.binding(function() { return root.timerProcess    })
+                item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
             }
-            item.clockProcess    = Qt.binding(function() { return root.clockProcess    })
-            item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
-            item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
-            item.weatherProcess  = Qt.binding(function() { return root.weatherProcess  })
-            item.timerProcess    = Qt.binding(function() { return root.timerProcess    })
         }
     }
 }

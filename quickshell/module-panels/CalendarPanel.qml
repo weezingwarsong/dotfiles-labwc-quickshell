@@ -17,6 +17,8 @@ Item {
     // ── View state ────────────────────────────────────────────────────────────
     property string _view: "glance"  // "glance" | "expanded" | "timer"
 
+    signal navigateRequested(int direction)
+
     // Nav arrows and task bullets — fixed at 11px (between body and heading)
     readonly property int _navSize: 11
 
@@ -137,6 +139,8 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 8
+
+                PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
                 // Date + weather row
                 RowLayout {
@@ -378,6 +382,8 @@ Item {
                 anchors.margins: 12
                 spacing: 8
 
+                PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+
                 Text {
                     text: "↑ Back"
                     color: Style.borderAccentColor; font.pixelSize: root._navSize
@@ -406,6 +412,8 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 8
+
+                PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
                 Text {
                     text: "↑ Back"
