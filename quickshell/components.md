@@ -1,17 +1,11 @@
-# Reusable Visual Components
+# Reusable Visual Components ✓
 
-Specs for the next phase of `module-reusable-elements/` — the visual UI building blocks shared
-across all panels. These are distinct from the architectural elements already built
-(PillController, PillWindow, HoverZone, PanelController, PanelSurface), which own no visual
-opinions. These components own visual opinions and reference design tokens directly.
+Visual UI building blocks in `module-reusable-elements/` — all built and wired into panels.
+Distinct from the architectural elements (PillController, PillWindow, HoverZone, PanelController,
+PanelSurface), which own no visual opinions. These components own visual opinions and reference
+design tokens directly.
 
-**Dependency:** All components reference tokens from `Style.qml` (refactored) and `Prefs.qml`
-(new). Neither exists in final form yet. Build order:
-
-```
-Prefs.qml → Style.qml refactor → these components → panel refactors
-```
-
+All tokens come from `Style.qml`; user-adjustable values flow through `Prefs.qml`.
 See [settings.md](settings.md) for the full token system design.
 
 ---
@@ -170,23 +164,21 @@ PanelButton {
 }
 ```
 
-**Used in:** CalendarPanel ×3 (More ↓, Timer, Edit ↗), SettingsPanel ×4 (Re-authenticate,
-Disconnect, Apply ×2), Appearance tab (Save, Reset)
+**Used in:** CalendarPanel ×3 (More ↓, Timer, Edit ↗), SettingsPanel ×3 (Re-authenticate,
+Disconnect, Apply), Appearance tab ×many (steppers, 3-way selectors, Reset)
 
 ---
 
 ### PanelCard
 
 **Purpose:** Raised section container — `surfaceLowColor` background, rounded corners, optional
-border. Children are arranged in an internal `ColumnLayout`. Used to group related settings or
-content into a visually distinct block within a panel.
+border. Used to group related settings or content into a visually distinct block within a panel.
 
 **Props:**
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
 | `padding` | `int` | `12` | Inner margin on all sides |
-| `default` (children) | — | — | Routed into the internal `ColumnLayout` |
 
 **Tokens used:**
 | Token | Role |
@@ -194,10 +186,15 @@ content into a visually distinct block within a panel.
 | `Style.surfaceLowColor` | Background fill |
 | `Style.radLg` | Corner radius |
 | `Style.borderFaintColor` | Border color |
-| `Prefs.borderWidth` | Border width |
+| `Style.borderWidth` | Border width |
 
-Internal layout: `ColumnLayout { spacing: 8 }` anchored inside with `padding` margins.
-Height is content-driven (`_col.implicitHeight + padding * 2`). `Layout.fillWidth: true`.
+`PanelCard` is **visual chrome only** — it provides the styled Rectangle background and sizes
+itself to its content via `childrenRect`. Callers place their own `ColumnLayout` inside,
+positioned at `y: parent.padding` with left/right anchors. This avoids a Qt 6.11 crash where
+`default property alias` to a sub-item's `data` property causes `bad_function_call` during
+binding finalization.
+
+`Layout.fillWidth: true`. Height: `childrenRect.y + childrenRect.height + padding`.
 
 **Call site:**
 
@@ -210,10 +207,7 @@ Rectangle {
     implicitHeight: _col.implicitHeight + 16
     ColumnLayout {
         id: _col
-        anchors {
-            left: parent.left; right: parent.right
-            top: parent.top; margins: 12
-        }
+        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
         spacing: 8
         // ... children
     }
@@ -223,15 +217,18 @@ Rectangle {
 After:
 ```qml
 PanelCard {
-    // children directly — rendered in internal ColumnLayout
-    SectionLabel { text: "Google Account" }
-    StatusDot { active: settingsProcess.googleConnected }
-    PanelButton { label: "Disconnect"; variant: "critical"; onClicked: … }
+    ColumnLayout {
+        y: parent.padding
+        anchors { left: parent.left; right: parent.right; margins: parent.padding }
+        spacing: 8
+        StatusDot { active: settingsProcess.googleConnected }
+        PanelButton { label: "Disconnect"; variant: "critical"; onClicked: … }
+    }
 }
 ```
 
-**Used in:** SettingsPanel ×2 (Google Account, Weather Location), Appearance tab ×2+ (Palette,
-Typography)
+**Used in:** SettingsPanel ×2 (Google Account, Weather Location), Appearance tab ×3 (Typography,
+Corner rounding, Borders)
 
 ---
 
@@ -287,7 +284,7 @@ TogglePair {
 }
 ```
 
-**Used in:** SettingsPanel ×1 (location mode), Appearance tab ×1+ (e.g. border on/off)
+**Used in:** SettingsPanel ×2 (location mode toggle, tab bar), Appearance tab tab bar
 
 ---
 
@@ -330,14 +327,10 @@ StatusDot { active: settingsProcess.googleConnected }
 
 ---
 
-## Build order within this phase
+## Implementation notes
 
-1. `PanelDivider` — trivial, zero dependencies beyond `Style.panelDividerColor`
-2. `SectionLabel` — trivial, three tokens
-3. `StatusDot` — trivial, two tokens
-4. `PanelButton` — medium; wires in `HoverHandler`, variant logic, `accentBgHover` first use
-5. `PanelCard` — medium; content-driven height, default-property children routing
-6. `TogglePair` — medium; per-corner radius, signal/property ownership pattern
+All six components are built. Key decisions recorded here for future reference:
 
-Once all six exist: refactor panels to use them, which simultaneously validates the new
-`Style.qml` token names in real components.
+- **PanelCard** — `default property alias` to a sub-item's `data` was removed due to a Qt 6.11 crash (`bad_function_call` in `lookupSingletonProperty` during binding finalization). Now visual-chrome-only; callers provide their own `ColumnLayout`.
+- **TogglePair** and **PanelDivider** — both need `import QtQuick.Layouts` even though they only use `Layout.fillWidth`. The `Layout` attached property requires the Layouts module imported in the file that uses it.
+- **SectionLabel** — root element is a plain `Text`; it doesn't wrap another `Text`.

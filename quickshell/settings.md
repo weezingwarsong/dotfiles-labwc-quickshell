@@ -10,9 +10,9 @@ and open questions live here. The README carries only a pointer.
 | Area | State |
 |---|---|
 | Services tab | ✓ built and wired |
-| Design system audit | in progress — discussing |
-| Reusable elements | not started |
-| Appearance tab | design phase |
+| Design system audit | ✓ complete |
+| Reusable elements | ✓ built (PanelButton, PanelCard, PanelDivider, SectionLabel, StatusDot, TogglePair) |
+| Appearance tab | ✓ built |
 
 ---
 
@@ -228,127 +228,43 @@ ColumnLayout {
 
 ---
 
-## Architecture: how user overrides reach components
+## Architecture: how user overrides reach components ✓
 
 ### The pragma Singleton constraint
 
 `Style.qml` is `pragma Singleton`. The QML engine instantiates it once when the module is first
-imported — not by `shell.qml`, not by any component. Because instantiation is out of our hands,
-we can never inject a property into it:
+imported — not by `shell.qml`, not by any component. This means `Style.qml` cannot "see" the
+`settings` object that lives in `shell.qml`.
 
-```qml
-// impossible — singletons are not instantiated by the caller
-Style { settingsProcess: settings }
-```
+### Prefs.qml — the persistence singleton ✓
 
-This means `Style.qml` cannot "see" the `settings` object that lives in `shell.qml`. The two
-live in completely separate parts of the object tree.
-
-### Prefs.qml — the persistence singleton
-
-Instead of duplicating a `Settings {}` block inside `Style.qml` (two QSettings instances on the
-same file, mixed concerns), we introduce a dedicated **`Prefs.qml`** singleton:
+A dedicated **`Prefs.qml`** singleton owns all persistence. Two-singleton architecture:
 
 ```
 quickshell/
-├── Prefs.qml      ← pragma Singleton; owns Settings{} block; exposes color + timing overrides
-├── Style.qml      ← reads Prefs for override values; keeps all visual/token logic
+├── Prefs.qml   ← pragma Singleton; owns QtCore.Settings block; exposes user-adjustable prefs
+├── Style.qml   ← reads Prefs for derived tokens; owns all visual/token logic
 └── shell.qml
 ```
 
-- **`Prefs.qml`** is the only file that touches `QtCore.Settings`. It exposes properties like
-  `color0Override: ""` (empty string = no override) and timing properties with numeric defaults.
-  It also provides setters (`function setColor(index, hex)`). Declared as a singleton in the root
-  `qmldir` so any QML file in the project can import it.
+**v1 Prefs properties** (font, radius, borders — live in `pillbox.conf`):
 
-- **`Style.qml`** reads Prefs for the variable section:
-  ```qml
-  readonly property color color0: Prefs.color0Override || "#2E3440"
-  ```
-  The compiled hex is the fallback; an empty override is falsy and falls through. No persistence
-  logic in Style — it stays purely visual.
-
-- **`SettingsProcess.qml`** delegates color/timing writes to Prefs:
-  ```qml
-  function setPaletteColor(index, hex) { Prefs.setColor(index, hex) }
-  ```
-  It continues to own `googleConnected`, `locationMode`, `locationString` directly (these are
-  behavioural, not visual, and don't need to be in Prefs).
-
-- **Timing constants** — `CalendarProcess`, `MprisPill`, `WorkspacePill` read from Prefs:
-  ```qml
-  property int warningThresholdMins: Prefs.calendarWarningMins  // default 10
-  ```
-
----
-
-## Design system work — prerequisite for Appearance tab
-
-Before building the Appearance UI, we need the design system underneath it to be coherent.
-Currently `Style.qml` and the panel components have two problems:
-
-### Problem 1: Style.qml Fixed section conflates two categories
-
-The Fixed (semantic) section currently mixes:
-
-- **Genuine shared tokens** — values that are meaningfully used by multiple unrelated components.
-  These belong in Style. Examples: `textPrimary`, `panelBgColor`, `accentBgColor`, `surfaceLowColor`.
-
-- **One-off implementation details** — values that only exist because one component needed a magic
-  number, then got promoted to a token. These should live inside the component that owns them.
-  Examples in the current file: `radGridToday`, `radGridTooltip`, `fontTimerSize`.
-
-Goal: every token in the Fixed section is genuinely shared and semantically meaningful. A new
-component can build itself from existing tokens without adding anything to Style.
-
-### Problem 2: repeated layout boilerplate in panels
-
-The same visual patterns appear across CalendarPanel, SettingsPanel, and WindowSwitcherPanel with
-duplicated markup. This makes changes require touching multiple files and makes the Appearance tab
-harder to reason about (the style is scattered).
-
-### Candidate reusable elements
-
-The following patterns recur across panels and are worth extracting into `module-reusable-elements/`:
-
-| Component | Pattern | Currently appears in |
+| Property | Default | Setter |
 |---|---|---|
-| `PanelButton.qml` | Rectangle + hover state + border + label text | CalendarPanel ×3, SettingsPanel ×4 |
-| `SectionLabel.qml` | All-caps tracking label (EVENTS TODAY, etc.) | CalendarPanel ×4, SettingsPanel ×2 |
-| `PanelDivider.qml` | Full-width 1px horizontal rule | CalendarPanel ×2, SettingsPanel ×1 |
-| `TogglePair.qml` | Two-button exclusive toggle (Auto/Manual style) | SettingsPanel ×1, Appearance tab later |
-| `StatusDot.qml` | Filled/hollow dot with configurable color | SettingsPanel ×1 |
+| `fontMono` | `"JetBrainsMono Nerd Font"` | `setFontMono(v)` |
+| `fontNerd` | `"JetBrainsMono Nerd Font"` | `setFontNerd(v)` |
+| `fontSizePill` | `13` | `setFontSizePill(v)` |
+| `fontSizeBase` | `10` | `setFontSizeBase(v)` |
+| `radiusScale` | `1.0` | `setRadiusScale(v)` |
+| `borderWidth` | `1` | `setBorderWidth(v)` |
+| `elementBorderWidth` | `1` | `setElementBorderWidth(v)` |
 
-Each component encapsulates hover behaviour, sizing, and Style token references internally.
-Callers provide only the semantic inputs (`text:`, `onClicked:`, `active:`, etc.).
+`Style.qml` derives `fontSizePill/Body/Heading/Subtle`, `radSm/Md/Lg`, `borderWidth`,
+`elementBorderWidth` from these. Changes apply live — no restart needed.
 
-### What a clean PanelButton looks like
-
-Before (current CalendarPanel footer):
-```qml
-Rectangle {
-    Layout.fillWidth: true
-    height: 22; radius: Style.radButton
-    color: moreHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-    border.color: Style.borderSoftColor; border.width: 1
-    Text { anchors.centerIn: parent; text: "More ↓"; color: Style.textButton; font.pixelSize: Style.fontContentSize }
-    MouseArea { id: moreHover; anchors.fill: parent; hoverEnabled: true; onClicked: root._view = "expanded" }
-}
-```
-
-After:
-```qml
-PanelButton { text: "More ↓"; onClicked: root._view = "expanded" }
-```
-
-The same improvement applies to `SectionLabel` and `PanelDivider` — each eliminates ~4 lines of
-repeated boilerplate at every call site.
-
----
-
-## Style.qml redesign — discussion
-
-This section is where we work out what the Fixed section should look like. Work in progress.
+**v2 (deferred):**
+- Color palette overrides (`color0Override`–`color15Override`) — requires `Style.color0: Prefs.color0Override || "#2E3440"` fallback chain
+- Timing constants (`calendarWarningMins`, MPRIS peek duration, workspace flash duration)
 
 ### Principles agreed so far
 

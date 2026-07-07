@@ -256,9 +256,18 @@ Unlike `ToplevelProcess`, there is no native "active player" equivalent — `_se
 
 ### Reusable Elements
 
-Next-phase visual components (PanelButton, SectionLabel, PanelDivider, PanelCard, TogglePair,
-StatusDot) are fully spec'd in **[components.md](components.md)**. These depend on the
-`Prefs.qml` + `Style.qml` refactor and will be built in that order.
+Visual UI building blocks shared across all panels. Full specs in **[components.md](components.md)**.
+
+| Component | Purpose |
+|---|---|
+| `PanelButton` ✓ | Labelled action button; 3 variants (default / accent / critical) |
+| `PanelCard` ✓ | Raised section container (`surfaceLowColor` bg, `radLg` corners) |
+| `PanelDivider` ✓ | Full-width 1px horizontal rule |
+| `SectionLabel` ✓ | Small all-caps tracking label for panel sections |
+| `StatusDot` ✓ | 8px filled circle; green = active, red = inactive |
+| `TogglePair` ✓ | Two adjacent exclusive-select buttons (e.g. Auto / Manual) |
+
+All tokens come from `Style.qml`; user-adjustable values come through `Prefs.qml`.
 
 #### PillController ✓
 
@@ -329,13 +338,16 @@ Requests `WlrKeyboardFocus.Exclusive` when the window switcher is active so the 
 
 **File:** `Style.qml` (root, `pragma Singleton`)
 
-All visual values (color, font, radius, spacing) go through `Style.qml`. Registered in the root `qmldir` and re-exported via each subdirectory's `qmldir` so all modules can access it without a module import path.
+All visual values go through `Style.qml`. Registered in the root `qmldir` and re-exported via each subdirectory's `qmldir` so all modules can access it without an explicit module path.
 
-Two sections:
-- **Variable Preference** — raw palette tokens: 16-color terminal palette (`color0`–`color15`) seeded with Nord, 2 font families, 7 size steps, 3 border widths, 4 radius steps (`radNone/Light/Med/High`). Intended to be swapped out from wallpaper extraction (pywal/matugen format) in a future phase.
-- **Fixed** — semantic mappings: `pillBgColor`, `panelBorderRadius`, `textPrimary`, `fontContentSize`, etc. All components read only from Fixed — never from Variable directly.
+Three sections:
+- **Variable** — raw palette: 16-color terminal palette (`color0`–`color15`) seeded with Nord; 2 font-family constants; `transparent`. Intended to be swapped from wallpaper extraction (pywal/matugen) in a future phase.
+- **Fixed** — semantic mappings: `pillBgColor`, `textPrimary`, `textSecondary`, `accentBgColor`, `surfaceLowColor`, `textCritical`, `textWeekend`, `dotIndicator`, etc. All components read Fixed tokens — never Variable directly.
+- **Prefs-derived** — tokens that update live when the user changes a preference: `fontSizePill/Body/Heading/Subtle`, `radSm/Md/Lg`, `borderWidth`, `elementBorderWidth`. Derived from `Prefs.qml`.
 
-Fonts: **JetBrains Mono Nerd Font** (`ttf-jetbrains-mono-nerd`) — monospace text and Nerd Font glyphs. **Sarasa Mono SC** (`ttf-sarasa-gothic`) — CJK fallback, handled transparently by Qt via fontconfig (no explicit `font.families` list needed). `Style.fontCJK` documents the intent. All text items use `font.family: Style.fontMono`; Qt falls back through the system font stack for any glyph JetBrainsMono doesn't cover.
+**`Prefs.qml`** (`pragma Singleton`) — companion file that owns the `QtCore.Settings` block. Exposes 7 user-adjustable properties (`fontMono`, `fontNerd`, `fontSizePill`, `fontSizeBase`, `radiusScale`, `borderWidth`, `elementBorderWidth`) with setters the Appearance tab calls directly. Changes propagate to `Style` and then to every component on the same frame.
+
+Fonts: **JetBrains Mono Nerd Font** (`ttf-jetbrains-mono-nerd`) — monospace text and Nerd Font glyphs. **Sarasa Mono SC** (`ttf-sarasa-gothic`) — CJK fallback, handled transparently by Qt via fontconfig. All text items use `font.family: Style.fontMono`.
 
 ---
 
@@ -633,23 +645,12 @@ A keyboard-driven window switcher. W-Tab toggles the panel. When it appears, the
 Full design notes, architecture decisions, and build plan live in **[settings.md](settings.md)**.
 
 Summary: two tabs — **Services** (Google account + weather location, ✓ built) and **Appearance**
-(palette swatches + timing sliders, design phase). Persistence via `SettingsProcess.qml` +
-`Prefs.qml` singleton. `Style.qml` reads color overrides from `Prefs` with Nord fallbacks.
+(typography, corner rounding, borders, ✓ built). Persistence via `SettingsProcess.qml` +
+`Prefs.qml` singleton. See **[settings.md](settings.md)** for full design notes.
 
 ---
 
 ## To-Do
-
-### Visual Components + Style Refactor
-
-Build order: `Prefs.qml` (new) → `Style.qml` refactor → reusable components → panel refactors.
-Component specs in **[components.md](components.md)**. Token system in **[settings.md](settings.md)**.
-
-### Settings Panel — Appearance tab
-
-Depends on the visual components above. See **[settings.md](settings.md)** for the full plan.
-
----
 
 ### Media Player Panel
 
@@ -684,7 +685,7 @@ quickshell/
 ├── module-panels/
 │   ├── CalendarPanel.qml         ✓ implemented
 │   ├── MediaPlayerPanel.qml
-│   ├── SettingsPanel.qml         ✓ services tab
+│   ├── SettingsPanel.qml         ✓ services + appearance tabs
 │   ├── TimerWidget.qml           ✓ implemented
 │   ├── WindowSwitcherPanel.qml   ✓ implemented
 │   └── qmldir
@@ -697,10 +698,16 @@ quickshell/
 │   └── qmldir
 ├── module-reusable-elements/
 │   ├── HoverZone.qml             ✓ implemented
+│   ├── PanelButton.qml           ✓ implemented
+│   ├── PanelCard.qml             ✓ implemented
 │   ├── PanelController.qml       ✓ implemented
+│   ├── PanelDivider.qml          ✓ implemented
 │   ├── PanelSurface.qml          ✓ implemented
 │   ├── PillController.qml        ✓ implemented
 │   ├── PillWindow.qml            ✓ implemented
+│   ├── SectionLabel.qml          ✓ implemented
+│   ├── StatusDot.qml             ✓ implemented
+│   ├── TogglePair.qml            ✓ implemented
 │   └── qmldir
 ├── root-processes/
 │   ├── CalendarProcess.qml       ✓ implemented
@@ -714,6 +721,7 @@ quickshell/
 │   ├── WeatherProcess.qml        ✓ implemented
 │   ├── WorkspaceProcess.qml      ✓ implemented
 │   └── qmldir
+├── Prefs.qml                     ✓ implemented
 ├── qmldir
 ├── shell.qml
 └── Style.qml                     ✓ implemented
