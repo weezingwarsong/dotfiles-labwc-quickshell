@@ -48,32 +48,24 @@ QtObject {
         if (!contentActive) _userDismissed = false
     }
 
+    // Latch: user explicitly toggled on. Stays visible until toggled off — no
+    // auto-expiry. Content events (workspace flash, MPRIS peek) update the
+    // displayed pill but do not dismiss the latch.
     function triggerPeek() {
         if (_peekActive) {
             _peekActive = false
-            _peekTimer.stop()
             _userDismissed = true
-            console.log("[PillController] peek dismissed")
+            console.log("[PillController] latch off")
         } else {
             _peekActive = true
             _userDismissed = false
-            _peekTimer.restart()
-            console.log("[PillController] peek triggered")
-        }
-    }
-
-    property var _peekTimer: Timer {
-        interval: 5000
-        onTriggered: {
-            root._peekActive = false
-            root._userDismissed = false
-            console.log("[PillController] peek expired")
+            console.log("[PillController] latch on")
         }
     }
 
     readonly property bool shouldShow: {
         if (hovered)     return true                                         // hover always works
-        if (_peekActive) return true                                         // explicit peek
+        if (_peekActive) return true                                         // user latch
         if (!_userDismissed && winner && winner.shouldReveal) return true     // content-driven
         return false
     }
