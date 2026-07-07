@@ -621,7 +621,63 @@ A keyboard-driven window switcher. W-Tab toggles the panel. When it appears, the
 
 ---
 
+#### Settings
+
+**File:** `module-panels/SettingsPanel.qml`
+
+**What we expect from the Settings panel:**
+
+A centralized panel with two jobs: **configuration** (providing Pillbox with the inputs it needs to function) and **preferences** (tuning how it looks and behaves). Summoned deliberately via keybind (TBD). Two tabs: **Services** and **Appearance**.
+
+**Two-layer preference model:**
+
+All settings operate on two layers:
+
+- **Defaults** — the compiled-in baseline (`SettingsProcess._defaults`). Never written to disk. Represents a sensible out-of-the-box state. This is the permanent reference point.
+- **User layer** — overrides stored in `~/.config/pillbox/pillbox.conf` via `Qt.labs.settings`. Only keys the user has explicitly changed are persisted — not a full copy of defaults.
+
+`SettingsProcess.value(key)` returns the user override if one exists, otherwise the default. Components read from `SettingsProcess` rather than hardcoding values; the default object inside `SettingsProcess` is the single source of truth for what "stock" means.
+
+Fields that differ from the default are visually distinguished in the panel (e.g. a subtle accent tint). A **Reset to defaults** action clears all user-layer keys, restoring the baseline without touching the defaults object.
+
+**Services tab:**
+
+1. **Google Calendar** — auth status (authenticated / expired / never). Shows date of last successful auth. "Re-authenticate" button opens a terminal running `gcal-fetch --auth`.
+2. **Google Tasks** — same shape. `gcal-fetch` and `gtask-fetch` share the same OAuth credentials file, so re-auth on either fixes both.
+3. **Weather location** — `Auto` (IP geolocation via ipapi.co, current behavior) or `Manual`. When Manual: a text input accepting a city name or `lat,lon` pair. Passed to `weather-fetch` at the next fetch cycle.
+
+**Appearance tab:**
+
+1. **Palette** — 16 swatches in a 4×4 grid, labeled `color0`–`color15` with their Nord name. Clicking a swatch opens an inline hex input. Values map 1:1 to `Style.qml`'s Variable section. Edited values are staged until Save is pressed.
+2. **Timing** — three sliders with live labels:
+   - Calendar warning threshold — how many minutes before an event the pill enters urgency state. Default 10 min, range 1–60.
+   - MPRIS peek duration — how long the pill stays visible after a track or state change. Default 3s, range 1–10.
+   - Workspace flash duration — how long the workspace pill stays visible after a switch. Default 1.5s, range 0.5–5.
+
+**Save / Reset:**
+- **Save** — writes all staged changes to the user layer. Changes take effect immediately (no restart).
+- **Reset to defaults** — clears all user-layer keys. Every setting reverts to the compiled-in default.
+
+**What we need to make it happen:**
+
+- `SettingsProcess.qml` in `root-processes/` — `QtObject` wrapping `Qt.labs.settings`. Exposes `value(key)` (user override ?? default). Holds `_defaults` as a plain JS object. This is the single source of truth for all adjustable values.
+- `Style.qml` — Variable section reads palette tokens from `SettingsProcess` rather than hardcoding hex strings.
+- `CalendarProcess`, `MprisPill`, `WorkspacePill` — read their timing constants from `SettingsProcess` instead of magic numbers.
+- `WeatherProcess` — reads location mode and manual location string from `SettingsProcess`.
+- `SettingsPanel.qml` — two-tab panel UI. Reads resolved values from `SettingsProcess`; writes staged edits back on Save. Local staging model: edits live in panel state until Save is confirmed.
+- `FifoListener` — `toggleSettings` command, wired to `panelController.toggle("settings")`.
+- `PanelSurface` — `"settings"` Loader case.
+- labwc keybind (TBD).
+
+---
+
 ## To-Do
+
+### Settings Panel
+
+The panel described in the Draft Board above. Next to implement.
+
+---
 
 ### Media Player Panel
 
@@ -656,6 +712,7 @@ quickshell/
 ├── module-panels/
 │   ├── CalendarPanel.qml         ✓ implemented
 │   ├── MediaPlayerPanel.qml
+│   ├── SettingsPanel.qml
 │   ├── TimerWidget.qml           ✓ implemented
 │   ├── WindowSwitcherPanel.qml   ✓ implemented
 │   └── qmldir
@@ -678,6 +735,7 @@ quickshell/
 │   ├── ClockProcess.qml          ✓ implemented
 │   ├── FifoListener.qml          ✓ implemented
 │   ├── MprisProcess.qml          ✓ implemented
+│   ├── SettingsProcess.qml
 │   ├── TasksProcess.qml          ✓ implemented
 │   ├── TimerProcess.qml          ✓ implemented
 │   ├── ToplevelProcess.qml       ✓ implemented
