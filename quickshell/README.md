@@ -682,25 +682,32 @@ Fields that differ from the default are visually distinguished in the panel (e.g
 
 **What we need to make it happen:**
 
-- `SettingsProcess.qml` in `root-processes/` — `QtObject` wrapping `Qt.labs.settings`. Exposes `value(key)` (user override ?? default). Holds `_defaults` as a plain JS object — the single source of truth for what "stock" means. Owns `googleConnected: bool` and emits `googleDisconnected` signal on account removal.
-- `CalendarProcess` + `TasksProcess` — add `lastError: string` (`""` / `"auth"` / `"network"`) and `clearData()` method. Listen to `settingsProcess.googleDisconnected` and call `clearData()` immediately. Skip fetch cycles when `settingsProcess.googleConnected === false`.
-- `gcal-fetch` — add `--revoke` flag: revokes token server-side and deletes the local token file.
-- `WeatherProcess` — reads `settingsProcess.locationMode` and `settingsProcess.locationString`; passes `--location` arg to `weather-fetch` when in manual mode. Triggers an immediate re-fetch when location settings change.
-- `weather-fetch` — add `--location` flag; falls back to ipapi.co auto-detect when absent.
-- `Style.qml` — Variable section reads palette tokens from `SettingsProcess` rather than hardcoding hex strings.
-- `CalendarProcess`, `MprisPill`, `WorkspacePill` — read timing constants from `SettingsProcess` instead of magic numbers.
-- `SettingsPanel.qml` — two-tab panel UI. Reads resolved values from `SettingsProcess`; writes staged edits back on Save. Local staging model: edits live in panel state until Save is confirmed.
-- `FifoListener` — `toggleSettings` command, wired to `panelController.toggle("settings")`.
-- `PanelSurface` — `"settings"` Loader case.
-- labwc keybind (TBD).
+- `SettingsProcess.qml` in `root-processes/` ✓ — `QtCore.Settings` backed singleton. `location` property points to `~/.config/pillbox/pillbox.conf`. Owns `googleConnected`, `locationMode`, `locationString`. `disconnect()` / `reconnect()` / setters. Emits `googleDisconnected`.
+- `CalendarProcess` + `TasksProcess` ✓ — `lastError: string` (`""` / `"auth"` / `"network"`), `clearData()`, fetch guard, `googleDisconnected` listener.
+- `gcal-fetch` ✓ — `--revoke` flag: server-side token revocation + local token file deletion.
+- `WeatherProcess` ✓ — reads `settingsProcess.locationMode` / `locationString`; dynamic `--location` arg; re-fetches on location change.
+- `weather-fetch` ✓ — `--location` flag; city name resolved via Open-Meteo geocoding or parsed as `lat,lon`.
+- `Style.qml` — Variable section reads palette tokens from `SettingsProcess` instead of hardcoded hex. *(Appearance tab)*
+- `CalendarProcess`, `MprisPill`, `WorkspacePill` — read timing constants from `SettingsProcess` instead of magic numbers. *(Appearance tab)*
+- `SettingsPanel.qml` ✓ Services tab — Google Account section + Weather Location section. Appearance tab (palette swatches + timing sliders + tab bar) pending.
+- `FifoListener` ✓ — `toggleSettings` command, wired to `panelController.toggle("settings")`.
+- `PanelSurface` ✓ — `"settings"` Loader case + `WlrKeyboardFocus.Exclusive` for settings.
+- labwc keybind ✓ — W-4 writes `toggleSettings` to the FIFO. W-3 reserved for Media Player.
 
 ---
 
 ## To-Do
 
-### Settings Panel
+### Settings Panel — Appearance tab
 
-The panel described in the Draft Board above. Next to implement.
+Services tab is done. Remaining work:
+
+- Tab bar — sits above both Services and Appearance content; toggles between the two panes.
+- Palette section — 16 swatches (4×4 grid, `color0`–`color15`). Clicking a swatch opens an inline hex input. Staged until Save.
+- Timing sliders — Calendar warning threshold, MPRIS peek duration, Workspace flash duration. Live labels. Staged until Save.
+- Save / Reset buttons.
+- Wire `Style.qml` to read palette tokens from `SettingsProcess` (user layer ?? compiled default).
+- Wire `CalendarProcess`, `MprisPill`, `WorkspacePill` to read timing constants from `SettingsProcess`.
 
 ---
 
@@ -737,7 +744,7 @@ quickshell/
 ├── module-panels/
 │   ├── CalendarPanel.qml         ✓ implemented
 │   ├── MediaPlayerPanel.qml
-│   ├── SettingsPanel.qml
+│   ├── SettingsPanel.qml         ✓ services tab
 │   ├── TimerWidget.qml           ✓ implemented
 │   ├── WindowSwitcherPanel.qml   ✓ implemented
 │   └── qmldir
@@ -760,7 +767,7 @@ quickshell/
 │   ├── ClockProcess.qml          ✓ implemented
 │   ├── FifoListener.qml          ✓ implemented
 │   ├── MprisProcess.qml          ✓ implemented
-│   ├── SettingsProcess.qml
+│   ├── SettingsProcess.qml       ✓ implemented
 │   ├── TasksProcess.qml          ✓ implemented
 │   ├── TimerProcess.qml          ✓ implemented
 │   ├── ToplevelProcess.qml       ✓ implemented

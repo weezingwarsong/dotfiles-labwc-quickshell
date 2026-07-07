@@ -2,6 +2,29 @@
 
 ---
 
+## Settings Panel — Services tab
+
+Full data layer + Services UI, wired end-to-end. Appearance tab (palette + timing sliders) is next.
+
+**Data layer:**
+- [x] `SettingsProcess.qml` — `QtCore.Settings` singleton with `location` pointing to `~/.config/pillbox/pillbox.conf`. Properties: `googleConnected`, `locationMode` (`"auto"` | `"manual"`), `locationString`. Exposes `disconnect()` / `reconnect()` / setters. Emits `googleDisconnected` signal.
+- [x] `CalendarProcess` + `TasksProcess` — added `lastError` (`""` / `"auth"` / `"network"`), `clearData()`, fetch guard when `googleConnected = false`, `googleDisconnected` listener. Auth vs network error distinguished by empty-stdout heuristic.
+- [x] `WeatherProcess` — injected `settingsProcess`; dynamic `command` builds `--location` arg in manual mode; re-fetches on location change.
+- [x] `gcal_fetch.py` — `--revoke` flag: server-side POST to `https://oauth2.googleapis.com/revoke` + local token file deletion.
+- [x] `weather_fetch.py` — `--location` flag: city name resolved via Open-Meteo geocoding API, or parsed as `lat,lon`.
+
+**UI — `SettingsPanel.qml`:**
+- [x] Google Account card: connected/not-connected status dot, per-service last-fetch time + error label, Re-authenticate and Connect buttons, Disconnect button (disabled+label change while revoking). On disconnect: `revokeProcess` (gcal-fetch --revoke) + `clearLogProcess` (rm log) + `authNotifyProcess` (google-auth-notify) + `settingsProcess.disconnect()`.
+- [x] Weather Location card: Auto/Manual toggle buttons (accent background when active), manual TextInput + Apply button wired to `settingsProcess.setLocationString`.
+
+**Wiring:**
+- [x] `FifoListener` — `toggleSettings` signal + dispatch.
+- [x] `PanelSurface` — `"settings"` Loader case; `WlrKeyboardFocus.Exclusive` covers settings panel.
+- [x] `shell.qml` — `SettingsProcess { id: settings }` instantiated; forwarded to `CalendarProcess`, `TasksProcess`, `WeatherProcess`, `PanelSurface`.
+- [x] labwc keybind — **W-4** → `toggleSettings`. W-3 reserved for Media Player.
+
+---
+
 ## PillWindow — Content-driven width
 
 - [x] `PillWindow.implicitWidth` changed from hardcoded `Screen.width * 0.10` to `(contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40`. Width is now content-driven; the +40 accounts for 20px padding each side.
