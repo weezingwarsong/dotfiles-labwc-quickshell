@@ -624,75 +624,13 @@ A keyboard-driven window switcher. W-Tab toggles the panel. When it appears, the
 
 #### Settings
 
-**File:** `module-panels/SettingsPanel.qml`
+**File:** `module-panels/SettingsPanel.qml` · **Keybind:** W-4
 
-**What we expect from the Settings panel:**
+Full design notes, architecture decisions, and build plan live in **[settings.md](settings.md)**.
 
-A centralized panel with two jobs: **configuration** (providing Pillbox with the inputs it needs to function) and **preferences** (tuning how it looks and behaves). Summoned deliberately via keybind (TBD). Two tabs: **Services** and **Appearance**.
-
-**Two-layer preference model:**
-
-All settings operate on two layers:
-
-- **Defaults** — the compiled-in baseline (`SettingsProcess._defaults`). Never written to disk. Represents a sensible out-of-the-box state. This is the permanent reference point.
-- **User layer** — overrides stored in `~/.config/pillbox/pillbox.conf` via `Qt.labs.settings`. Only keys the user has explicitly changed are persisted — not a full copy of defaults.
-
-`SettingsProcess.value(key)` returns the user override if one exists, otherwise the default. Components read from `SettingsProcess` rather than hardcoding values; the default object inside `SettingsProcess` is the single source of truth for what "stock" means.
-
-Fields that differ from the default are visually distinguished in the panel (e.g. a subtle accent tint). A **Reset to defaults** action clears all user-layer keys, restoring the baseline without touching the defaults object.
-
-**Services tab:**
-
-1. **Google Account** — Calendar and Tasks share one OAuth token, so the account is connected or disconnected as a unit. Two states:
-
-   *Connected:*
-   ```
-   Google Account   ● rauf@gmail.com                [Re-authenticate]  [Disconnect]
-     └ Calendar       last fetched 14:32
-     └ Tasks          last fetched 14:31
-   ```
-   - Account email read from the token file.
-   - Per-service last-fetch timestamps from `CalendarProcess.lastUpdated` / `TasksProcess.lastUpdated`.
-   - Per-service error state (auth error vs network error vs ok) from a new `lastError: string` property on each process.
-   - **Re-authenticate** — calls `google-auth-notify.sh` to open a terminal running `gcal-fetch --auth`. Covers both services.
-   - **Disconnect** — revokes the token server-side (`gcal-fetch --revoke`), deletes the local token file, sets `SettingsProcess.googleConnected = false`, emits `googleDisconnected`. Both processes respond by calling `clearData()` immediately, wiping all in-memory events and tasks. `/tmp/pillbox-google.log` is also deleted. Privacy: no personal data lingers after disconnect.
-
-   *Not connected:*
-   ```
-   Google Account   ○ Not connected                 [Connect]
-     └ Calendar       —
-     └ Tasks          —
-   ```
-   - **Connect** — same as Re-authenticate; sets `googleConnected = true` on success.
-   - Processes do not fetch while `googleConnected = false`.
-
-2. **Weather location** — `Auto` (IP geolocation via ipapi.co, current behavior) or `Manual`. When Manual: a text input accepting a city name or `lat,lon` pair. Passed to `weather-fetch --location` at the next fetch cycle.
-
-**Appearance tab:**
-
-1. **Palette** — 16 swatches in a 4×4 grid, labeled `color0`–`color15` with their Nord name. Clicking a swatch opens an inline hex input. Values map 1:1 to `Style.qml`'s Variable section. Edited values are staged until Save is pressed.
-2. **Timing** — three sliders with live labels:
-   - Calendar warning threshold — how many minutes before an event the pill enters urgency state. Default 10 min, range 1–60.
-   - MPRIS peek duration — how long the pill stays visible after a track or state change. Default 3s, range 1–10.
-   - Workspace flash duration — how long the workspace pill stays visible after a switch. Default 1.5s, range 0.5–5.
-
-**Save / Reset:**
-- **Save** — writes all staged changes to the user layer. Changes take effect immediately (no restart).
-- **Reset to defaults** — clears all user-layer keys. Every setting reverts to the compiled-in default.
-
-**What we need to make it happen:**
-
-- `SettingsProcess.qml` in `root-processes/` ✓ — `QtCore.Settings` backed singleton. `location` property points to `~/.config/pillbox/pillbox.conf`. Owns `googleConnected`, `locationMode`, `locationString`. `disconnect()` / `reconnect()` / setters. Emits `googleDisconnected`.
-- `CalendarProcess` + `TasksProcess` ✓ — `lastError: string` (`""` / `"auth"` / `"network"`), `clearData()`, fetch guard, `googleDisconnected` listener.
-- `gcal-fetch` ✓ — `--revoke` flag: server-side token revocation + local token file deletion.
-- `WeatherProcess` ✓ — reads `settingsProcess.locationMode` / `locationString`; dynamic `--location` arg; re-fetches on location change.
-- `weather-fetch` ✓ — `--location` flag; city name resolved via Open-Meteo geocoding or parsed as `lat,lon`.
-- `Style.qml` — Variable section reads palette tokens from `SettingsProcess` instead of hardcoded hex. *(Appearance tab)*
-- `CalendarProcess`, `MprisPill`, `WorkspacePill` — read timing constants from `SettingsProcess` instead of magic numbers. *(Appearance tab)*
-- `SettingsPanel.qml` ✓ Services tab — Google Account section + Weather Location section. Appearance tab (palette swatches + timing sliders + tab bar) pending.
-- `FifoListener` ✓ — `toggleSettings` command, wired to `panelController.toggle("settings")`.
-- `PanelSurface` ✓ — `"settings"` Loader case + `WlrKeyboardFocus.Exclusive` for settings.
-- labwc keybind ✓ — W-4 writes `toggleSettings` to the FIFO. W-3 reserved for Media Player.
+Summary: two tabs — **Services** (Google account + weather location, ✓ built) and **Appearance**
+(palette swatches + timing sliders, design phase). Persistence via `SettingsProcess.qml` +
+`Prefs.qml` singleton. `Style.qml` reads color overrides from `Prefs` with Nord fallbacks.
 
 ---
 
@@ -700,14 +638,8 @@ Fields that differ from the default are visually distinguished in the panel (e.g
 
 ### Settings Panel — Appearance tab
 
-Services tab is done. Remaining work:
-
-- Tab bar — sits above both Services and Appearance content; toggles between the two panes.
-- Palette section — 16 swatches (4×4 grid, `color0`–`color15`). Clicking a swatch opens an inline hex input. Staged until Save.
-- Timing sliders — Calendar warning threshold, MPRIS peek duration, Workspace flash duration. Live labels. Staged until Save.
-- Save / Reset buttons.
-- Wire `Style.qml` to read palette tokens from `SettingsProcess` (user layer ?? compiled default).
-- Wire `CalendarProcess`, `MprisPill`, `WorkspacePill` to read timing constants from `SettingsProcess`.
+Design system work (Style.qml audit, reusable elements) precedes this. See **[settings.md](settings.md)**
+for the full plan and open questions.
 
 ---
 
