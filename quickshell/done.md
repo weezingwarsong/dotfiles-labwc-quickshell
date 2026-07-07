@@ -2,6 +2,27 @@
 
 ---
 
+## PillWindow — Content-driven width
+
+- [x] `PillWindow.implicitWidth` changed from hardcoded `Screen.width * 0.10` to `(contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40`. Width is now content-driven; the +40 accounts for 20px padding each side.
+- [x] `Loader` (id `contentLoader`) sets `width: item ? item.implicitWidth : 0` — pill visuals size to their content, `PillWindow` binds to that.
+- [x] No `anchors.left` / `anchors.right` on `PillWindow` — layer-shell centers the surface automatically when only `anchors.top` is set. Width floats freely with content.
+- [x] Each pill's `visualComponent` drops `anchors.fill: parent` / `anchors.centerIn: parent`, keeps only `anchors.verticalCenter: parent.verticalCenter`.
+- [x] Variable-length pills (`MprisPill` track title, `WindowPill` app ID) cap their text `width: Math.min(implicitWidth, 200)` with `elide: Text.ElideRight` to prevent unconstrained growth.
+- [x] `WorkspacePill.visualComponent` simplified to a flat `Row` (workspace name + dot glyphs). The old split-half column layout only made sense at a fixed parent width.
+- [x] `PanelSurface` height made content-driven, capped at the symmetry point (`Screen.width * 0.10` from both top and bottom edges — beyond that the panel would feel visually unbalanced relative to the pill gap).
+
+---
+
+## PillController — W-1 latch
+
+- [x] `triggerPeek()` refactored from a 5-second auto-expiring peek to a persistent toggle latch. First W-1 press sets `_peekActive = true` (no timer started); second press sets `_peekActive = false` and `_userDismissed = true`.
+- [x] `_peekTimer` removed entirely. Latch stays on until the user explicitly dismisses it — no auto-expiry.
+- [x] Content events (workspace flash, MPRIS peek updating `winner`) update the displayed pill but do not dismiss the latch. `_userDismissed` is not cleared by latch-off path, so a dismiss stays until the next content condition naturally ends.
+- [x] `shouldShow` logic unchanged structurally — `_peekActive` still short-circuits to `true` as before; the only difference is it no longer has a timer tearing it down.
+
+---
+
 ## PillController — Priority-based winner selection
 
 - [x] Replaced hardcoded `if`-chain Stage 1 winner with a `priority`-based max-picker. Each pill exposes `priority: int` and `shouldReveal: bool` — `PillController` reads only these, never pill-specific properties. Adding a new pill no longer requires touching `PillController`.

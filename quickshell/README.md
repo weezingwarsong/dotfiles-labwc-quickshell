@@ -9,7 +9,7 @@ A small rounded rectangle anchored at the top-center of the screen. Hidden by de
 - A single `PanelWindow` anchored top-center of the primary screen. Width is `screen.width * 0.10`, height is `24px`.
 - On multi-screen setups, the pill appears on the primary screen only. Primary is defined as the first entry in `Quickshell.screens`, with a config option to override by index.
 - All pills share this one window. **Only one pill is ever active at a time.** The window acts as a dumb container — it renders whatever the currently active pill exposes as `displayText` via a `Loader`.
-- A two-stage priority system governs which pill shows and when. **Stage 1 — winner:** determined by each pill's `isActive` (or `shouldShow` for transient pills) property. Priority order (highest → lowest): WindowPill → WorkspacePill → MprisPill → TimePill. **Stage 2 — show/hide:** three independent triggers — hover, explicit peek (W-1), or content-driven reveal. Stage 1 and Stage 2 are independent: the winner is always pre-computed so the display is instant when Stage 2 opens the gate.
+- A two-stage priority system governs which pill shows and when. **Stage 1 — winner:** each pill exposes `priority: int` and `shouldReveal: bool`; the highest-priority pill wins. Priority order (highest → lowest): WindowPill → WorkspacePill → MprisPill → TimePill. **Stage 2 — show/hide:** three independent triggers — hover, W-1 latch, or content-driven reveal. Stage 1 and Stage 2 are independent: the winner is always pre-computed so the display is instant when Stage 2 opens the gate.
 
 ### Panel
 A larger rounded rectangle that appears below the Pill. **Dumb and passive** — it has no opinion about when to appear. It only opens when the user deliberately calls it, and only closes when the user deliberately dismisses it.
@@ -63,7 +63,7 @@ This is the general command bus for all external input into Pillbox.
 
 | Command | Effect |
 |---|---|
-| `showTime` | Triggers a 5-second peek of the time pill (W-1 toggle) |
+| `showTime` | Latches the pill on (W-1 toggle); a second press dismisses |
 | `refreshCalendar` | Tells CalendarProcess to fetch immediately outside its normal cycle |
 | `toggleCalendar` | Opens or dismisses the calendar panel |
 | `toggleWindowSwitcher` | Opens or dismisses the window switcher panel (W-Tab) |
@@ -263,20 +263,20 @@ The single source of truth for all pill show/hide decisions. A `QtObject` — no
 
 *Stage 1 — Winner:* Which pill has the most relevant content right now. Pre-computed so the display is instant on reveal. Priority order (highest → lowest): WindowPill → WorkspacePill → MprisPill → TimePill.
 
-Each pill exposes the relevant eligibility signal used at this stage:
-- `WindowPill.shouldShow` — true while window switcher panel is open
-- `WorkspacePill.shouldShow` — true for 1.5s after workspace switch
-- `MprisPill.isActive` — true while a player has an active track (persists; does not auto-expire)
-- `TimePill` — always the fallback winner
+Each pill exposes `priority: int` (Stage 1) and `shouldReveal: bool` (Stage 2 content signal). `PillController` reads only these — never pill-specific properties:
+- `WindowPill` — `priority: 200` while switcher open, `0` otherwise
+- `WorkspacePill` — `priority: 100` for 1.5s after switch, `0` otherwise
+- `MprisPill` — `priority: 5` while actively playing, `0` paused/idle
+- `TimePill` — `priority: 10` when calendar imminent or timer active, `1` always (permanent fallback)
 
 *Stage 2 — Show/hide:* Three independent triggers:
 1. **Hover** — cursor in `HoverZone`. Always works, never suppressible.
-2. **Peek** — W-1 keybind via FIFO. Toggles: first press shows for 5 seconds, second press dismisses immediately.
-3. **Content-driven** — `winner.shouldShow` is true. Blocked by `_userDismissed` so the user can silence an active condition. `_userDismissed` auto-clears when the condition ends naturally.
+2. **Latch** — W-1 keybind via FIFO. Persistent toggle: first press locks the pill on indefinitely, second press dismisses it.
+3. **Content-driven** — `winner.shouldReveal` is true. Blocked by `_userDismissed` so the user can silence an active condition. `_userDismissed` auto-clears when the condition ends naturally.
 
-Note: `MprisPill.shouldShow` (the 3-second peek on state change) drives Stage 2's content-driven trigger independently of `isActive`. While music plays with no state changes, `shouldShow` is false — the pill won't auto-reveal — but MPRIS still holds the winner slot, so hover and peek surface it.
+Note: `MprisPill.shouldReveal` (the 3-second peek on state change) drives Stage 2's content-driven trigger independently of `priority`. While music plays with no state changes, `shouldReveal` is false — the pill won't auto-reveal — but MPRIS still holds the winner slot, so hover and latch surface it.
 
-**Inputs:** `hovered: bool` (from HoverZone), each pill object (reads their `shouldShow` / `isActive`)<br>
+**Inputs:** `hovered: bool` (from HoverZone), each pill object (reads their `priority` / `shouldReveal`)<br>
 **Outputs:** `winner`, `shouldShow: bool`, `activePill` (`winner` if `shouldShow`, else `null`)
 
 ---
@@ -287,9 +287,9 @@ Note: `MprisPill.shouldShow` (the 3-second peek on state change) drives Stage 2'
 
 A `PanelWindow` anchored top-center on `Quickshell.screens[0]`. `exclusiveZone: 0` — overlays windows, reserves no screen space. `mask: Region {}` — fully pointer-transparent so `HoverZone` always receives the cursor beneath it.
 
-- `implicitWidth: Screen.width * 0.10`, `implicitHeight: 24`
+- `implicitWidth: (contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40`, `implicitHeight: 24` — width is content-driven; the +40 accounts for 20px padding each side. No `anchors.left`/`anchors.right` — layer-shell centers automatically when only `anchors.top` is set.
 - `margins.top: Screen.height * 0.01` gap from screen edge
-- `Loader { sourceComponent: activePill.visualComponent }` — each pill owns its own visual; `PillWindow` just mounts it. 20px horizontal margins.
+- `Loader { id: contentLoader; sourceComponent: activePill.visualComponent; width: item ? item.implicitWidth : 0 }` — each pill owns its visual and declares its natural `implicitWidth`; `PillWindow` binds to it.
 - Completely dumb — no logic, no opinions.
 
 ---
@@ -362,9 +362,9 @@ Reads from `ToplevelProcess` (injected). `shouldShow` is set externally by `shel
 
 **File:** `module-pills/MprisPill.qml`
 
-Reads from `MprisProcess` (injected). Two separate signals control its behaviour:
-- `isActive` — true while `activePlayer` has a non-empty `trackTitle`. This is the Stage 1 winner signal — MPRIS holds the winner slot for the duration of playback.
-- `shouldShow` — true for 3 seconds after any `playerUpdated` event (track change or playback state change). This is the Stage 2 content-driven peek signal.
+Reads from `MprisProcess` (injected). Two properties drive its behaviour:
+- `priority: 5` while `playbackState === Playing`, `0` otherwise. Playing music holds the winner slot over TimePill; paused drops below it.
+- `shouldReveal: bool` — true for 3 seconds after any `playerUpdated` event (track change or playback state change). This is the Stage 2 content-driven peek signal. `_peeking` local flag driven by a `Timer`.
 
 `visualComponent` shows a playback state glyph (`String.fromCodePoint(0xf04b/0xf04c/0xf04d)`) via `fontNerd`, and the track title via `font.families: [fontMono, fontCJK]` to support CJK track names. Title elided right.
 
@@ -421,7 +421,7 @@ Design specs for all modules — both implemented and planned. Covers intended b
 
 | Condition | Trigger | Auto-hide |
 |---|---|---|
-| Manual peek | `showTime` via FIFO or hover zone | 5 seconds (PillController) |
+| Manual latch | `showTime` via FIFO or hover zone | Until dismissed (W-1 again) |
 | Calendar imminent | next event ≤ 10 minutes away | when event start time passes |
 | Timer/stopwatch active | `TimerProcess.active === true` | when timer finishes or stopwatch stops |
 
@@ -501,17 +501,17 @@ Any time the state of a song changes — play, pause, or new track — the pill 
 
 - `MprisProcess` ✓ — binds to `Mpris.players`. Selects the most relevant player (Playing > Paused > first available). Emits `playerUpdated` on any track or playback state change.
 
-**Eligibility (`isActive: bool`):**
-- True while `activePlayer` is non-null and `trackTitle` is non-empty. Does not auto-expire. Keeps MPRIS as Stage 1 winner for the duration of playback.
+**Stage 1 priority (`priority: int`):**
+- `priority: 5` while `playbackState === Playing` and `trackTitle` is non-empty. Does not auto-expire — holds the winner slot for the duration of active playback. Drops to `0` when paused or stopped, letting `TimePill` win.
 
-**Reveal conditions (`shouldShow: bool` — Stage 2 content-driven peek):**
+**Reveal conditions (`shouldReveal: bool` — Stage 2 content-driven peek):**
 
 | Condition | Trigger | Auto-hide |
 |---|---|---|
 | Track changed | `MprisProcess.playerUpdated` (new track) | 3 seconds after last event |
 | Playback state changed | `MprisProcess.playerUpdated` (play/pause/stop) | 3 seconds after last event |
 
-`shouldShow` is driven by a local `Timer` — each `playerUpdated` signal restarts it; when it fires, `shouldShow` goes false. Rapid events extend the peek window rather than stacking.
+`shouldReveal` is driven by a local `_peeking` flag + `Timer` — each `playerUpdated` signal restarts the timer; when it fires, `_peeking` goes false. Rapid events extend the peek window rather than stacking.
 
 **Display (`visualComponent`):**
 - Playback state glyph (Nerd Font): `String.fromCodePoint(0xf04b/0xf04c/0xf04d)` — play · pause · stop
@@ -622,23 +622,6 @@ A keyboard-driven window switcher. W-Tab toggles the panel. When it appears, the
 ---
 
 ## To-Do
-
-### PillWindow — Content-driven width
-
-**Problem:** `PillWindow.implicitWidth` is hardcoded as `Screen.width * 0.10`. Pill visual components use `anchors.fill: parent`, deriving their size from the window rather than driving it. The pill is the same width regardless of content — too wide for a short clock string, arbitrary for variable-length content like track titles.
-
-**Design:** Reverse the sizing direction — content declares its natural `implicitWidth`, `PillWindow` binds to it.
-
-- Each pill's `visualComponent` drops `anchors.fill: parent` / `anchors.centerIn: parent` in favour of self-sizing. Keeps only `anchors.verticalCenter: parent.verticalCenter` (no horizontal constraint imposed).
-- `Loader` in `PillWindow` sets `width: item ? item.implicitWidth : 0`. `PillWindow.implicitWidth` binds to that + 40px (20px padding each side).
-- No left/right anchor set on `PillWindow` — layer-shell protocol centers the surface automatically when only `anchors.top` is set.
-- Height stays fixed (`implicitHeight: 24`). Vertical margin stays `Screen.height * 0.01`.
-- Variable-length text (MprisPill track title, WindowPill app ID) gets a pixel cap + `elide: Text.ElideRight` to prevent unconstrained growth.
-- `WorkspacePill.visualComponent` simplified from two half-width `Item` columns to a flat `Row` — the split-half layout only makes sense at a fixed parent width.
-
-**Files to change:** `PillWindow.qml`, `TimePill.qml`, `MprisPill.qml`, `WorkspacePill.qml`, `WindowPill.qml`.
-
----
 
 ### Media Player Panel
 
