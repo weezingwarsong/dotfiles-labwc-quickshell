@@ -8,7 +8,7 @@ PanelSurface 1.0 PanelSurface.qml
 PanelDivider 1.0 PanelDivider.qml
 SectionLabel 1.0 SectionLabel.qml
 StatusDot 1.0 StatusDot.qml
-NavButton 1.0 NavButton.qml
+IconButton 1.0 IconButton.qml
 PanelButton 1.0 PanelButton.qml
 PanelCard 1.0 PanelCard.qml
 PanelNavBar 1.0 PanelNavBar.qml

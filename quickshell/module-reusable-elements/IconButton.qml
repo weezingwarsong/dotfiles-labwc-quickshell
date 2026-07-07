@@ -3,7 +3,8 @@ import QtQuick
 Rectangle {
     id: root
 
-    property string label: ""
+    property string label:      ""
+    property string fontFamily: Style.fontNerd  // Nerd Font covers regular text + glyph codepoints
     signal clicked()
 
     implicitWidth:  Style.buttonHeight
@@ -16,7 +17,7 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text:           root.label
-        font.family:    Style.fontMono
+        font.family:    root.fontFamily
         font.pixelSize: Style.fontSizeBody
         color:          Style.textSecondary
     }

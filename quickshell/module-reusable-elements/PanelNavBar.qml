@@ -9,6 +9,6 @@ RowLayout {
     signal navigateRequested(int direction)
 
     Item    { Layout.fillWidth: true }
-    NavButton { label: "‹"; onClicked: root.navigateRequested(-1) }
-    NavButton { label: "›"; onClicked: root.navigateRequested(+1) }
+    IconButton { label: "‹"; onClicked: root.navigateRequested(-1) }
+    IconButton { label: "›"; onClicked: root.navigateRequested(+1) }
 }
