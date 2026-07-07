@@ -30,6 +30,8 @@ import socket
 import subprocess
 import sys
 import tempfile
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 import httplib2
@@ -172,7 +174,31 @@ def fetch_events(creds, days_back=90, days_ahead=730, max_results=250):
     return events
 
 
+def revoke_token():
+    """Revoke Google OAuth token server-side (best-effort) and delete local token file."""
+    creds = _load_cached_credentials()
+    if creds:
+        token = creds.refresh_token or creds.token
+        if token:
+            try:
+                data = urllib.parse.urlencode({"token": token}).encode()
+                req = urllib.request.Request(
+                    "https://oauth2.googleapis.com/revoke",
+                    data=data,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except Exception as e:
+                log_error("revoke", f"server-side revocation failed (token deleted locally anyway): {e}")
+    TOKEN_FILE.unlink(missing_ok=True)
+    print(json.dumps({"revoked": True}))
+
+
 if __name__ == "__main__":
+    if "--revoke" in sys.argv[1:]:
+        revoke_token()
+        sys.exit(0)
+
     interactive = "--auth" in sys.argv[1:]
     _lock = acquire_lock()
 

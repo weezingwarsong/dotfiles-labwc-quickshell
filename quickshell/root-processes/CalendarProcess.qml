@@ -4,14 +4,40 @@ import Quickshell.Io
 Item {
     id: root
 
+    property var settingsProcess: null
+
     property var events: []       // all events, raw from gcal-fetch
     property var nextEvent: null  // first upcoming event (start >= now)
     property var todayEvents: []  // events whose start date is today
     property var weekEvents: []   // events whose start date is within the next 7 days
     property var eventsByDate: {} // "YYYY-MM-DD" → [events] for month view dot indicators
     property string lastUpdated: ""
+    property string lastError:   ""   // "" | "auth" | "network"
+
+    // Cleared when user disconnects Google account — wipes all in-memory data.
+    function clearData() {
+        events      = []
+        nextEvent   = null
+        todayEvents = []
+        weekEvents  = []
+        eventsByDate = {}
+        lastUpdated = ""
+        lastError   = ""
+        console.log("[CalendarProcess] data cleared")
+    }
+
+    Connections {
+        target: settingsProcess
+        function onGoogleDisconnected() { root.clearData() }
+    }
+
+    property string _lastOutput: ""
 
     function refresh() {
+        if (settingsProcess && !settingsProcess.googleConnected) {
+            console.log("[CalendarProcess] skipping fetch — Google not connected")
+            return
+        }
         if (!calendarFetch.running) {
             console.log("[CalendarProcess] fetching...")
             calendarFetch.running = true
@@ -65,16 +91,22 @@ Item {
         command: ["gcal-fetch"]
         stdout: StdioCollector {
             onStreamFinished: {
+                root._lastOutput = text
+                if (text.trim() === "") return  // auth failure — no JSON; lastError set in onExited
                 try {
                     var d = JSON.parse(text)
                     root._processEvents(d.events || [])
+                    root.lastError = ""
                 } catch(e) {
                     console.log("[CalendarProcess] parse failed, keeping last known events:", e)
                 }
             }
         }
         onExited: function(code, signal) {
-            if (code !== 0) console.log("[CalendarProcess] gcal-fetch exited with code", code)
+            if (code !== 0) {
+                root.lastError = root._lastOutput.trim() === "" ? "auth" : "network"
+                console.log("[CalendarProcess] gcal-fetch failed | lastError:", root.lastError)
+            }
         }
     }
 

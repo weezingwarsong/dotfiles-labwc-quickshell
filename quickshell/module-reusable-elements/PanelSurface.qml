@@ -12,6 +12,7 @@ PanelWindow {
     property bool shouldShow: false
 
     // Injected processes — forwarded to whatever panel is currently loaded
+    property var settingsProcess: null
     property var clockProcess:    null
     property var calendarProcess: null
     property var tasksProcess:    null
@@ -39,7 +40,7 @@ PanelWindow {
     visible: shouldShow
 
     // Window switcher needs exclusive keyboard focus to capture TextInput events.
-    WlrLayershell.keyboardFocus: root.activePanel === "windowSwitcher"
+    WlrLayershell.keyboardFocus: (root.activePanel === "windowSwitcher" || root.activePanel === "settings")
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
@@ -50,6 +51,7 @@ PanelWindow {
         source: {
             if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
             if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
+            if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
             return ""
         }
         onLoaded: {
@@ -57,6 +59,12 @@ PanelWindow {
             if (root.activePanel === "windowSwitcher") {
                 item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
                 item.dismissed.connect(function() { root.dismissRequested() })
+                return
+            }
+            if (root.activePanel === "settings") {
+                item.settingsProcess  = Qt.binding(function() { return root.settingsProcess  })
+                item.calendarProcess  = Qt.binding(function() { return root.calendarProcess  })
+                item.tasksProcess     = Qt.binding(function() { return root.tasksProcess     })
                 return
             }
             item.clockProcess    = Qt.binding(function() { return root.clockProcess    })

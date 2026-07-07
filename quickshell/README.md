@@ -67,6 +67,7 @@ This is the general command bus for all external input into Pillbox.
 | `refreshCalendar` | Tells CalendarProcess to fetch immediately outside its normal cycle |
 | `toggleCalendar` | Opens or dismisses the calendar panel |
 | `toggleWindowSwitcher` | Opens or dismisses the window switcher panel (W-Tab) |
+| `toggleSettings` | Opens or dismisses the settings panel |
 | `setTimer:N` | Tells TimerProcess to set a countdown for N seconds |
 | `startTimer` | Tells TimerProcess to start or resume the countdown |
 | `pauseTimer` | Tells TimerProcess to pause the countdown |

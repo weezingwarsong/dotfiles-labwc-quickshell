@@ -15,6 +15,7 @@ ShellRoot {
         onRefreshCalendarRequested:      calendar.refresh()
         onToggleCalendarRequested:       panelController.toggle("calendar")
         onToggleWindowSwitcherRequested: panelController.toggle("windowSwitcher")
+        onToggleSettingsRequested:       panelController.toggle("settings")
         onTimerSet:                      function(secs) { timer.setTimer(secs) }
         onTimerStartRequested:           timer.startTimer()
         onTimerPauseRequested:           timer.pauseTimer()
@@ -24,11 +25,12 @@ ShellRoot {
         onStopwatchResetRequested:       timer.resetStopwatch()
     }
 
+    SettingsProcess   { id: settings }
     ClockProcess      { id: clock }
-    CalendarProcess   { id: calendar }
-    TasksProcess      { id: tasks }
+    CalendarProcess   { id: calendar; settingsProcess: settings }
+    TasksProcess      { id: tasks;    settingsProcess: settings }
     TimerProcess      { id: timer }
-    WeatherProcess    { id: weather }
+    WeatherProcess    { id: weather;  settingsProcess: settings }
     WorkspaceProcess  { id: workspace }
     ToplevelProcess   { id: toplevels }
     MprisProcess      { id: mpris }
@@ -79,6 +81,7 @@ ShellRoot {
     PanelSurface {
         activePanel:     panelController.activePanel
         shouldShow:      panelController.shouldShow
+        settingsProcess: settings
         clockProcess:    clock
         calendarProcess: calendar
         tasksProcess:    tasks

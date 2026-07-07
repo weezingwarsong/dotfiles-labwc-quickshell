@@ -19,7 +19,9 @@
 # throws — same graceful-degrade contract as gcal_fetch.py.
 
 import json
+import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -101,9 +103,41 @@ def get_location():
     return lat, lon
 
 
+def resolve_location_arg(loc_str):
+    """Resolve --location argument to (lat, lon). Accepts 'lat,lon' or a city name."""
+    parts = loc_str.split(",")
+    if len(parts) == 2:
+        try:
+            return float(parts[0].strip()), float(parts[1].strip())
+        except ValueError:
+            pass
+    # Fall back to Open-Meteo geocoding (free, no key required)
+    encoded = urllib.parse.quote(loc_str.strip())
+    data = fetch_json(f"https://geocoding-api.open-meteo.com/v1/search?name={encoded}&count=1&language=en&format=json")
+    results = data.get("results")
+    if not results:
+        raise ValueError(f"Location not found: {loc_str!r}")
+    return results[0]["latitude"], results[0]["longitude"]
+
+
+def _parse_args():
+    """Return location_str or None."""
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg == "--location" and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith("--location="):
+            return arg[len("--location="):]
+    return None
+
+
 def main():
+    location_arg = _parse_args()
     try:
-        lat, lon = get_location()
+        if location_arg:
+            lat, lon = resolve_location_arg(location_arg)
+        else:
+            lat, lon = get_location()
         url = (
             "https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat}&longitude={lon}"

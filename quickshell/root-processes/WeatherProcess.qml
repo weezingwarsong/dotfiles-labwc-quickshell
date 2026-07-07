@@ -4,6 +4,8 @@ import Quickshell.Io
 Item {
     id: root
 
+    property var settingsProcess: null
+
     property var current: null  // {temp, high, low, condition, icon} — today's live weather
     property var forecast: []   // [{date, high, low, condition, icon}] × 7 days
     property string lastUpdated: ""
@@ -12,6 +14,15 @@ Item {
         if (!weatherFetch.running) {
             console.log("[WeatherProcess] fetching...")
             weatherFetch.running = true
+        }
+    }
+
+    // Re-fetch immediately when location settings change.
+    Connections {
+        target: settingsProcess
+        function onLocationModeChanged()   { root.refresh() }
+        function onLocationStringChanged() {
+            if (settingsProcess.locationMode === "manual") root.refresh()
         }
     }
 
@@ -32,7 +43,13 @@ Item {
 
     Process {
         id: weatherFetch
-        command: ["weather-fetch"]
+        command: {
+            if (root.settingsProcess
+                    && root.settingsProcess.locationMode === "manual"
+                    && root.settingsProcess.locationString !== "")
+                return ["weather-fetch", "--location", root.settingsProcess.locationString]
+            return ["weather-fetch"]
+        }
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

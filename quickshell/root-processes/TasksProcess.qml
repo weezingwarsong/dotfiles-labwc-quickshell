@@ -4,14 +4,39 @@ import Quickshell.Io
 Item {
     id: root
 
+    property var settingsProcess: null
+
     property var tasks: []        // all tasks, raw from gtask-fetch
     property var todayTasks: []   // tasks due today
     property var weekTasks: []    // tasks due within the next 7 days
     property var overdueTasks: [] // incomplete tasks past their due date
     property var tasksByDate: {}  // "YYYY-MM-DD" → [tasks] for date-based display
     property string lastUpdated: ""
+    property string lastError:   ""   // "" | "auth" | "network"
+
+    function clearData() {
+        tasks        = []
+        todayTasks   = []
+        weekTasks    = []
+        overdueTasks = []
+        tasksByDate  = {}
+        lastUpdated  = ""
+        lastError    = ""
+        console.log("[TasksProcess] data cleared")
+    }
+
+    Connections {
+        target: settingsProcess
+        function onGoogleDisconnected() { root.clearData() }
+    }
+
+    property string _lastOutput: ""
 
     function refresh() {
+        if (settingsProcess && !settingsProcess.googleConnected) {
+            console.log("[TasksProcess] skipping fetch — Google not connected")
+            return
+        }
         if (!tasksFetch.running) {
             console.log("[TasksProcess] fetching...")
             tasksFetch.running = true
@@ -59,16 +84,22 @@ Item {
         command: ["gtask-fetch"]
         stdout: StdioCollector {
             onStreamFinished: {
+                root._lastOutput = text
+                if (text.trim() === "") return
                 try {
                     var d = JSON.parse(text)
                     root._processTasks(d.tasks || [])
+                    root.lastError = ""
                 } catch(e) {
                     console.log("[TasksProcess] parse failed, keeping last known tasks:", e)
                 }
             }
         }
         onExited: function(code, signal) {
-            if (code !== 0) console.log("[TasksProcess] gtask-fetch exited with code", code)
+            if (code !== 0) {
+                root.lastError = root._lastOutput.trim() === "" ? "auth" : "network"
+                console.log("[TasksProcess] gtask-fetch failed | lastError:", root.lastError)
+            }
         }
     }
 
