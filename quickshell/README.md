@@ -642,9 +642,30 @@ Fields that differ from the default are visually distinguished in the panel (e.g
 
 **Services tab:**
 
-1. **Google Calendar** — auth status (authenticated / expired / never). Shows date of last successful auth. "Re-authenticate" button opens a terminal running `gcal-fetch --auth`.
-2. **Google Tasks** — same shape. `gcal-fetch` and `gtask-fetch` share the same OAuth credentials file, so re-auth on either fixes both.
-3. **Weather location** — `Auto` (IP geolocation via ipapi.co, current behavior) or `Manual`. When Manual: a text input accepting a city name or `lat,lon` pair. Passed to `weather-fetch` at the next fetch cycle.
+1. **Google Account** — Calendar and Tasks share one OAuth token, so the account is connected or disconnected as a unit. Two states:
+
+   *Connected:*
+   ```
+   Google Account   ● rauf@gmail.com                [Re-authenticate]  [Disconnect]
+     └ Calendar       last fetched 14:32
+     └ Tasks          last fetched 14:31
+   ```
+   - Account email read from the token file.
+   - Per-service last-fetch timestamps from `CalendarProcess.lastUpdated` / `TasksProcess.lastUpdated`.
+   - Per-service error state (auth error vs network error vs ok) from a new `lastError: string` property on each process.
+   - **Re-authenticate** — calls `google-auth-notify.sh` to open a terminal running `gcal-fetch --auth`. Covers both services.
+   - **Disconnect** — revokes the token server-side (`gcal-fetch --revoke`), deletes the local token file, sets `SettingsProcess.googleConnected = false`, emits `googleDisconnected`. Both processes respond by calling `clearData()` immediately, wiping all in-memory events and tasks. `/tmp/pillbox-google.log` is also deleted. Privacy: no personal data lingers after disconnect.
+
+   *Not connected:*
+   ```
+   Google Account   ○ Not connected                 [Connect]
+     └ Calendar       —
+     └ Tasks          —
+   ```
+   - **Connect** — same as Re-authenticate; sets `googleConnected = true` on success.
+   - Processes do not fetch while `googleConnected = false`.
+
+2. **Weather location** — `Auto` (IP geolocation via ipapi.co, current behavior) or `Manual`. When Manual: a text input accepting a city name or `lat,lon` pair. Passed to `weather-fetch --location` at the next fetch cycle.
 
 **Appearance tab:**
 
@@ -660,10 +681,13 @@ Fields that differ from the default are visually distinguished in the panel (e.g
 
 **What we need to make it happen:**
 
-- `SettingsProcess.qml` in `root-processes/` — `QtObject` wrapping `Qt.labs.settings`. Exposes `value(key)` (user override ?? default). Holds `_defaults` as a plain JS object. This is the single source of truth for all adjustable values.
+- `SettingsProcess.qml` in `root-processes/` — `QtObject` wrapping `Qt.labs.settings`. Exposes `value(key)` (user override ?? default). Holds `_defaults` as a plain JS object — the single source of truth for what "stock" means. Owns `googleConnected: bool` and emits `googleDisconnected` signal on account removal.
+- `CalendarProcess` + `TasksProcess` — add `lastError: string` (`""` / `"auth"` / `"network"`) and `clearData()` method. Listen to `settingsProcess.googleDisconnected` and call `clearData()` immediately. Skip fetch cycles when `settingsProcess.googleConnected === false`.
+- `gcal-fetch` — add `--revoke` flag: revokes token server-side and deletes the local token file.
+- `WeatherProcess` — reads `settingsProcess.locationMode` and `settingsProcess.locationString`; passes `--location` arg to `weather-fetch` when in manual mode. Triggers an immediate re-fetch when location settings change.
+- `weather-fetch` — add `--location` flag; falls back to ipapi.co auto-detect when absent.
 - `Style.qml` — Variable section reads palette tokens from `SettingsProcess` rather than hardcoding hex strings.
-- `CalendarProcess`, `MprisPill`, `WorkspacePill` — read their timing constants from `SettingsProcess` instead of magic numbers.
-- `WeatherProcess` — reads location mode and manual location string from `SettingsProcess`.
+- `CalendarProcess`, `MprisPill`, `WorkspacePill` — read timing constants from `SettingsProcess` instead of magic numbers.
 - `SettingsPanel.qml` — two-tab panel UI. Reads resolved values from `SettingsProcess`; writes staged edits back on Save. Local staging model: edits live in panel state until Save is confirmed.
 - `FifoListener` — `toggleSettings` command, wired to `panelController.toggle("settings")`.
 - `PanelSurface` — `"settings"` Loader case.
