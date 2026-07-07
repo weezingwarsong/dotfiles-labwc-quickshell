@@ -16,6 +16,8 @@ A larger rounded rectangle that appears below the Pill. **Dumb and passive** —
 
 **Only one panel is ever shown at a time.** If a panel is already open and the user summons a different panel, the current panel dismisses immediately and the new one takes its place. Last call wins.
 
+**Navigation:** Panels are ordered in a conceptual row (Calendar → Media Player → Settings → …), matching their W-2 / W-3 / W-4 / … keybind positions. While any panel is open, left/right arrow keys cycle through the row, and two floating `‹` `›` buttons at the top-right of the panel surface do the same. Dismissing is symmetric: ESC, a second press of the same keybind, or clicking anywhere outside the panel all close it. The window switcher is excluded from the row by design — it has its own dedicated behaviour.
+
 ---
 
 ## Contents
@@ -322,15 +324,25 @@ An always-present transparent `PanelWindow`, 8px tall, anchored top-center. Neve
 
 Manages which panel is currently shown. Enforces one-at-a-time: `toggle(panelId)` opens a panel or dismisses it; summoning a different panel replaces the current one immediately.
 
+**Panel order:** An ordered list `panelOrder: ["calendar", "settings"]` defines the navigation sequence (window switcher excluded by design; future panels appended as built). `navigate(direction)` steps through this list — `+1` = next, `-1` = prev — with wrapping. Both the floating nav buttons and left/right arrow keys call this method.
+
 ---
 
 #### PanelSurface ✓
 
 **File:** `module-reusable-elements/PanelSurface.qml`
 
-A separate `PanelWindow` surface centered horizontally, top edge at `Screen.width * 0.10` from screen top. Fixed size: `Screen.width * 0.15` × `Screen.width * 0.15`. Receives `activePanel` and `shouldShow` from `PanelController`, loads the correct panel via `Loader`. Geometry authority — individual panels are content only.
+A separate `PanelWindow` surface centered horizontally, top edge at `Screen.width * 0.10` from screen top. Width `Screen.width * 0.15`, height content-driven. Receives `activePanel` and `shouldShow` from `PanelController`, loads the correct panel via `Loader`. Geometry authority — individual panels are content only.
 
-Requests `WlrKeyboardFocus.Exclusive` when the window switcher is active so the filter `TextInput` receives key events directly. Reverts to `WlrKeyboardFocus.None` for all other panels. Forwards a `dismissRequested()` signal from the loaded panel back to `shell.qml`.
+**Keyboard focus:** `WlrKeyboardFocus.Exclusive` for all panels (including settings), same as window switcher. This blocks compositor keybinds while a panel is open; the click-outside dismiss layer ensures the user always has a fast exit path.
+
+**ESC to dismiss:** `Keys.onEscapePressed` on the `Loader` (which has `focus: true`) emits `dismissRequested()` → `shell.qml` calls `panelController.toggle(activePanel)`.
+
+**Keyboard navigation:** `Keys.onLeftPressed` / `Keys.onRightPressed` on the `Loader` call `panelController.navigate(-1/+1)`. TextInputs inside panels consume their own arrow keys first (Qt's normal event propagation order), so text editing is unaffected.
+
+**Floating nav buttons:** Two `‹` `›` `PanelButton`s anchored at the top-right of the PanelSurface window, above the panel content rectangle. Clicking calls `panelController.navigate(-1/+1)`.
+
+**Click-outside dismiss:** A fullscreen transparent `PanelWindow` (`WlrLayer.Overlay`, rendered below PanelSurface, visible whenever any navigable panel is open) lives in `shell.qml`. A full-coverage `MouseArea` on it calls `panelController.toggle(activePanel)`. Clicks that land on the panel itself do not reach this layer — the panel surface sits on top.
 
 ---
 

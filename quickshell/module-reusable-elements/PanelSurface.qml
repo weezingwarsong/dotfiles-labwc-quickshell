@@ -21,6 +21,7 @@ PanelWindow {
     property var toplevelProcess: null
 
     signal dismissRequested()
+    signal navigateRequested(int direction)
 
     screen: Quickshell.screens[0]
     anchors.top: true
@@ -29,25 +30,63 @@ PanelWindow {
     margins.top: Screen.width * 0.10
 
     // Max height at the symmetry point: gap above == gap below.
-    // margins.top is the gap above; solve for h: margins.top == Screen.height - (margins.top + h)
     readonly property real _maxHeight: Screen.height - 2 * margins.top
+
+    // Strip above the panel rectangle reserved for the floating nav buttons.
+    // Zero for window switcher — excluded from nav, no bar needed.
+    readonly property int _navBarHeight: root.activePanel !== "windowSwitcher" ? 30 : 0
 
     implicitWidth:  Screen.width * 0.15
     implicitHeight: loader.item
-        ? Math.min(loader.item.implicitHeight, _maxHeight)
+        ? Math.min(loader.item.implicitHeight + _navBarHeight, _maxHeight)
         : Screen.width * 0.15
 
     visible: shouldShow
 
-    // Window switcher needs exclusive keyboard focus to capture TextInput events.
-    WlrLayershell.keyboardFocus: (root.activePanel === "windowSwitcher" || root.activePanel === "settings")
+    // All panels grab exclusive keyboard focus immediately on open — ESC and
+    // arrow keys work without requiring a click first.
+    WlrLayershell.keyboardFocus: root.shouldShow
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
+    // Floating ‹ › nav buttons above the panel rectangle. Hidden for window switcher.
+    Row {
+        visible: root.activePanel !== "" && root.activePanel !== "windowSwitcher"
+        anchors { top: parent.top; right: parent.right; topMargin: 4; rightMargin: 4 }
+        spacing: 4
+
+        PanelButton {
+            label: "‹"
+            onClicked: root.navigateRequested(-1)
+        }
+        PanelButton {
+            label: "›"
+            onClicked: root.navigateRequested(+1)
+        }
+    }
+
     Loader {
         id: loader
-        anchors.fill: parent
+        anchors { fill: parent; topMargin: root._navBarHeight }
         focus: true
+
+        Keys.onEscapePressed: (event) => {
+            root.dismissRequested()
+            event.accepted = true
+        }
+        Keys.onLeftPressed: (event) => {
+            if (root.activePanel !== "windowSwitcher") {
+                root.navigateRequested(-1)
+                event.accepted = true
+            }
+        }
+        Keys.onRightPressed: (event) => {
+            if (root.activePanel !== "windowSwitcher") {
+                root.navigateRequested(+1)
+                event.accepted = true
+            }
+        }
+
         source: {
             if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
             if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
