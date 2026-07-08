@@ -18,6 +18,12 @@ Item {
         property real   radiusScale:        1.0
         property int    borderWidth:        1
         property int    elementBorderWidth: 1
+
+        property string wallpaperSourceType:  "color"
+        property string wallpaperPath:        ""
+        property string wallpaperColor:       "#2E3440"
+        property string wallpaperDir:         ""
+        property int    slideshowInterval:    60
     }
 
     // ── Public (read) ─────────────────────────────────────────────────────────
@@ -29,7 +35,13 @@ Item {
     readonly property int    borderWidth:        _store.borderWidth
     readonly property int    elementBorderWidth: _store.elementBorderWidth
 
-    // ── Setters (called by Appearance tab) ───────────────────────────────────
+    readonly property string wallpaperSourceType:  _store.wallpaperSourceType
+    readonly property string wallpaperPath:        _store.wallpaperPath
+    readonly property string wallpaperColor:       _store.wallpaperColor
+    readonly property string wallpaperDir:         _store.wallpaperDir
+    readonly property int    slideshowInterval:    _store.slideshowInterval
+
+    // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
     function setFontNerd(v)           { _store.fontNerd           = v }
     function setFontSizePill(v)       { _store.fontSizePill       = v }
@@ -38,9 +50,16 @@ Item {
     function setBorderWidth(v)        { _store.borderWidth        = v }
     function setElementBorderWidth(v) { _store.elementBorderWidth = v }
 
+    function setWallpaperSourceType(v)  { _store.wallpaperSourceType  = v }
+    function setWallpaperPath(v)        { _store.wallpaperPath        = v }
+    function setWallpaperColor(v)       { _store.wallpaperColor       = v }
+    function setWallpaperDir(v)         { _store.wallpaperDir         = v }
+    function setSlideshowInterval(v)    { _store.slideshowInterval    = v }
+
     Component.onCompleted: console.log(
         "[Prefs] loaded | fontSizePill:", _store.fontSizePill,
         "| fontSizeBase:", _store.fontSizeBase,
         "| radiusScale:", _store.radiusScale,
-        "| borderWidth:", _store.borderWidth)
+        "| borderWidth:", _store.borderWidth,
+        "| wallpaperSourceType:", _store.wallpaperSourceType)
 }

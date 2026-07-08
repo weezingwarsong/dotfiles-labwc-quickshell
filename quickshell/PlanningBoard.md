@@ -266,7 +266,7 @@ A panel dedicated to media playback control. Summoned deliberately by the user, 
 
 ### Wallpaper Panel
 
-**File:** `module-panels/WallpaperPanel.qml` · **Keybind:** TBD (W-5 candidate)
+**File:** `module-panels/WallpaperPanel.qml` · **Keybind:** W-5
 
 **What we expect from the Wallpaper panel:**
 
@@ -405,22 +405,25 @@ Solid color is a quickshell Background layer Rectangle that covers yin's surface
 
 ---
 
-**Remaining open questions:**
+**Open questions:**
 
-1. **Thumbnail cache cleanup** — `~/.cache/pillbox/thumbs/` accumulates ffmpeg-extracted stills over time. No cleanup strategy defined yet. TBD during implementation.
-
-2. **Empty / unconfigured state** — what shows in each section if no directory is set or the directory has no matching files? A short placeholder text in each section (e.g., `"No images found"`, `"Set a directory above"`). Exact wording TBD.
+1. **Thumbnail cache cleanup** — `~/.cache/pillbox/thumbs/` accumulates ffmpeg-extracted stills over time. No cleanup strategy defined yet. TBD when video thumb extraction is implemented.
 
 ---
 
-**What we need:**
-- `WallpaperProcess.qml` — owns wallpaper state; calls `yinctl` via short-lived `Process`; runs slideshow `Timer`; scans directory via `find` `Process`; persists state to Prefs.
-- `WallpaperPanel.qml` — two-tab UI with color swatch grid and media thumbnail grids.
-- Color background window in `shell.qml` — fullscreen `PanelWindow` at `WlrLayer.Background`, visible only in color mode.
-- FIFO command `toggleWallpaper` → `panelController.toggle("wallpaper")` in `FifoListener` and `shell.qml`.
-- `PanelSurface` Loader case for `"wallpaper"`.
-- Video thumbnail extraction: `ffmpeg -i <file> -vframes 1 -vf scale=-1:80 ~/.cache/pillbox/thumbs/<name>.jpg` — called once per file, cached.
-- New `Prefs` properties: `extractColors: bool`, `wallpaperSourceType: string`, `wallpaperPath: string`, `wallpaperDir: string`, `wallpaperColor: string`, `slideshowInterval: int`.
-- labwc keybind (TBD, W-5 candidate) writing `toggleWallpaper` to FIFO.
-- yin + yinctl ✓ installed (`/usr/bin/yin`, `/usr/bin/yinctl`); started via labwc autostart.
-- Settings Appearance tab: new **Theme** section with `extractColors` toggle.
+**What was built (v1):**
+- [x] `WallpaperProcess.qml` — wallpaper state owner; calls `yinctl` via short-lived `Process`; `find` process for directory scanning; slideshow `Timer`; startup restore; `lastError` property for yin failure feedback.
+- [x] `WallpaperPanel.qml` — two-tab panel (Color + Media) with `PanelNavBar`, 24-swatch color grid with active border, directory input + Scan button, image thumbnail grid (3-row horizontal scroll, real async image loading), Single/Slideshow mode toggle, slideshow interval stepper, video grid (icon placeholder), `PanelDivider`, empty-state text, error feedback text.
+- [x] Color background window in `shell.qml` — fullscreen `PanelWindow` at `WlrLayer.Background`, `exclusiveZone: -1`, visible only when `sourceType === "color"`.
+- [x] FIFO command `toggleWallpaper` added to `FifoListener` and dispatched in `shell.qml`.
+- [x] `PanelSurface` — `"wallpaper"` Loader case + `wallpaperProcess` injection.
+- [x] `Prefs` properties: `wallpaperSourceType`, `wallpaperPath`, `wallpaperColor`, `wallpaperDir`, `slideshowInterval`. Persisted to `pillbox.conf`.
+- [x] labwc keybind **W-5** → `toggleWallpaper`.
+- [x] `panelOrder` updated: `["calendar", "settings", "wallpaper"]`.
+- [x] Empty / unconfigured state: `"Set a directory above"` / `"No images found"` / `"No videos or GIFs found"`.
+
+**Still pending (v2):**
+- [ ] Video tile thumbnails — v1 shows a Nerd Font play icon placeholder. Real extraction: `ffmpeg -i <file> -vframes 1 -vf scale=-1:80 ~/.cache/pillbox/thumbs/<name>.jpg`, cached per file.
+- [ ] `extractColors: bool` Prefs property + **Theme** section in Settings Appearance tab with the toggle.
+- [ ] Thumbnail cache cleanup strategy for `~/.cache/pillbox/thumbs/`.
+- [ ] yin autostart via labwc autostart (currently manual).

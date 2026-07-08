@@ -2,6 +2,39 @@
 
 ---
 
+## Wallpaper Panel
+
+Data layer + panel UI, wired end-to-end. Further testing and touch-up pending; video thumbnail extraction deferred to v2.
+
+**Data layer — `WallpaperProcess.qml`:**
+- [x] Reads initial state from `Prefs` (`wallpaperSourceType`, `wallpaperPath`, `wallpaperColor`, `wallpaperDir`, `slideshowInterval`) on startup.
+- [x] `setColor(hex)` — updates `sourceType`, persists to Prefs. No yin call needed.
+- [x] `setImage(path)` / `setVideo(path)` — updates state, persists to Prefs, calls `yinctl --img <path>` via short-lived `Process`.
+- [x] `startSlideshow(files)` / `nextSlide()` / `stopSlideshow()` — interval `Timer` cycles ordered file list; `setSlideshowInterval(secs)` persists the interval.
+- [x] `scanDirectory(dir)` — runs `find <dir> -maxdepth 1 -type f`, splits output into `imageFiles` and `videoFiles` arrays by extension.
+- [x] Startup restore: if `sourceType` is image/video and `wallpaperPath` is non-empty, calls `yinctl` on `Component.onCompleted`.
+- [x] `lastError` property — set to `"yin not started"` on non-zero yinctl exit; cleared on success. Shown as inline text in the panel.
+- [x] `Prefs` extended: `wallpaperSourceType`, `wallpaperPath`, `wallpaperColor`, `wallpaperDir`, `slideshowInterval` (all persisted to `pillbox.conf`).
+
+**Color background — `shell.qml`:**
+- [x] `PanelWindow` at `WlrLayer.Background`, `exclusiveZone: -1`, fills screen. `color: wallpaper.currentColor`. `visible: wallpaper.sourceType === "color"`. Handles solid color without involving yin.
+
+**Panel UI — `WallpaperPanel.qml`:**
+- [x] `PanelNavBar` as the first row (‹/› navigation arrows, consistent with all panels except WindowSwitcher).
+- [x] **Color tab:** 24 preset swatches in a 6-column grid. Active swatch has accent border. Tooltip shows swatch name. Click applies immediately.
+- [x] **Media tab:** directory `TextInput` + Scan `PanelButton`; Images section with `Single | Slideshow` `TogglePair`; slideshow interval stepper (±5s, persists to Prefs); Apply button applies selection or all images; 3-row horizontally-scrollable image grid with real async thumbnails and filename labels; checkmark glyph on slideshow-selected tiles; Video/GIF section with same grid layout (play icon placeholder, v2: ffmpeg frames); empty-state text when no directory set or no files found; `lastError` text when yin is not running.
+
+**Wiring:**
+- [x] `root-processes/qmldir` — `WallpaperProcess 1.0 WallpaperProcess.qml` registered; `singleton Prefs` added so `WallpaperProcess` can access it.
+- [x] `FifoListener` — `toggleWallpaperRequested` signal + `"toggleWallpaper"` dispatch.
+- [x] `PanelController` — `"wallpaper"` added to `panelOrder`: `["calendar", "settings", "wallpaper"]`.
+- [x] `PanelSurface` — `wallpaperProcess` property; `"wallpaper"` Loader source case; `onLoaded` injects `wallpaperProcess`.
+- [x] `shell.qml` — `import Quickshell.Wayland`; `WallpaperProcess { id: wallpaper }`; color background `PanelWindow`; `onToggleWallpaperRequested`; `wallpaperProcess: wallpaper` forwarded to `PanelSurface`.
+- [x] `module-panels/qmldir` — `WallpaperPanel 1.0 WallpaperPanel.qml` registered.
+- [x] labwc keybind — **W-5** → `toggleWallpaper`.
+
+---
+
 ## Settings Panel — Services tab
 
 Full data layer + Services UI, wired end-to-end. Appearance tab (palette + timing sliders) is next.

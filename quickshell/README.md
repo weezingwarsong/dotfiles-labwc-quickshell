@@ -432,8 +432,11 @@ Full design specs for all modules (implemented and planned) live in **[PlanningB
 Full specs for all planned modules live in **[PlanningBoard.md](PlanningBoard.md)**. Summary:
 
 - [ ] **Media Player Panel** (W-3) — MPRIS playback controls, album art, progress bar, volume.
-- [ ] **Wallpaper Panel** (W-5 candidate) — solid color picker + image/video thumbnail browser. External renderer: yin (under evaluation). See [PlanningBoard.md § Wallpaper Panel](PlanningBoard.md#wallpaper-panel).
-- [ ] **Theme color extraction** — global toggle in Appearance tab of Settings. Fires on every wallpaper change. Extractor TBD; implement wallpaper rendering pipeline first.
+- [x] **Wallpaper Panel** (W-5) — solid color picker + image/video thumbnail browser. External renderer: yin. See [PlanningBoard.md § Wallpaper Panel](PlanningBoard.md#wallpaper-panel).
+  - [ ] Further testing and touch-up required.
+  - [ ] Video tile thumbnails (v1 shows placeholder icon; v2: ffmpeg first-frame extraction).
+  - [ ] `extractColors` toggle in Settings Appearance tab (Theme section).
+- [ ] **Theme color extraction** — global toggle in Appearance tab of Settings. Fires on every wallpaper change. Extractor TBD. Blocked on wallpaper panel stabilizing.
 - [ ] **Style.qml cleanup** — remove remaining backward-compat aliases (`fontContentSize`, `radLight`, `textLight`, `textSubtle`, etc.). See settings.md build order step 6.
 
 ---
@@ -447,7 +450,7 @@ quickshell/
 │   ├── MediaPlayerPanel.qml
 │   ├── SettingsPanel.qml         ✓ services + appearance tabs
 │   ├── TimerWidget.qml           ✓ implemented
-│   ├── WallpaperPanel.qml
+│   ├── WallpaperPanel.qml         ✓ implemented (testing + touch-up pending)
 │   ├── WindowSwitcherPanel.qml   ✓ implemented
 │   └── qmldir
 ├── module-pills/
@@ -479,7 +482,7 @@ quickshell/
 │   ├── TasksProcess.qml          ✓ implemented
 │   ├── TimerProcess.qml          ✓ implemented
 │   ├── ToplevelProcess.qml       ✓ implemented
-│   ├── WallpaperProcess.qml
+│   ├── WallpaperProcess.qml      ✓ implemented
 │   ├── WeatherProcess.qml        ✓ implemented
 │   ├── WorkspaceProcess.qml      ✓ implemented
 │   └── qmldir

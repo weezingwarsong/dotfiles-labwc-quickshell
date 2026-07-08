@@ -157,6 +157,10 @@
     <keybind key="W-4">
       <action name="Execute" command="sh -c 'echo toggleSettings > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
+    <!-- W-5: toggle Wallpaper panel via Pillbox FIFO -->
+    <keybind key="W-5">
+      <action name="Execute" command="sh -c 'echo toggleWallpaper > ~/.local/share/pillbox/pillbox.fifo'" />
+    </keybind>
     <keybind key="W-space">
       <action name="ShowMenu" menu="root-menu" />
     </keybind>

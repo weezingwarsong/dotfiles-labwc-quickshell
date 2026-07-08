@@ -1,3 +1,4 @@
+singleton Prefs 1.0 ../Prefs.qml
 FifoListener 1.0 FifoListener.qml
 ClockProcess 1.0 ClockProcess.qml
 CalendarProcess 1.0 CalendarProcess.qml
@@ -8,3 +9,4 @@ WeatherProcess 1.0 WeatherProcess.qml
 WorkspaceProcess 1.0 WorkspaceProcess.qml
 ToplevelProcess 1.0 ToplevelProcess.qml
 MprisProcess 1.0 MprisProcess.qml
+WallpaperProcess 1.0 WallpaperProcess.qml

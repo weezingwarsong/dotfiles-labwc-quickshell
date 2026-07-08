@@ -12,6 +12,29 @@ See [settings.md](settings.md) for the full token system design.
 
 ## Components
 
+### PanelNavBar
+
+**Purpose:** Standard first-row navigation bar for all panels (except WindowSwitcher). Two arrow buttons — `‹` (prev) and `›` (next) — right-aligned in a fill-width row. Clicking navigates through `panelOrder` via `PanelSurface → PanelController.navigate()`.
+
+**Props:**
+
+| Signal | Notes |
+|---|---|
+| `signal navigateRequested(int direction)` | Emitted with `-1` (prev) or `+1` (next). Caller forwards to `root.navigateRequested`. |
+
+**Tokens used:** inherits from `IconButton` (same tokens: `Style.fontNerd`, `Style.fontSizeBody`, `Style.buttonHeight`, `Style.radSm`, `Style.borderSoftColor`).
+
+**Call site:**
+```qml
+PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+```
+
+This line is the **first child** of every panel's root `ColumnLayout`, placing the arrows consistently at the top-right of all panels. WindowSwitcherPanel is excluded — it has its own dismiss path.
+
+**Used in:** CalendarPanel ×1, SettingsPanel ×1, WallpaperPanel ×1
+
+---
+
 ### PanelDivider
 
 **Purpose:** Full-width 1px horizontal rule between sections in a panel.
@@ -39,7 +62,7 @@ After:
 PanelDivider {}
 ```
 
-**Used in:** CalendarPanel ×2, SettingsPanel ×1
+**Used in:** CalendarPanel ×2, SettingsPanel ×1, WallpaperPanel ×1
 
 ---
 
@@ -79,7 +102,7 @@ After:
 SectionLabel { text: "Events Today" }
 ```
 
-**Used in:** CalendarPanel ×4, SettingsPanel ×2
+**Used in:** CalendarPanel ×4, SettingsPanel ×2, WallpaperPanel ×4
 
 ---
 
@@ -164,8 +187,7 @@ PanelButton {
 }
 ```
 
-**Used in:** CalendarPanel ×3 (More ↓, Timer, Edit ↗), SettingsPanel ×3 (Re-authenticate,
-Disconnect, Apply), Appearance tab ×many (steppers, 3-way selectors, Reset)
+**Used in:** CalendarPanel ×3 (More ↓, Timer, Edit ↗), SettingsPanel ×3 (Re-authenticate, Disconnect, Apply), Appearance tab ×many (steppers, 3-way selectors, Reset), WallpaperPanel ×4 (Scan, –, +, Apply)
 
 ---
 
@@ -284,7 +306,7 @@ TogglePair {
 }
 ```
 
-**Used in:** SettingsPanel ×2 (location mode toggle, tab bar), Appearance tab tab bar
+**Used in:** SettingsPanel ×2 (location mode toggle, tab bar), Appearance tab tab bar, WallpaperPanel ×2 (Color/Media tab bar, Single/Slideshow toggle)
 
 ---
 

@@ -12,13 +12,14 @@ PanelWindow {
     property bool shouldShow: false
 
     // Injected processes — forwarded to whatever panel is currently loaded
-    property var settingsProcess: null
-    property var clockProcess:    null
-    property var calendarProcess: null
-    property var tasksProcess:    null
-    property var weatherProcess:  null
-    property var timerProcess:    null
-    property var toplevelProcess: null
+    property var settingsProcess:  null
+    property var clockProcess:     null
+    property var calendarProcess:  null
+    property var tasksProcess:     null
+    property var weatherProcess:   null
+    property var timerProcess:     null
+    property var toplevelProcess:  null
+    property var wallpaperProcess: null
 
     signal dismissRequested()
     signal navigateRequested(int direction)
@@ -97,6 +98,7 @@ PanelWindow {
                 if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
                 if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
                 if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
+                if (root.activePanel === "wallpaper")      return Qt.resolvedUrl("../module-panels/WallpaperPanel.qml")
                 return ""
             }
             onLoaded: {
@@ -110,6 +112,11 @@ PanelWindow {
                     item.settingsProcess = Qt.binding(function() { return root.settingsProcess })
                     item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
                     item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
+                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
+                    return
+                }
+                if (root.activePanel === "wallpaper") {
+                    item.wallpaperProcess = Qt.binding(function() { return root.wallpaperProcess })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }
