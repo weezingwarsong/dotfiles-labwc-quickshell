@@ -493,6 +493,8 @@ PanelNavBar                         ← ‹ / › navigation
 Notification cards (scrollable)     ← newest first, Flickable wrapper
 ─────────────────────────────────
 "No notifications" empty state      ← shown when list is empty
+─────────────────────────────────
+[ 🔔 ] [ 💬 ] [ 🎵 ]              ← systray icon row (right-aligned); hidden when empty
 ```
 
 **Notification card:**
@@ -504,7 +506,7 @@ Each card is a `Rectangle` with padding on all sides. Background color communica
 
 **Dismiss:** Right-click anywhere on the card → `notificationServer.dismiss(id)`. `[×]` button (top-right) does the same — redundant, for discoverability. Both paths call the same dismiss.
 
-**Left-click** on the card body (not on a button) → invoke the `"default"` action if present, then dismiss.
+**Left-click** on the card body is intentionally not wired: in Qt 6, a card-level `TapHandler` fires even when a child button (`[⋮]`, action buttons) is clicked, causing accidental dismissal. Right-click + `[×]` are the primary dismiss paths.
 
 **Card layout — two columns:**
 
@@ -536,7 +538,13 @@ Cards are separated by `Style.panelMargin / 2` spacing.
 
 **Clear all button:** A `PanelButton` with `variant: "critical"` (to stand out), label `"Clear all"`. Calls `notificationServer.clearAll()`. Hidden when list is empty.
 
-**Opening side-effect:** When the panel opens, if any critical notification is in the list, set the `NotificationPill`'s `_criticalAcknowledged = true` — stops the persistent shouldReveal (user has seen it). Priority stays at 500 until critical is actually dismissed via the panel.
+**Systray footer (`SysTrayBar.qml`):**
+
+A right-aligned `RowLayout` of 24×24 icon buttons from `SystemTray.items` (the `Quickshell.Services.SystemTray` singleton model). Separated from the cards by a 1px `panelBorderColor` divider. Both the divider and the bar collapse to `height: 0` when no apps are registered, so the Flickable fills the full panel height. Left-click → `activate()`, right-click → `secondaryActivate()`. `IconImage` (`Quickshell.Widgets`) resolves XDG theme icon names.
+
+**Quickshell SystemTray API notes:**
+- `SystemTray` is a singleton namespace — `SystemTray { id: x }` is not creatable.
+- `SystemTray.items.count` returns `undefined` (the underlying `ObjectModel` type does not expose `.count` in QML). Use `Repeater.count` instead — it is always a valid reactive `int`.
 
 #### Wiring checklist
 
@@ -547,7 +555,7 @@ Cards are separated by `Style.panelMargin / 2` spacing.
 - [x] `shell.qml` — instantiate `NotificationServer`, `onToggleNotificationsRequested` → `panelController.toggle("notifications")`; inject `notificationServer` into `PanelSurface` and `NotificationPill`
 - [x] `PanelSurface.qml` — `"notifications"` Loader case + `notificationServer` injection
 - [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "notifications", "settings", "wallpaper"]`
-- [x] `module-panels/qmldir` — register `NotificationPanel`
+- [x] `module-panels/qmldir` — register `NotificationPanel`, `SysTrayBar`
 - [x] `module-pills/qmldir` — register `NotificationPill`
 - [x] `PillController.qml` — `notificationPill` property added; priority 2 peek slot
 - [x] `PillWindow.qml` — reads `activePill.bgColor` for critical background

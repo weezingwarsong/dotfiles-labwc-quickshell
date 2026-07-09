@@ -4,6 +4,20 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Systray Footer in Notification Panel
+
+Right-aligned row of tray icons pinned to the bottom of the W-6 panel.
+
+- [x] `SysTrayBar.qml` — `RowLayout` of 24×24 `IconImage` delegates from `SystemTray.items`. Left-click → `activate()`, right-click → `secondaryActivate()`. Hover state + `ToolTip` using `modelData.title`.
+- [x] `NotificationPanel.qml` — 1px `panelBorderColor` divider above the bar; Flickable's `bottom` anchor moved to `_sysDivider.top`. Both divider and bar use `height: 0` when `_rep.count = 0` so layout is identical to before when no tray apps are running. `implicitHeight` adds `(1 + 24 + panelMargin)` when count > 0.
+
+**API quirks discovered:**
+- `SystemTray` is a QML singleton namespace from `Quickshell.Services.SystemTray` — instantiating it (`SystemTray { id: x }`) fails with "Element is not creatable."
+- `SystemTray.items.count` returns `undefined` (the `ObjectModel` type does not expose `.count` in QML). Use `Repeater.count` to track model size reactively.
+- `IconImage` from `Quickshell.Widgets` (not plain `Image`) resolves XDG theme icon names correctly.
+
+---
+
 ## Notification System — W-6
 
 D-Bus notification daemon + pill + scrollable panel. Replaces mako entirely.

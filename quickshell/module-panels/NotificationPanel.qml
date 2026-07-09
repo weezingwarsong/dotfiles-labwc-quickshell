@@ -11,11 +11,12 @@ Item {
 
     readonly property bool _hasNotifs: notificationServer && notificationServer.countTotal > 0
 
-    // Natural height = fixed top + cards (unconstrained) + padding.
+    // Natural height = fixed top + cards (unconstrained) + systray footer + padding.
     // PanelSurface clamps this to _maxHeight; the Flickable fills whatever remains.
     implicitHeight: _topFixed.implicitHeight
                   + (_hasNotifs ? _cardCol.implicitHeight + 8 + Style.panelMargin
                                 : 40)
+                  + (_trayBar.count > 0 ? (1 + 24 + Style.panelMargin) : 0)
                   + Style.panelMargin * 2 + 24
 
     // ── Background ────────────────────────────────────────────────────────────
@@ -74,13 +75,13 @@ Item {
 
     Flickable {
         anchors {
-            top:         _topFixed.bottom
-            left:        parent.left
-            right:       parent.right
-            bottom:      parent.bottom
-            topMargin:   8
-            leftMargin:  Style.panelMargin
-            rightMargin: Style.panelMargin
+            top:          _topFixed.bottom
+            left:         parent.left
+            right:        parent.right
+            bottom:       _sysDivider.top
+            topMargin:    8
+            leftMargin:   Style.panelMargin
+            rightMargin:  Style.panelMargin
             bottomMargin: Style.panelMargin
         }
         visible:       root._hasNotifs
@@ -311,5 +312,31 @@ Item {
                 }
             }
         }
+    }
+
+    // ── Systray footer ────────────────────────────────────────────────────────
+    // _sysDivider anchors above _trayBar; Flickable anchors its bottom here.
+    // When no tray items both heights collapse to 0 so Flickable fills parent.
+
+    Rectangle {
+        id: _sysDivider
+        anchors {
+            bottom: _trayBar.top
+            left:   parent.left
+            right:  parent.right
+        }
+        height: _trayBar.count > 0 ? 1 : 0
+        color:  Style.panelBorderColor
+    }
+
+    SysTrayBar {
+        id: _trayBar
+        anchors {
+            bottom:       parent.bottom
+            bottomMargin: _trayBar.count > 0 ? Style.panelMargin : 0
+            right:        parent.right
+            rightMargin:  Style.panelMargin
+        }
+        height: _trayBar.count > 0 ? 24 : 0
     }
 }
