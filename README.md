@@ -37,7 +37,7 @@ Pillbox replaces the bar stack with two visual primitives:
 | Keybind | Panel |
 |---|---|
 | W-2 | Calendar (events, tasks, weather, timer) |
-| W-3 | Media Player *(planned)* |
+| W-3 | Media Player (MPRIS — album art, controls, volume) |
 | W-4 | Settings (services + appearance) |
 | W-5 | Wallpaper (colour swatches + image/video browser) |
 | W-Tab | Window Switcher (live filter, keyboard nav) |
@@ -120,7 +120,7 @@ dotfiles-labwc-quickshell/
 |---|---|
 | `W-1` | Latch pill on/off (persistent toggle) |
 | `W-2` | Toggle Calendar panel |
-| `W-3` | Toggle Media Player panel *(planned)* |
+| `W-3` | Toggle Media Player panel |
 | `W-4` | Toggle Settings panel |
 | `W-5` | Toggle Wallpaper panel |
 | `W-Tab` | Toggle Window Switcher |
@@ -232,7 +232,7 @@ Pillbox's Wallpaper panel calls `yinctl` to set image/video wallpapers. Solid co
 ## Roadmap
 
 ### Pillbox — in progress
-- [ ] Media Player panel (W-3) — MPRIS controls, album art, progress bar
+- [x] Media Player panel (W-3) — MPRIS controls, album art, volume
 - [ ] Notification layer — Pillbox takes over from mako; mako removed
 - [ ] ScreenrecPill — recording indicator (stub registered, not yet implemented)
 - [ ] Style system finalization — palette extraction (pywal/matugen), fix candidates resolved, v2 tokens

@@ -152,7 +152,10 @@
     <keybind key="W-2">
       <action name="Execute" command="sh -c 'echo toggleCalendar > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
-    <!-- W-3: reserved for Media Player panel -->
+    <!-- W-3: toggle Media Player panel via Pillbox FIFO -->
+    <keybind key="W-3">
+      <action name="Execute" command="sh -c 'echo toggleMediaPlayer > ~/.local/share/pillbox/pillbox.fifo'" />
+    </keybind>
     <!-- W-4: toggle Settings panel via Pillbox FIFO -->
     <keybind key="W-4">
       <action name="Execute" command="sh -c 'echo toggleSettings > ~/.local/share/pillbox/pillbox.fifo'" />

@@ -20,6 +20,7 @@ PanelWindow {
     property var timerProcess:     null
     property var toplevelProcess:  null
     property var wallpaperProcess: null
+    property var mprisProcess:    null
 
     signal dismissRequested()
     signal navigateRequested(int direction)
@@ -97,6 +98,7 @@ PanelWindow {
             source: {
                 if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
                 if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
+                if (root.activePanel === "mediaPlayer")    return Qt.resolvedUrl("../module-panels/MediaPlayerPanel.qml")
                 if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
                 if (root.activePanel === "wallpaper")      return Qt.resolvedUrl("../module-panels/WallpaperPanel.qml")
                 return ""
@@ -112,6 +114,11 @@ PanelWindow {
                     item.settingsProcess = Qt.binding(function() { return root.settingsProcess })
                     item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
                     item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
+                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
+                    return
+                }
+                if (root.activePanel === "mediaPlayer") {
+                    item.mprisProcess = Qt.binding(function() { return root.mprisProcess })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }

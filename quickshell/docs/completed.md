@@ -4,6 +4,32 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Media Player Panel — W-3
+
+MPRIS panel with album art, scrolling track info, playback controls, and volume toggle.
+
+**Panel UI — `MediaPlayerPanel.qml`:**
+- [x] No-player state: centred `"No active player"` in `textMuted`.
+- [x] Album art: square `Item` (`implicitHeight: width`, `Layout.fillWidth`), `Image` with `PreserveAspectCrop` + `clip`, placeholder music glyph (`0xf001`) in `textFaint` over `surfaceLowColor` when `trackArtUrl` empty or load fails. Click → `wlrctl toplevel focus app_id:<desktopEntry>` via short-lived `Process`.
+- [x] Controls row: prev `IconButton` (`0xf048`), marquee clip `Item` (scrolling `Text` + `MouseArea` for play/pause), next `IconButton` (`0xf051`). All three respect `canGoPrevious`, `canTogglePlaying`, `canGoNext` guards — dimmed + disabled when unavailable.
+- [x] Marquee: `SequentialAnimation` — 1.5 s pause → scroll left to `-(implicitWidth - clipWidth)` at 15ms/px → 1.5 s pause → snap back 400 ms. Resets on `onTextChanged` via `Qt.callLater`. Static when text fits.
+- [x] Track text: `artist + " — " + title` (em dash); just `title` when artist empty.
+- [x] Volume button: `Layout.fillWidth` `Rectangle`. Label `"M"` (`textMuted`) when muted, `"N%"` (`textSecondary`) otherwise. Click = mute toggle (saves/restores `_savedVolume`). `WheelHandler` ±0.05 per tick.
+
+**Wiring:**
+- [x] `FifoListener.qml` — `toggleMediaPlayerRequested` signal + `"toggleMediaPlayer"` dispatch.
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper"]`.
+- [x] `PanelSurface.qml` — `mprisProcess` property; `"mediaPlayer"` Loader case; `onLoaded` injection.
+- [x] `shell.qml` — `onToggleMediaPlayerRequested`; `mprisProcess: mpris` on `PanelSurface`.
+- [x] labwc `rc.xml` — **W-3** → `toggleMediaPlayer`.
+
+**Key decisions:**
+- No progress bar, no track time, no duration — MPRIS seek is unreliable across players.
+- Volume via `MprisPlayer.volume` (read/write); tagged as fix candidate — some players (browser-based) ignore volume writes.
+- `desktopEntry` used for window focus; matches Wayland `app_id` for all tested players.
+
+---
+
 ## Wallpaper Panel — W-5
 
 Data layer + panel UI, wired end-to-end. Further testing and touch-up pending; video thumbnail extraction deferred to v2.

@@ -18,6 +18,7 @@ ShellRoot {
         onToggleWindowSwitcherRequested: panelController.toggle("windowSwitcher")
         onToggleSettingsRequested:       panelController.toggle("settings")
         onToggleWallpaperRequested:      panelController.toggle("wallpaper")
+        onToggleMediaPlayerRequested:    panelController.toggle("mediaPlayer")
         onTimerSet:                      function(secs) { timer.setTimer(secs) }
         onTimerStartRequested:           timer.startTimer()
         onTimerPauseRequested:           timer.pauseTimer()
@@ -107,6 +108,7 @@ ShellRoot {
         timerProcess:    timer
         toplevelProcess:  toplevels
         wallpaperProcess: wallpaper
+        mprisProcess:     mpris
         onDismissRequested:  panelController.toggle(panelController.activePanel)
         onNavigateRequested: (dir) => panelController.navigate(dir)
     }

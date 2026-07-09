@@ -302,24 +302,109 @@ Preset palette: 24 swatches ranging from very dark near-blacks to muted mid-tone
 
 ---
 
-### Media Player Panel 🔲
+### Media Player Panel ✅
 
 **File:** `module-panels/MediaPlayerPanel.qml` · **Keybind:** W-3
 
-**Data sources needed:** `MprisProcess.activePlayer`
+**Data sources (injected):** `MprisProcess` → `activePlayer`
 
-**Expected layout:**
-- Album art (MPRIS metadata, if available)
-- Track title + artist + album
-- Playback controls: previous · play/pause · next
-- Progress bar with current position and duration
-- Volume control
+---
 
-**What still needs to be built:**
-- `MediaPlayerPanel.qml` — panel UI consuming `MprisProcess.activePlayer`
-- FIFO command `toggleMediaPlayer` added to `FifoListener` + `shell.qml`
-- `PanelSurface` Loader case for `"mediaPlayer"`
-- `PanelController.panelOrder` updated to include `"mediaPlayer"` at W-3 position
-- labwc keybind W-3
+#### No active player state
 
-(`MprisProcess` is already built and exposes everything needed.)
+When `mprisProcess.activePlayer === null`, the panel shows a single centred line: `"No active player"` in `textMuted`. No other content rendered.
+
+---
+
+#### Layout (top to bottom)
+
+```
+PanelNavBar                        ← ‹ / › navigation, same as all panels
+─────────────────────────────────
+Album art                          ← square, fills panel width minus margins
+─────────────────────────────────
+[ ◀ ]  [ Artist — Title ~~~~~~~~ ]  [ ▶ ]
+─────────────────────────────────
+[ 🔊  volume  ]
+```
+
+---
+
+#### Album art
+
+A square `Rectangle` (side = panel content width = panel width − 2 × `panelMargin`). `Layout.fillWidth: true` + explicit `height: width` enforces the square.
+
+- `Image` fills the Rectangle, `fillMode: Image.PreserveAspectCrop`, `clip: true`, `source: mprisProcess.activePlayer.trackArtUrl`
+- `trackArtUrl` is typically a `file://` path or localhost `http://` URL. Set `Image.source` directly — Quickshell's Image handles both.
+- When `trackArtUrl` is empty or the image fails to load (`Image.status !== Image.Ready`): show a centred Nerd Font music glyph (`String.fromCodePoint(0xf001)`) in `textFaint` over `surfaceLowColor` background. Same square dimensions.
+
+Corner radius: `radLg` on the Rectangle (matches PanelCard).
+
+---
+
+#### Controls row
+
+A single `RowLayout` below the album art.
+
+**Previous button `[◀]`** — `IconButton`, glyph `String.fromCodePoint(0xf048)` (nf-fa-step-backward). `onClicked: mprisProcess.activePlayer.previous()`. `enabled: mprisProcess.activePlayer.canGoPrevious` — dimmed and non-interactive when the player doesn't support it (e.g. radio streams).
+
+**Centre — track info + play/pause:**
+
+A `Rectangle` with `Layout.fillWidth: true`, height `Style.buttonHeight`. Clips overflowing text. On click: `mprisProcess.activePlayer.togglePlaying()`. `enabled: mprisProcess.activePlayer.canTogglePlaying`.
+
+Inside: a `Text` element that scrolls left continuously when the content overflows. Content: `artist + " — " + title` (em dash separator) when `trackArtist` is non-empty, otherwise just `title`. `trackArtist` may contain multiple artists as a single string (players separate them with `", "`, `" & "`, or `";"`) — display as-is, no parsing.
+
+Scroll behavior: when `implicitWidth > parent.width`, a `NumberAnimation` on `x` runs from `0` to `-(implicitWidth - parent.width)` then snaps back to `0`. Pauses 1.5 s at each end before animating. Resets and restarts whenever track changes. When content fits, no animation — text is static and left-aligned.
+
+Font: `Style.fontMono`, `Style.fontSizeBody`, `Style.textNormal`. HoverHandler tints the background `surfaceLowColor` to hint clickability.
+
+**Next button `[▶]`** — `IconButton`, glyph `String.fromCodePoint(0xf051)` (nf-fa-step-forward). `onClicked: mprisProcess.activePlayer.next()`. `enabled: mprisProcess.activePlayer.canGoNext`.
+
+---
+
+#### Volume button
+
+A `PanelButton` below the controls row, `Layout.fillWidth: true`.
+
+- **Label:** two states only — no glyphs.
+  - **Muted** (`_muted === true`): label `"M"`, color `Style.textMuted`.
+  - **Not muted**: label `Math.round(activePlayer.volume * 100) + "%"`, color `Style.textSecondary` (default button text).
+- **Click:** toggle mute. MPRIS has no native mute; simulate by storing the pre-mute volume in a local `property real _savedVolume` and toggling between `activePlayer.volume = 0` and restoring `_savedVolume`.
+- **Scroll:** `WheelHandler` on the button. `angleDelta.y > 0` → `activePlayer.volume = Math.min(1.0, activePlayer.volume + 0.05)`. `angleDelta.y < 0` → `activePlayer.volume = Math.max(0.0, activePlayer.volume - 0.05)`. Same pattern as TimerWidget's duration scroll.
+
+> **Fix candidate (deferred):** `MprisPlayer.volume` is read/write per the MPRIS spec but some players ignore writes (Spotify, browser-based players). If volume control proves unreliable in practice, the volume button will be removed and system volume will live in the Control Panel only.
+
+---
+
+#### MprisPlayer properties used
+
+| Property / Method | Used for |
+|---|---|
+| `activePlayer.trackArtUrl` | Album art source |
+| `activePlayer.trackTitle` | Track name in scrolling text |
+| `activePlayer.trackArtist` | Artist name in scrolling text |
+| `activePlayer.togglePlaying()` | Centre text click |
+| `activePlayer.canTogglePlaying` | Enables/disables centre click |
+| `activePlayer.previous()` | ◀ button |
+| `activePlayer.canGoPrevious` | Enables/disables ◀ |
+| `activePlayer.next()` | ▶ button |
+| `activePlayer.canGoNext` | Enables/disables ▶ |
+| `activePlayer.volume` | Volume button read/write |
+
+No progress bar. No track duration. No elapsed time.
+
+---
+
+#### Album art click — focus player window
+
+Clicking the album art (or music glyph placeholder) calls `wlrctl toplevel focus app_id:<desktopEntry>`, where `desktopEntry` is the standard MPRIS property on `MprisPlayer`. Raises and focuses the player window. A short-lived `Process` from `Quickshell.Io` handles the wlrctl call.
+
+#### Built — wiring checklist
+
+- [x] `MediaPlayerPanel.qml` — panel UI
+- [x] `FifoListener.qml` — `toggleMediaPlayerRequested` signal + `"toggleMediaPlayer"` dispatch
+- [x] `shell.qml` — `onToggleMediaPlayerRequested` → `panelController.toggle("mediaPlayer")`
+- [x] `PanelSurface.qml` — `"mediaPlayer"` Loader case + `mprisProcess` injection
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper"]`
+- [x] `module-panels/qmldir` — `MediaPlayerPanel 1.0` (pre-registered as stub)
+- [x] labwc `rc.xml` — W-3 → `toggleMediaPlayer`
