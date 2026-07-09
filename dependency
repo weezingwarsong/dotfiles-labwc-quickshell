@@ -4,7 +4,7 @@
 labwc                       # Wayland compositor (openbox-like, wlroots-based)
 
 # ── SHELL ────────────────────────────────────────────────────────────────────
-quickshell                  # Wayland shell (bar, notifications, widgets — QML-based)
+quickshell                  # Wayland shell (Pillbox — pills, panels, wallpaper — QML-based)
 
 # ── LAUNCHER ─────────────────────────────────────────────────────────────────
 rofi                        # App launcher and window switcher
@@ -49,12 +49,13 @@ papirus-nord                # Nord colour variant for Papirus icons
 nordzy-cursors              # Nord cursor theme
 
 # ── FONTS ────────────────────────────────────────────────────────────────────
-ttf-jetbrains-mono-nerd     # JetBrains Mono (Nerd Font patched)
+ttf-jetbrains-mono-nerd     # JetBrains Mono (Nerd Font patched) — Pillbox primary font
+ttf-sarasa-gothic           # Sarasa Mono SC — CJK fallback for Pillbox (fontconfig, transparent)
 noto-fonts                  # Fallback font
 noto-fonts-emoji            # Emoji fallback
 
 # ── NOTIFICATIONS ────────────────────────────────────────────────────────────
-mako                        # Wayland notification daemon (Nord-themed)
+mako                        # Wayland notification daemon (Nord-themed) — temporary; Pillbox will own this eventually
 
 # ── CALENDAR (Google Calendar sync — helper/calendar/gcal_fetch.py) ──────────
 python-google-api-python-client  # Calendar API client
@@ -62,13 +63,7 @@ python-google-auth-oauthlib      # OAuth consent flow (InstalledAppFlow)
 python-google-auth-httplib2      # AuthorizedHttp — lets us set a request timeout
 python-cryptography              # required by google-auth's crypt backend
 
-# ── BUILD (workspace-watcher + toplevel-watcher) ──────────────────────────────
-gcc                         # C compiler
-pkgconf                     # pkg-config — wayland-client flags for watcher builds
-wayland                     # Provides wayland-scanner (generates protocol bindings)
-wayland-protocols           # Provides ext-workspace-v1.xml protocol definition
-wlr-protocols               # Provides wlr-foreign-toplevel-management-unstable-v1.xml
-wlrctl                      # CLI tool — used at runtime by window-switch focus action
+wlrctl                      # CLI tool — used by scripts/focus-or-open.sh (W-w browser, W-e file manager)
 
 # ── OPTIONAL ─────────────────────────────────────────────────────────────────
 # kitty                     # Terminal — labwc/rc.xml and autostart reference this but won't break without it
@@ -87,7 +82,6 @@ sudo pacman -S \
     gpu-screen-recorder qt6-multimedia grim slurp imv \
     xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
     btop \
-    gcc pkgconf wayland wayland-protocols wlr-protocols \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \
@@ -98,6 +92,8 @@ sudo pacman -S \
 # ── AUR ──────────────────────────────────────────────────────────────────────
 yay -S \
     quickshell \
+    yin \
     nordzy-cursors \
     papirus-nord \
-    rofi-polkit-agent
+    rofi-polkit-agent \
+    ttf-sarasa-gothic

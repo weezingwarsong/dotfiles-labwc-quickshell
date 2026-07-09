@@ -1,54 +1,76 @@
 # dotfiles-labwc-quickshell
 
-> CachyOS · labwc · quickshell · Nord
+> CachyOS · labwc · Pillbox · Nord
 
-A Wayland desktop built on [labwc](https://github.com/labwc/labwc) with [quickshell](https://quickshell.outfoxxed.me/) replacing the traditional bar + notification daemon stack. Nord colour scheme throughout.
+A Wayland desktop built on [labwc](https://github.com/labwc/labwc). The centrepiece is **Pillbox** — a custom QML shell written in Quickshell that replaces the traditional bar, launcher overlay, and eventually the notification daemon with two visual primitives: Pills and Panels.
 
 ---
 
 ## Stack
 
-| Layer | Tool |
-|---|---|
-| OS | CachyOS (Arch-based) |
-| Compositor | labwc (wlroots, openbox-like) |
-| Shell | quickshell (bar, wallpaper, widgets — QML-based) |
-| Launcher | rofi |
-| Audio | PipeWire + WirePlumber |
-| Theme | Nordic (GTK) + Nordic-bluish-solid (Kvantum) |
-| Icons | Papirus-Dark + papirus-nord |
-| Cursor | Nordzy-cursors-white |
-| Font | JetBrainsMono Nerd Font |
+| Layer | Tool | Notes |
+|---|---|---|
+| OS | CachyOS (Arch-based) | |
+| Compositor | labwc | wlroots, openbox-like keybinds |
+| Shell | Quickshell / Pillbox | QML — see `quickshell/` |
+| Launcher | rofi | drun mode |
+| Notifications | mako | temporary — Pillbox will own this eventually |
+| Wallpaper | yin | ffmpeg-backed Wayland daemon; Pillbox calls `yinctl` |
+| Audio | PipeWire + WirePlumber | |
+| GTK theme | Nordic | `nordic-theme-git` (GTK3 + GTK4) |
+| Qt theme | Kvantum + Nordic | `kvantum-theme-nordic-git`; configured via qt5ct / qt6ct |
+| Icons | Papirus-Dark + papirus-nord | Nord colour variant |
+| Cursor | Nordzy-cursors-white | |
+| Font | JetBrains Mono Nerd Font | all text + Nerd Font glyphs in Pillbox |
+| CJK font | Sarasa Mono SC | fontconfig fallback for CJK track names, event titles |
 
 ---
 
-## UI terminology
+## Pillbox
 
-| Term | Definition |
+Pillbox replaces the bar stack with two visual primitives:
+
+**Pill** — a 24px rounded rectangle anchored top-centre. Hidden by default. One active at a time. Reveals automatically when there is something worth showing (imminent calendar event, workspace switch, track change), or on demand via hover and the W-1 latch. Priority order: WindowPill (switcher open) → WorkspacePill (workspace flash) → TimePill urgent (event ≤ 10 min or timer active) → MprisPill (playing) → TimePill fallback (always).
+
+**Panel** — a larger overlay below the Pill. Opens only on deliberate user action (keybind), closes on the same keybind, ESC, or click-outside. One panel at a time. Left/right arrow keys and floating ‹ › buttons navigate between panels in keybind order.
+
+| Keybind | Panel |
 |---|---|
-| **Module** | A logical feature area — e.g. *time*, *workspace indicator*, *MPRIS*, *window switcher*, *recording status*, *wallpaper*. Some modules have no bar/panel UI at all (wallpaper is background-only, currently disabled). |
-| **Pill** | The always-visible bar face of a module — `pill-time`, `pill-workspace`, `pill-mpris`, `pill-window`, `pill-recording`. The main bar is a single `Style.pillHeight` (24 px) slot at the top-centre that shows exactly one pill at a time, swapped based on context (recording > workspace flash > MPRIS > time) or on demand (window switcher via `Super+Tab`). |
-| **Panel** | An expanded container that spawns below the bar on demand or on hover — `panel-calendar`, `panel-media-player`, `panel-window-switcher`. Every panel is a **child of exactly one pill** and cannot exist independently of it. |
+| W-2 | Calendar (events, tasks, weather, timer) |
+| W-3 | Media Player *(planned)* |
+| W-4 | Settings (services + appearance) |
+| W-5 | Wallpaper (colour swatches + image/video browser) |
+| W-Tab | Window Switcher (live filter, keyboard nav) |
 
-### Pill ↔ panel ownership
+Full architecture and module specs: `quickshell/docs/`. Start with `quickshell/CLAUDE.md` for a quick orientation.
 
-A panel is never a standalone module — it's always subordinate to the pill it expands from. Calling a panel implicitly calls its parent pill too; a panel can never be shown while its parent pill is not the one active in the bar.
+---
 
-| Pill (parent) | Panel (child) |
-|---|---|
-| `pill-time` | `panel-calendar` |
-| `pill-mpris` | `panel-media-player` |
-| `pill-window` | `panel-window-switcher` |
-| `pill-workspace` | *(none)* |
-| `pill-recording` | *(none)* |
+## Theming
 
-Modules with no bar/panel UI yet: **wallpaper** (background layer only, currently disabled).
+Nord palette throughout. Pillbox owns its own colour tokens (`Style.qml`) and will eventually generate them from wallpaper extraction (pywal/matugen format). Everything outside Pillbox needs separate wiring:
 
-These names are also reflected in `Style.qml` token prefixes:
-- `pill*` — background, border, height for the main pill
-- `panel*` — background, border for spawned panels; `panelButton*` for interactive rows inside panels
-- `textPill*` — text colours inside the main pill
-- `textPanel*` — text colours inside spawned panels
+### GTK apps
+Nordic GTK theme handles GTK3 and GTK4. No per-app configuration required.
+
+### Qt apps
+Qt apps do not obey GTK theming. The current solution is:
+- **Kvantum** — theming engine for Qt5 and Qt6. Set to `Nordic-Darker` in `kvantum-manager`.
+- **qt5ct / qt6ct** — set `QT_STYLE_OVERRIDE=kvantum` via `labwc/environment`. Applies to all Qt apps launched by labwc.
+
+This works but is manual. The longer-term goal — once Pillbox is feature-complete — is a unified system where the Nord palette is the single source of truth: Pillbox exports its active palette (whether Nord default or extracted from wallpaper) and Qt/GTK theming consumes it automatically. The mechanism is TBD; pywal-style config-file generation is the likely path.
+
+### Icons and cursor
+Papirus-Dark + papirus-nord for icons, Nordzy-cursors-white for cursor. Set via `~/.config/gtk-3.0/settings.ini`, `~/.config/gtk-4.0/settings.ini`, and the Kvantum / qt6ct icon setting.
+
+### Fonts
+JetBrains Mono Nerd Font everywhere — terminal, editor, Pillbox text and glyphs. Set as the monospace font in qt5ct/qt6ct and GTK settings.
+
+---
+
+## Notifications
+
+mako handles desktop notifications today (config in `mako/`, Nord palette, semi-transparent). Once Pillbox implements a notification layer (planned), mako will be removed. The intent is that Pillbox owns the full DE surface — bar, panels, wallpaper, notifications — so theming is one system rather than three.
 
 ---
 
@@ -56,149 +78,88 @@ These names are also reflected in `Style.qml` token prefixes:
 
 ```
 dotfiles-labwc-quickshell/
-├── quickshell/
-│   ├── shell.qml                    # root — rigid bar + vertical roll transition, IPC readers, state
-│   ├── components/
-│   │   ├── Style.qml                # singleton — all colours, fonts, spacing tokens
-│   │   ├── TimePill.qml             # bar content — clock (HHmm)
-│   │   ├── Calendar.qml             # calendar panel, opens on TimePill hover — agenda, navigable
-│   │   │                            #   month grid + picker, weather box (temp/condition/hi-lo + icon), button rail
-│   │   ├── WorkspacePill.qml        # bar content — dual-square workspace indicator (flashes on switch)
-│   │   ├── MprisPill.qml            # bar content — MPRIS play/pause icon + marquee-scrolling track text
-│   │   ├── MediaPlayer.qml          # MPRIS player panel, opens on MprisPill hover — marquee title too
-│   │   ├── RecordingPill.qml        # bar content — recording state (RECORDING / RECORDING SAVED)
-│   │   ├── WindowPill.qml           # bar content — static "Window" label
-│   │   ├── WindowSwitcher.qml       # window switcher panel — flat list, filter, keyboard nav
-│   │   ├── WallpaperWindow.qml      # background-layer wallpaper surface
-│   │   ├── PinButton.qml            # shared — thumbtack button that docks to a panel's top-right corner
-│   │   ├── PanelIconButton.qml      # shared — square hover-grow icon button, Layout-safe (fixed footprint)
-│   │   ├── PanelToolTip.qml         # shared — Nord-styled tooltip; instantiate directly, drive visible/text
-│   │   └── qmldir
-│   └── wallpaper/                   # drop images here (sorted alphabetically → workspace 1, 2, …)
+├── quickshell/                   ← Pillbox shell (canonical source)
+│   ├── CLAUDE.md                 ← session orientation; start here
+│   ├── docs/                     ← architecture, modules, style, components, completed work
+│   ├── module-panels/            ← CalendarPanel, SettingsPanel, WallpaperPanel, WindowSwitcherPanel
+│   ├── module-pills/             ← TimePill, WorkspacePill, WindowPill, MprisPill, ScreenrecPill (stub)
+│   ├── module-reusable-elements/ ← PillController, PanelSurface, PanelButton, TogglePair, etc.
+│   ├── root-processes/           ← CalendarProcess, WeatherProcess, MprisProcess, WallpaperProcess, etc.
+│   ├── Prefs.qml                 ← user preferences (font sizes, radius, borders, wallpaper state)
+│   ├── Style.qml                 ← all visual tokens (Nord palette → semantic names)
+│   └── shell.qml                 ← ShellRoot; instantiates everything
 │
 ├── helper/
-│   ├── watcher/
-│   │   └── main.c                   # C binary (qs-watcher) — zwlr_foreign_toplevel_manager_v1 +
-│   │                                #   ext_workspace_manager_v1; emits JSON: {windows:[...], active_ws_name:"..."}
-│   ├── calendar/
-│   │   └── gcal_fetch.py            # Google Calendar sync — prints {"events":[...]} JSON. Fetch mode (default,
-│   │                                #   for quickshell) never opens a browser; `--auth` does the OAuth consent
-│   │                                #   flow by hand. Credentials live outside the repo, see below.
-│   └── weather/
-│       └── weather_fetch.py         # Open-Meteo sync — prints {temp, high, low, condition, icon} JSON. `icon` is
-│                                    #   a Nerd Font nf-weather codepoint, chosen from the WMO code + day/night.
-│                                    #   Location via IP geolocation (ipapi.co), cached 24h at ~/.config/weather-quickshell/.
-│                                    #   Keyless — no credentials setup needed.
-│
-├── design/
-│   └── sketches/                    # hand-drawn UI mockups referenced during implementation
-│
-├── mako/
-│   └── config                       # mako notification daemon config (Nord, 90% opacity)
-│
-├── rofi/
-│   └── config.rasi                  # rofi config
-├── rofi-themes/
-│   └── nord-custom.rasi             # Nord theme matching the quickshell pill aesthetic
-│
-├── scripts/                         # helper scripts (symlinked to ~/.config/scripts/)
-│   ├── record-toggle.sh             # start/stop gpu-screen-recorder via PID file
-│   ├── window-switch-toggle.sh      # writes "toggle" to /tmp/qs-window-toggle FIFO
-│   └── README.md                    # script inventory
+│   ├── calendar/gcal_fetch.py    ← Google Calendar sync (symlinked → ~/.local/bin/gcal-fetch)
+│   ├── tasks/gtask_fetch.py      ← Google Tasks sync (symlinked → ~/.local/bin/gtask-fetch)
+│   ├── weather/weather_fetch.py  ← Open-Meteo weather (symlinked → ~/.local/bin/weather-fetch)
+│   ├── google_auth_notify.sh     ← re-auth desktop notification (symlinked → ~/.local/bin/google-auth-notify)
+│   └── watcher/                  ← legacy C binary (superseded; kept for reference)
 │
 ├── labwc/
-│   ├── icons/                       # white SVG icons for the right-click menu
-│   ├── autostart                    # starts quickshell, mako, bluetooth, polkit agent
-│   ├── environment                  # PATH (includes ~/.local/bin), QT_QPA_PLATFORMTHEME, TERMINAL
-│   ├── menu.xml                     # right-click root/client menu
-│   └── rc.xml                       # keybinds and window rules
+│   ├── rc.xml                    ← keybinds and window rules
+│   ├── autostart                 ← starts quickshell, mako, yin, bluetooth, polkit agent
+│   ├── environment               ← PATH, QT_QPA_PLATFORMTHEME, TERMINAL
+│   ├── menu.xml                  ← right-click root/client menu
+│   └── icons/                    ← white SVG icons for labwc menu
 │
-├── DESIGN.md                        # style system — colour tokens, rectangle/text semantics
-├── dependency                       # full package list with install commands
-├── install.sh                       # symlinks configs, builds and installs qs-watcher
-└── .gitignore
+├── mako/config                   ← notification daemon config (temporary)
+├── rofi/config.rasi              ← rofi launcher config
+├── rofi-themes/nord-custom.rasi  ← Nord rofi theme
+├── scripts/                      ← helper scripts (symlinked → ~/.config/scripts/)
+├── dependency                    ← full package list with install commands
+└── install.sh                    ← symlinks configs, installs helper scripts
 ```
-
----
-
-## Features
-
-**Single-slot bar** — one rigid rectangular bar at the top-center. The bar itself never moves or resizes; only one module's content is shown at a time, and switching between them rolls the outgoing text/icon out one edge while the incoming one rolls in from the other — like text printed on a cylinder rotating behind the bar. Priority order: forced keybind (window switcher / calendar / MPRIS, whichever was invoked last — mutually exclusive with each other) > recording > workspace flash > MPRIS (background/hover) > time. See `_forcedPinPriority`/`_setWindowActive`/`_setCalendarPinned`/`_setMprisPinned` in `shell.qml`.
-
-**Time module** — shows the current time in `HHmm` format. Hovering slides down a wide calendar panel (independent panel width — see `_panelWidthFrac` in `shell.qml`; the pill itself never resizes); the panel stays open as long as the mouse is anywhere over the pill+panel region, not just the pill itself. Hovering continuously for 30s pins it open permanently (a thumbtack button appears to unpin). `Super+1` force-opens it directly, independent of hover, dismissing whichever other panel was pinned/active; Escape (once pinned) closes it again.
-- **Agenda** (left) — today's events pulled from `gcal-fetch`, split into all-day and timed, with tooltips on truncated titles.
-- **Month view** (middle) — navigable via prev/next triangle buttons or a month/year picker (click the month/year label; it inline-swaps to a year+month grid rather than a floating popup, since a fixed-size Wayland layer-shell surface has no "outside the window" for an overlay to render into). Days with events are highlighted with a tooltip listing them; today gets a hover-grow button treatment and, when the picker is open, the label becomes a "Today" shortcut back to the current month.
-- **Weather** (below month view) — current temperature, condition, today's high/low, and a day/night Nerd Font weather glyph (nf-weather), pulled from `weather-fetch`. Location is auto-detected via IP geolocation (cached 24h) and weather data comes from [Open-Meteo](https://open-meteo.com/) — both keyless, no account/credentials setup needed.
-- **Button rail** (right) — settings (inert, pending the Settings roadmap item), open-in-browser (`xdg-open` to Google Calendar), and a reserved placeholder.
-
-**Workspace module** — two filled squares representing workspaces 1 and 2. Active is Nord7, inactive is Nord3. Flashes for 1 second on switch then returns to the resting module.
-
-**MPRIS module** — becomes the bar's priority winner for as long as a track is actually playing, but the bar itself no longer auto-opens for the whole song: each track change instead fires a desktop notification (title/artist, via `notify-send`/mako) announcing it, independent of whatever the bar currently shows. Hovering the bar at any point mid-song reveals the live player panel (album, playback controls, a focus button that brings the player window to front) on demand; moving away hides it again without affecting playback. Hovering continuously for 30s pins it open permanently (thumbtack button to unpin), and `Super+2` force-opens/closes it directly — either way dismissing whichever other panel was pinned/active, with Escape closing it again once pinned. Once playback actually stops/pauses, releases ~1s after you stop hovering it.
-
-**Calendar sync** — `helper/calendar/gcal_fetch.py` (installed as `gcal-fetch` on `PATH`) pulls Google Calendar events via OAuth and prints JSON; quickshell polls it every 5 minutes and caches the result client-side (window: -3 months to +24 months), so month navigation in the Time module never triggers a network call. Fetch mode never opens a browser — on auth failure it notifies (currently via `scripts/gcal-notify.sh`, a `notify-send` wrapper) and exits; re-auth is `gcal-fetch --auth`, run by hand. Credentials (`~/.config/gcal-quickshell/credentials.json` + cached `token.json`) live outside the repo, since it's public on GitHub.
-
-**Window switcher** — `Super+Tab` opens a panel with all open windows in a flat list, a live filter input, and full keyboard navigation (Up/Down to move, Enter to focus, Escape or Super+Tab to dismiss). Force-opens to the top of the bar regardless of what's currently showing (recording included) and dismisses whichever other panel was pinned/active, same as the calendar/MPRIS keybinds. The currently focused window is shown muted. Powered by `qs-watcher`, a native C binary that listens to `zwlr_foreign_toplevel_manager_v1` — window list and active-window state update in real time with no polling.
-
-**Recording module** — `Super+Shift+R` starts screen recording. The bar switches to "RECORDING" (Nord11 red). On stop, shows "RECORDING SAVED" (Nord14 green) for 1 second, then returns to the resting module. Recordings saved to `~/Videos/`.
-
-**Wallpaper** — images dropped into `quickshell/wallpaper/` are sorted alphabetically and assigned to workspaces in order. Passes all pointer input through to the compositor.
-
-**Notifications** — mako handles desktop notifications with the Nord palette at 90% opacity, matching the quickshell aesthetic.
-
-**Native Wayland IPC** — no polling anywhere. A single C binary (`qs-watcher`) binds directly to compositor protocols:
-- `zwlr_foreign_toplevel_manager_v1` — tracks all open windows and their state
-- `ext_workspace_manager_v1` — tracks the active workspace name
-
-Emits one compact JSON line per state change to stdout. quickshell spawns `qs-watcher` directly as a child process so its output flows straight into the parser with no FIFO in the middle. `start-watchers.sh` (called from autostart before quickshell) evicts any leftover watcher from a previous session. If the compositor disconnects (e.g. `labwc --reconfigure`), the watcher exits and quickshell respawns it after 2 s.
 
 ---
 
 ## Keybinds
 
-### General
+### Pillbox
 | Key | Action |
 |---|---|
-| `Super + Space` | Root menu |
-| `Super + Escape` | Client menu |
+| `W-1` | Latch pill on/off (persistent toggle) |
+| `W-2` | Toggle Calendar panel |
+| `W-3` | Toggle Media Player panel *(planned)* |
+| `W-4` | Toggle Settings panel |
+| `W-5` | Toggle Wallpaper panel |
+| `W-Tab` | Toggle Window Switcher |
 
 ### Workspaces
 | Key | Action |
 |---|---|
-| `Super + F1 / F2` | Switch to workspace 1 / 2 |
-| `Super + Scroll up/down` | Switch workspace (previous / next) |
-| `Super + Shift + Scroll up/down` | Send window to workspace and follow |
-| `Super + D` | Show desktop |
+| `W-F1` / `W-F2` | Switch to workspace 1 / 2 |
+| `W-d` | Show desktop |
 
 ### Windows
 | Key | Action |
 |---|---|
-| `Super + Tab` | Window switcher (quickshell) |
-| `Super + 1` | Toggle calendar panel (quickshell) |
-| `Super + 2` | Toggle MPRIS panel (quickshell) |
-| `Alt + Tab / Alt + Shift + Tab` | Cycle windows forward / backward |
-| `Super + Alt + X` / `Alt + F4` | Close window |
-| `Super + Alt + F` | Maximize |
-| `Super + Alt + D` | Minimize |
-| `Super + Alt + Escape` | Toggle decorations |
-| `Super + →/←/↑/↓` | Snap to edge |
-| `Super + Alt + →/←/↑/↓` | Snap to corner |
+| `A-Tab` / `A-S-Tab` | Cycle windows forward / backward |
+| `W-A-x` / `A-F4` | Close window |
+| `W-A-f` | Maximize |
+| `W-A-d` | Minimize |
+| `W-A-Escape` | Toggle decorations |
+| `W-←/→/↑/↓` | Snap to edge |
+| `W-A-←/→/↑/↓` | Snap to corner |
 
 ### Apps
 | Key | Action |
 |---|---|
-| `Super + T` | Terminal ($TERMINAL) |
-| `Super + W` | Focus browser or open default browser |
-| `Super + E` | Focus file manager or open pcmanfm-qt |
-| `Super + H` | btop |
-| `Super + V` | Volume control (pavucontrol-qt) |
-| `Super + R` / `Alt + F2` | Rofi launcher |
+| `W-space` | Root menu |
+| `W-Escape` | Client menu |
+| `W-r` / `A-F2` | Rofi launcher |
+| `W-t` | Terminal (`$TERMINAL`) |
+| `W-w` | Focus browser or open default browser |
+| `W-e` | Focus file manager or open pcmanfm-qt |
+| `W-h` | btop |
+| `W-v` | pavucontrol-qt |
 
 ### Capture
 | Key | Action |
 |---|---|
-| `Super + Shift + S` | Area screenshot |
-| `Super + Shift + D` | Full screenshot (1 s delay) |
-| `Super + Shift + R` | Toggle screen recording |
+| `W-S-s` | Area screenshot |
+| `W-S-d` | Full screenshot (1 s delay) |
+| `W-S-r` | Toggle screen recording |
 
 ### Media keys
 | Key | Action |
@@ -213,6 +174,8 @@ Emits one compact JSON line per state change to stdout. quickshell spawns `qs-wa
 
 ### 1 — Dependencies
 
+See `dependency` for the full annotated list. Quick install:
+
 ```sh
 # pacman
 sudo pacman -S \
@@ -222,7 +185,6 @@ sudo pacman -S \
     gpu-screen-recorder qt6-multimedia grim slurp imv \
     xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
     btop \
-    gcc pkgconf wayland wayland-protocols wlr-protocols \
     kvantum qt5ct qt6ct \
     nordic-theme-git kvantum-theme-nordic-git \
     papirus-icon-theme \
@@ -231,11 +193,7 @@ sudo pacman -S \
     python-google-auth-httplib2 python-cryptography
 
 # AUR
-yay -S \
-    quickshell \
-    nordzy-cursors \
-    papirus-nord \
-    rofi-polkit-agent
+yay -S quickshell yin nordzy-cursors papirus-nord rofi-polkit-agent ttf-sarasa-gothic
 ```
 
 ### 2 — Clone and install
@@ -247,49 +205,39 @@ chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh` will:
-- Symlink `labwc/`, `quickshell/`, `mako/`, `rofi/` and `scripts/` into `~/.config/`
-- Compile `helper/watcher/main.c` → `~/.local/bin/qs-watcher`
-- Install labwc menu icons to `~/.local/share/icons/hicolor/`
+`install.sh` symlinks `labwc/`, `quickshell/`, `mako/`, `rofi/`, and `scripts/` into `~/.config/`, installs helper scripts to `~/.local/bin/`, and links labwc menu icons.
 
-> `~/.local/bin` is added to `PATH` via `labwc/environment` so `qs-watcher` is found by quickshell. No manual PATH setup required.
+### 3 — Google Calendar / Tasks
 
-### 3 — Wallpapers
+Credentials (`~/.config/gcal-quickshell/credentials.json`) are not in the repo. Obtain an OAuth client from Google Cloud Console, place it at that path, then run:
 
-Drop image files into `~/.config/quickshell/wallpaper/`. They are assigned to workspaces alphabetically — rename files to control the order (e.g. `1-mountains.jpg`, `2-forest.png`).
+```sh
+gcal-fetch --auth
+```
 
-Supported formats: JPG, PNG, WebP, AVIF, SVG, GIF (animated), and video formats (WebM, MP4, etc.) via `qt6-multimedia`.
+This covers both Calendar and Tasks (shared token). After that, Pillbox polls automatically.
 
----
+### 4 — Wallpaper daemon
 
-## Roadmap / To-do
+yin must be running before Pillbox starts. Add it to `labwc/autostart`:
 
-- [x] **Calendar panel** — see the "Time module" and "Calendar sync" entries under Features above for the full shape of what's built: agenda, navigable month view + inline picker, event highlighting/tooltips, button rail, and the `gcal-fetch` backend wired into `shell.qml` as a periodic `Process`.
-  > OAuth credentials (`~/.config/gcal-quickshell/credentials.json`, from Google Cloud Console) and the cached `token.json` live outside the repo — it's public on GitHub — so they're never committed and aren't part of `install.sh`; set up by hand per-machine with `gcal-fetch --auth`.
-  - [x] Weather box — wired to `weather-fetch` (Open-Meteo + IP geolocation, both keyless), including a day/night Nerd Font condition icon mapped from the WMO weather code. See the "Weather" entry under Features above and `helper/weather/weather_fetch.py`.
-  - [ ] Force calendar sync — a way to trigger an immediate `gcal-fetch` poll (button in the calendar panel and/or a keybind) instead of waiting out the 5-minute periodic timer, for right-after-you-just-added-an-event cases.
+```sh
+yin &
+```
 
-- [ ] **Settings component** — a quickshell module (triggered by a keybind, and by the currently-inert settings button in the calendar panel's button rail) for configuring user preferences at runtime without editing files. Candidates:
-  - [ ] **Default apps** — replace hardcoded app references (e.g. `kitty` as terminal, the `focus-or-open.sh` app\_id mappings for `W-w`/browser and `W-e`/file manager) with `xdg-open` and XDG MIME defaults, so swapping preferred apps doesn't require touching `rc.xml` or scripts by hand.
-  - [ ] **Wallpaper management** — browse and assign wallpapers to workspaces from the UI rather than by manually dropping files into the wallpaper folder with carefully sorted filenames.
-  - [ ] **Theme editor** — runtime overrides for the per-element color, opacity, and corner-radius tokens in `Style.qml` (pill, panel, panel-button, tooltip). `Style.qml` stays the shipped "default/reset" baseline — user overrides get written to a separate document (not this file) that the panel can save/load, rather than mutating `Style.qml` directly.
-
-  Settings would write to a small config document that the scripts and shell read.
-
-- [ ] **Panel open/close animation** — animate the expanded panels (MPRIS player, window switcher, calendar) to grow/shrink in height when they open/close, mirroring the bar's vertical roll transition instead of popping open instantly.
-
-- [x] **Escape-to-dismiss for pinned panels** — window switcher, calendar (once pinned), and MPRIS (once pinned) all grab exclusive per-surface keyboard focus (`WlrLayershell.keyboardFocus`) and release on Escape, via a small centralized table (`_keyboardGrabModules` in `shell.qml`) rather than a labwc keybind — a passive hover-peek never grabs focus, only an explicit pin/active session does, so ambient panels never steal input from whatever app you're actually using.
-- [ ] **Keyboard navigation for panels** — extend the same exclusive-focus mechanism beyond Escape-to-dismiss: arrow-key/Enter navigation in the calendar's month grid and agenda, eventually MPRIS controls. Same rule applies — only grab focus once a panel is genuinely being driven by keyboard, never during a passive hover-peek.
+Pillbox's Wallpaper panel calls `yinctl` to set image/video wallpapers. Solid colour mode does not require yin.
 
 ---
 
-## Colour palette
+## Roadmap
 
-All colours are strict [Nord](https://www.nordtheme.com/docs/colors-and-palettes).
+### Pillbox — in progress
+- [ ] Media Player panel (W-3) — MPRIS controls, album art, progress bar
+- [ ] Notification layer — Pillbox takes over from mako; mako removed
+- [ ] ScreenrecPill — recording indicator (stub registered, not yet implemented)
+- [ ] Style system finalization — palette extraction (pywal/matugen), fix candidates resolved, v2 tokens
+- [ ] Wallpaper panel — testing and touch-up; video thumbnails via ffmpeg
 
-| Group | Colours |
-|---|---|
-| Polar Night | `#2E3440` `#3B4252` `#434C5E` `#4C566A` |
-| Snow Storm | `#D8DEE9` `#E5E9F0` `#ECEFF4` |
-| Frost | `#8FBCBB` `#88C0D0` `#81A1C1` `#5E81AC` |
-| Aurora | `#BF616A` `#D08770` `#EBCB8B` `#A3BE8C` `#B48EAD` |
+### Theming — after Pillbox is complete
+- [ ] Unified palette export — Pillbox active palette (Nord default or wallpaper-extracted) written to a file that GTK and Qt theming can consume
+- [ ] Qt theming automation — eliminate manual qt5ct/Kvantum setup; Qt apps inherit the active Nord palette automatically
