@@ -1,16 +1,32 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell.Io
 
 Item {
     id: root
 
-    property var mprisProcess: null
+    property var mprisProcess:    null
+    property var toplevelProcess: null
     signal navigateRequested(int direction)
+
+    function _focusPlayer() {
+        if (!root._player || !root.toplevelProcess) return
+        var entry    = (root._player.desktopEntry || "").toLowerCase()
+        var identity = (root._player.identity     || "").toLowerCase()
+        var guess    = identity.replace(/\s+/g, "-")
+        var wins     = root.toplevelProcess.windows.values
+        for (var i = 0; i < wins.length; i++) {
+            var id = wins[i].appId.toLowerCase()
+            if ((entry && id === entry) || id === guess) {
+                wins[i].activate()
+                return
+            }
+        }
+    }
 
     readonly property var  _player:      mprisProcess ? mprisProcess.activePlayer : null
     property real          _savedVolume: 1.0
     readonly property bool _muted:       !!_player && _player.volume < 0.01
+    readonly property real _artSize:     width - 2 * Style.panelMargin
 
     implicitHeight: _col.implicitHeight + 24
 
@@ -54,10 +70,13 @@ Item {
 
         // ── Album art ─────────────────────────────────────────────────────────
         Item {
-            id:               _artContainer
-            Layout.fillWidth: true
-            implicitHeight:   width
-            visible:          !!root._player
+            id:                      _artContainer
+            Layout.fillWidth:        true
+            Layout.preferredHeight:  root._artSize
+            visible:                 !!root._player
+
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+            TapHandler   { onTapped: root._focusPlayer() }
 
             Rectangle {
                 anchors.fill: parent
@@ -81,18 +100,6 @@ Item {
                     color:            Style.textFaint
                     font.family:      Style.fontNerd
                     font.pixelSize:   Math.round(_artContainer.width * 0.35)
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape:  Qt.PointingHandCursor
-                    onClicked: {
-                        if (!root._player) return
-                        var entry = root._player.desktopEntry || ""
-                        if (!entry) return
-                        _focusProc._appId = entry
-                        _focusProc.running = true
-                    }
                 }
             }
         }
@@ -163,16 +170,6 @@ Item {
             height:           Style.buttonHeight
             visible:          !!root._player
 
-            WheelHandler {
-                onWheel: (event) => {
-                    if (!root._player) return
-                    var delta  = event.angleDelta.y > 0 ? 0.05 : -0.05
-                    var newVol = Math.max(0.0, Math.min(1.0, root._player.volume + delta))
-                    if (newVol > 0) root._savedVolume = newVol
-                    root._player.volume = newVol
-                }
-            }
-
             Rectangle {
                 anchors.fill: parent
                 radius:       Style.radSm
@@ -199,17 +196,16 @@ Item {
                             root._player.volume = 0.0
                         }
                     }
+                    onWheel: (wheel) => {
+                        if (!root._player) return
+                        var delta  = wheel.angleDelta.y > 0 ? 0.05 : -0.05
+                        var newVol = Math.max(0.0, Math.min(1.0, root._player.volume + delta))
+                        if (newVol > 0) root._savedVolume = newVol
+                        root._player.volume = newVol
+                    }
                 }
             }
         }
-    }
-
-    // Focus the player's window when album art is clicked
-    Process {
-        id: _focusProc
-        property string _appId: ""
-        command: ["wlrctl", "toplevel", "focus", "app_id:" + _appId]
-        running: false
     }
 
     SequentialAnimation {

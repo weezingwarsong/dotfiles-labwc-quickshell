@@ -118,7 +118,8 @@ PanelWindow {
                     return
                 }
                 if (root.activePanel === "mediaPlayer") {
-                    item.mprisProcess = Qt.binding(function() { return root.mprisProcess })
+                    item.mprisProcess    = Qt.binding(function() { return root.mprisProcess    })
+                    item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }
