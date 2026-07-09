@@ -1,0 +1,101 @@
+# Pillbox — Claude Context
+
+Pillbox is a Quickshell/QML desktop shell for **labwc** (Wayland). Two visual primitives: **Pills** (24px context-aware bar, one active at a time) and **Panels** (deliberate-open overlays). Read `docs/architecture.md` first if you have no prior context.
+
+---
+
+## Docs
+
+| File | What it covers |
+|---|---|
+| `docs/architecture.md` | Core concepts, data flow, FIFO bus, module inventory, directory tree, dev commands |
+| `docs/modules.md` | Root process specs, pill behavior, panel behavior — built and planned |
+| `docs/style-system.md` | Token system, Prefs.qml, Style.qml, palette, v2 roadmap |
+| `docs/components.md` | Reusable visual elements in `module-reusable-elements/` |
+| `docs/completed.md` | Reverse-chronological log of completed work and key decisions |
+
+---
+
+## Key Invariants
+
+**Never break these without discussion:**
+
+- **One Source of Truth** — no pill or panel fetches its own data. All data flows from `root-processes/` and is injected down via properties.
+- **Functionality before visuals** — data layer works and logged before any visual layer is added. Style system is wired last.
+- **One panel at a time** — `PanelController.toggle(id)` enforces this. Summoning a second panel replaces the first immediately.
+- **One pill at a time** — `PillController` picks the highest-priority winner every frame. Hover and W-1 latch are PillController universals — not pill-specific logic.
+- **PanelSurface owns geometry** — individual panels are content only. Width, position, and height cap live in `PanelSurface.qml`.
+
+---
+
+## Development Workflow
+
+Quickshell config is symlinked — **edit files directly in this repo**, changes are live in the actual running config.
+
+**Restart quickshell to apply changes:**
+```bash
+pkill -x quickshell; quickshell -p ~/Projects/github/dotfiles-labwc-quickshell/quickshell
+```
+
+**Test FIFO commands directly:**
+```bash
+echo toggleCalendar  > ~/.local/share/pillbox/pillbox.fifo
+echo toggleSettings  > ~/.local/share/pillbox/pillbox.fifo
+echo toggleWallpaper > ~/.local/share/pillbox/pillbox.fifo
+echo "setTimer:30"  > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/.local/share/pillbox/pillbox.fifo
+```
+
+**Check logs:**
+```bash
+cat /run/user/1000/quickshell/by-id/*/log.qslog | grep -v "Cannot install"
+```
+
+**Never run sudo via Bash** — hand the command to the user to paste themselves.
+
+---
+
+## Adding a New Module
+
+Every new QML file must be registered in its directory's `qmldir` before it can be imported. This is a common source of "unknown component" errors.
+
+New process in `root-processes/`:
+1. Add QML file
+2. Register in `root-processes/qmldir`
+3. Instantiate in `shell.qml`
+4. Inject into pills/panels via properties
+
+New panel in `module-panels/`:
+1. Add QML file
+2. Register in `module-panels/qmldir`
+3. Add FIFO command to `FifoListener.qml`
+4. Add Loader case + process injection in `PanelSurface.qml`
+5. Add to `PanelController.panelOrder` (if it belongs in the nav row)
+6. Wire `onToggle*Requested` in `shell.qml`
+7. Add labwc keybind to `rc.xml`
+
+---
+
+## Fix Candidates
+
+Several known issues are tracked in the docs as **fix candidates** and intentionally deferred. Do not fix them without being asked. Key ones:
+
+- `textMuted` should be `color3`, currently `color4` (same as `textSecondary`)
+- `borderAccentColor` is redundant with `accentColor` — both `color10`; remove one
+- `textWeekend` and `dotIndicator` are single-use CalendarPanel tokens; should move inline
+- Pill dimension tokens (`pillHeight: 24`, `pillPaddingH: 20`, etc.) are hardcoded; should be Style tokens
+- Email address not shown in Settings Services tab (shows "Connected" instead)
+- Click-outside dismiss disabled for WindowSwitcher (should work like all other panels)
+- User preference changes don't persist across quickshell restarts
+- TimePill urgent state has no distinct visual treatment (criticalBgColor candidate)
+
+---
+
+## Commit Timing
+
+**Do not commit mid-session during design or docs work.** Batch all commits and push once at session end.
+
+---
+
+## Google Calendar Auth
+
+OAuth tokens are stored outside the repo. Testing-mode app — refresh tokens expire after 7 days. Re-auth: open Settings panel → Re-authenticate. Credentials live in `~/.config/pillbox/` (not tracked).
