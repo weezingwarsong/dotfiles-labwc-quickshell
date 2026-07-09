@@ -250,11 +250,20 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 
 **Data sources (injected):** `ToplevelProcess`
 
-**Behavior:** Keyboard-driven. Filter `TextInput` has focus immediately on open — user can type without clicking. List below filter narrows in real time (case-insensitive match on `appId + title`). Arrow keys move selection, Enter focuses window + closes panel, Escape closes without focusing.
+**Behavior:** Keyboard-driven. Filter `TextInput` has focus immediately on open — user can type without clicking. List below filter narrows in real time (case-insensitive match on `appId + title`). Arrow keys move selection, Enter focuses window or launches app + closes panel, Escape closes without acting. Entire list is wrapped in a `Flickable` — any number of windows is scrollable without growing off-screen.
 
 **Layout:**
 1. Filter input (placeholder "Filter…")
 2. Window list — each row: Nerd Font glyph (fixed width) · app name (25% width, elided) · window title (remaining, elided)
+3. Separator (1px `panelDividerColor`) — visible only when filter text is non-empty and desktop apps match
+4. Desktop app list — each row: app name; shown only when `filterInput.text !== ""`
+
+**Desktop app list:**
+- Data source: `DesktopEntries.applications` (Quickshell singleton from `import Quickshell`). `noDisplay: true` entries skipped.
+- Filter: case-insensitive match on `entry.name`. Computed as `filteredApps` JS array (same pattern as `filteredWindows`).
+- `selectedFlat` spans both lists: indices 0‥`filteredWindows.length-1` = windows; `filteredWindows.length`‥`filteredWindows.length+filteredApps.length-1` = apps. Arrow navigation and Enter work across both.
+- Activation: `entry.execute()` then `dismissed()`.
+- No icon column — `DesktopEntry.icon` is a bare XDG name string; `IconImage` resolves it via theme lookup but falls back to a broken path for icons absent from the current theme, producing console noise. Omitted in favour of plain text rows.
 
 **Selection states:** selected = `accentBgColor` bg + `textPrimary`; hovered (mouse) = `surfaceLowColor` bg; hovering syncs `selectedFlat` index; rest = transparent bg + `textNormal`.
 

@@ -4,6 +4,22 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Window Switcher — Desktop App List + Scroll
+
+Extended the window switcher (W-Tab) with:
+
+- [x] **Flickable scroll** — `Column` wrapped in `Flickable { contentHeight: col.implicitHeight }`. `implicitHeight` still drives PanelSurface clamping; Flickable scrolls when open windows exceed the capped panel height.
+- [x] **Desktop app section** — `filteredApps` computed from `DesktopEntries.applications` (Quickshell singleton, `import Quickshell`). Filters on `entry.name`, skips `noDisplay: true`. Shown only when `filterInput.text !== ""`.
+- [x] **Separator** — 1px `panelDividerColor` Rectangle; `visible: filteredApps.length > 0`.
+- [x] **App rows** — app name only (no icon). Keyboard selection extends `selectedFlat` into the app list (offset by `filteredWindows.length`). Click or Enter → `entry.execute()` + `dismissed()`.
+
+**API notes:**
+- `DesktopEntries.applications` is iterable as a plain list; `.values` pattern is not needed here.
+- `DesktopEntry.icon` is a bare XDG name string. `IconImage` resolves theme icons but logs "Cannot open" for icons absent from the theme. Omitted — plain text rows are cleaner.
+- `import Quickshell` must be added per-file (not inherited from shell.qml).
+
+---
+
 ## Systray Footer in Notification Panel
 
 Right-aligned row of tray icons pinned to the bottom of the W-6 panel.
