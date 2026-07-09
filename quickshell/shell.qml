@@ -19,6 +19,7 @@ ShellRoot {
         onToggleSettingsRequested:       panelController.toggle("settings")
         onToggleWallpaperRequested:      panelController.toggle("wallpaper")
         onToggleMediaPlayerRequested:    panelController.toggle("mediaPlayer")
+        onToggleNotificationsRequested:  panelController.toggle("notifications")
         onTimerSet:                      function(secs) { timer.setTimer(secs) }
         onTimerStartRequested:           timer.startTimer()
         onTimerPauseRequested:           timer.pauseTimer()
@@ -36,8 +37,9 @@ ShellRoot {
     WeatherProcess    { id: weather;  settingsProcess: settings }
     WorkspaceProcess  { id: workspace }
     ToplevelProcess   { id: toplevels }
-    MprisProcess      { id: mpris }
-    WallpaperProcess  { id: wallpaper }
+    MprisProcess       { id: mpris }
+    WallpaperProcess   { id: wallpaper }
+    NotificationServer { id: notifServer }
 
     // Solid color background — only visible when wallpaper source is "color".
     // yin handles image/video; this Rectangle handles the trivial solid case.
@@ -77,6 +79,11 @@ ShellRoot {
         mprisProcess: mpris
     }
 
+    NotificationPill {
+        id: notificationPill
+        notificationServer: notifServer
+    }
+
     HoverZone { id: hoverZone }
 
     PillController {
@@ -85,7 +92,8 @@ ShellRoot {
         timePill:      timePill
         workspacePill: workspacePill
         windowPill:    windowPill
-        mprisPill:     mprisPill
+        mprisPill:          mprisPill
+        notificationPill:   notificationPill
     }
 
     PillWindow {
@@ -108,7 +116,8 @@ ShellRoot {
         timerProcess:    timer
         toplevelProcess:  toplevels
         wallpaperProcess: wallpaper
-        mprisProcess:     mpris
+        mprisProcess:       mpris
+        notificationServer: notifServer
         onDismissRequested:  panelController.toggle(panelController.activePanel)
         onNavigateRequested: (dir) => panelController.navigate(dir)
     }

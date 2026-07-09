@@ -1,6 +1,4 @@
 
-~/.config/scripts/start-watchers.sh
-
 quickshell &
 
 blueman-applet &

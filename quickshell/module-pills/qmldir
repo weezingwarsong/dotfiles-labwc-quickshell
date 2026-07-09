@@ -5,3 +5,4 @@ WorkspacePill 1.0 WorkspacePill.qml
 WindowPill 1.0 WindowPill.qml
 MprisPill 1.0 MprisPill.qml
 ScreenrecPill 1.0 ScreenrecPill.qml
+NotificationPill 1.0 NotificationPill.qml

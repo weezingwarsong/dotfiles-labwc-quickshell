@@ -4,6 +4,49 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Notification System — W-6
+
+D-Bus notification daemon + pill + scrollable panel. Replaces mako entirely.
+
+**Data layer — `NotificationServer.qml`:**
+- [x] `NotificationServer` from `Quickshell.Services.Notifications` claims `org.freedesktop.Notifications` on startup. `keepOnReload: false`, `bodySupported / actionsSupported / imageSupported: true`.
+- [x] `onNotification`: sets `notif.tracked = true`, captures timestamp into `_timestamps[notif.id]`, increments `_tsVersion` (reactive dependency for `getTimestamp()`), emits `newNotification(notif)`, calls `_recalc()`.
+- [x] `_recalc()`: iterates `trackedNotifications.values`, updates `countTotal` and `countCritical`. Triggered by `Connections { onTrackedNotificationsChanged }` and each `onNotification`.
+- [x] `clearAll()`: calls `dismiss()` on each tracked notification, deferred recalc via `Qt.callLater`.
+- [x] `getTimestamp(id)`: reads `_timestamps[id]`, depends on `_tsVersion` for reactive re-evaluation.
+
+**Pill — `NotificationPill.qml`:**
+- [x] Priority 2 during 7 s peek window after any arrival (beats TimePill at 1). Priority 0 otherwise.
+- [x] `shouldReveal` follows `_peeking` only — no persistent critical behaviour (removed: caused stale-count ghost pill after `clearAll()` because the priority binding evaluated before the model fully updated).
+- [x] Display: `"N | C"` when critical > 0, `"N"` otherwise. Hidden when `countTotal = 0`.
+- [x] Background: `Qt.darker(color11, 1.5)` when critical present and pill visible. (`criticalBgColor` at darker 2.4 is indistinguishable from `pillBgColor` at pill scale — pill uses inline override.)
+- [x] `PillWindow` updated to read `activePill.bgColor` if present; falls back to `Style.pillBgColor`.
+
+**Panel — `NotificationPanel.qml`:**
+- [x] Layout: fixed `_topFixed` ColumnLayout (NavBar + Clear all) + `Flickable` fills remaining height. `implicitHeight` drives PanelSurface clamping; Flickable scrolls when cards exceed available space.
+- [x] `Repeater` on `notificationServer.notifications` (`trackedNotifications` model).
+- [x] Card: urgency-tinted background (low = `surfaceLowColor`, normal = `surfaceMidColor`, critical = `color11` at 15% opacity). Right-click dismiss via `TapHandler { acceptedButtons: Qt.RightButton }`. `[×]` button top-right as redundant dismiss.
+- [x] Two-column layout: left = square image thumbnail (hidden when `notification.image` is empty); right = header (appName + timestamp + `[×]`) + summary + body + action rows.
+- [x] Action rows: up to 2 labeled `PanelButton`s + `[⋮]` toggle if more exist. Overflow row (actions 3–4) hidden until `[⋮]` tapped. `identifier === "default"` filtered from labeled actions. `ToolTip` on truncated labels.
+- [x] Left-click card-level default action deferred: Qt 6 TapHandler propagation fires both parent and child handlers simultaneously — clicking `[⋮]` also dismisses the card. Right-click + `[×]` are the primary dismiss paths.
+
+**Key decisions:**
+- No persistent critical pill: the "stays visible until cleared" behaviour caused a ghost pill after `clearAll()`. Pure 7 s peek for all urgencies is simpler and avoids the race.
+- `criticalBgColor` token (`Qt.darker(2.4)`) is correct for panel card tinting but too dark for the pill surface. Pill uses `Qt.darker(1.5)` inline; Style token unchanged.
+- Timestamp captured on `onNotification` because `Notification` has no arrival-time property.
+- `notify-send` action format: `--action="ID=Label"` (equals separator). Colon separator sends numeric index as ID with full `"key:value"` string as label text.
+
+**Wiring:**
+- [x] `root-processes/qmldir`, `module-pills/qmldir`, `module-panels/qmldir` — all three registered.
+- [x] `FifoListener` — `toggleNotificationsRequested` + `"toggleNotifications"` dispatch.
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "notifications", "settings", "wallpaper"]`.
+- [x] `PanelSurface` — `notificationServer` property; `"notifications"` Loader case.
+- [x] `shell.qml` — `NotificationServer { id: notifServer }`, `NotificationPill`, wired to FifoListener and PanelSurface.
+- [x] labwc `rc.xml` — **W-6** → `toggleNotifications`.
+- [x] mako killed and removed from autostart.
+
+---
+
 ## Media Player Panel — W-3
 
 MPRIS panel with album art, scrolling track info, playback controls, and volume toggle.

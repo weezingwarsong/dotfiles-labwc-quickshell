@@ -23,7 +23,7 @@ PanelWindow {
     Rectangle {
         anchors.fill: parent
         radius: Style.radLg
-        color: Style.pillBgColor
+        color: (activePill && activePill.bgColor) ? activePill.bgColor : Style.pillBgColor
 
         Loader {
             id: contentLoader

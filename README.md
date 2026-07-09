@@ -14,7 +14,7 @@ A Wayland desktop built on [labwc](https://github.com/labwc/labwc). The centrepi
 | Compositor | labwc | wlroots, openbox-like keybinds |
 | Shell | Quickshell / Pillbox | QML — see `quickshell/` |
 | Launcher | rofi | drun mode |
-| Notifications | mako | temporary — Pillbox will own this eventually |
+| Notifications | Pillbox (NotificationServer) | built-in D-Bus daemon; mako removed |
 | Wallpaper | yin | ffmpeg-backed Wayland daemon; Pillbox calls `yinctl` |
 | Audio | PipeWire + WirePlumber | |
 | GTK theme | Nordic | `nordic-theme-git` (GTK3 + GTK4) |
@@ -40,6 +40,7 @@ Pillbox replaces the bar stack with two visual primitives:
 | W-3 | Media Player (MPRIS — album art, controls, volume) |
 | W-4 | Settings (services + appearance) |
 | W-5 | Wallpaper (colour swatches + image/video browser) |
+| W-6 | Notifications (scrollable cards, dismiss, actions) |
 | W-Tab | Window Switcher (live filter, keyboard nav) |
 
 Full architecture and module specs: `quickshell/docs/`. Start with `quickshell/CLAUDE.md` for a quick orientation.
@@ -70,7 +71,7 @@ JetBrains Mono Nerd Font everywhere — terminal, editor, Pillbox text and glyph
 
 ## Notifications
 
-mako handles desktop notifications today (config in `mako/`, Nord palette, semi-transparent). Once Pillbox implements a notification layer (planned), mako will be removed. The intent is that Pillbox owns the full DE surface — bar, panels, wallpaper, notifications — so theming is one system rather than three.
+Pillbox owns desktop notifications via its built-in `NotificationServer` (D-Bus daemon, `Quickshell.Services.Notifications`). mako is not used. Notifications appear as a count pill that peeks for 7 s on arrival (red background when critical urgency is present), and the W-6 panel shows scrollable cards with urgency tinting, action buttons, image thumbnails, and right-click or `[×]` dismiss. `clearAll()` dismisses all at once from the panel header.
 
 ---
 
@@ -81,10 +82,10 @@ dotfiles-labwc-quickshell/
 ├── quickshell/                   ← Pillbox shell (canonical source)
 │   ├── CLAUDE.md                 ← session orientation; start here
 │   ├── docs/                     ← architecture, modules, style, components, completed work
-│   ├── module-panels/            ← CalendarPanel, SettingsPanel, WallpaperPanel, WindowSwitcherPanel
-│   ├── module-pills/             ← TimePill, WorkspacePill, WindowPill, MprisPill, ScreenrecPill (stub)
+│   ├── module-panels/            ← CalendarPanel, MediaPlayerPanel, NotificationPanel, SettingsPanel, WallpaperPanel, WindowSwitcherPanel
+│   ├── module-pills/             ← TimePill, WorkspacePill, WindowPill, MprisPill, NotificationPill, ScreenrecPill (stub)
 │   ├── module-reusable-elements/ ← PillController, PanelSurface, PanelButton, TogglePair, etc.
-│   ├── root-processes/           ← CalendarProcess, WeatherProcess, MprisProcess, WallpaperProcess, etc.
+│   ├── root-processes/           ← CalendarProcess, WeatherProcess, MprisProcess, NotificationServer, WallpaperProcess, etc.
 │   ├── Prefs.qml                 ← user preferences (font sizes, radius, borders, wallpaper state)
 │   ├── Style.qml                 ← all visual tokens (Nord palette → semantic names)
 │   └── shell.qml                 ← ShellRoot; instantiates everything
@@ -98,12 +99,11 @@ dotfiles-labwc-quickshell/
 │
 ├── labwc/
 │   ├── rc.xml                    ← keybinds and window rules
-│   ├── autostart                 ← starts quickshell, mako, yin, bluetooth, polkit agent
+│   ├── autostart                 ← starts quickshell, bluetooth, polkit agent
 │   ├── environment               ← PATH, QT_QPA_PLATFORMTHEME, TERMINAL
 │   ├── menu.xml                  ← right-click root/client menu
 │   └── icons/                    ← white SVG icons for labwc menu
 │
-├── mako/config                   ← notification daemon config (temporary)
 ├── rofi/config.rasi              ← rofi launcher config
 ├── rofi-themes/nord-custom.rasi  ← Nord rofi theme
 ├── scripts/                      ← helper scripts (symlinked → ~/.config/scripts/)
@@ -123,6 +123,7 @@ dotfiles-labwc-quickshell/
 | `W-3` | Toggle Media Player panel |
 | `W-4` | Toggle Settings panel |
 | `W-5` | Toggle Wallpaper panel |
+| `W-6` | Toggle Notifications panel |
 | `W-Tab` | Toggle Window Switcher |
 
 ### Workspaces
@@ -179,7 +180,7 @@ See `dependency` for the full annotated list. Quick install:
 ```sh
 # pacman
 sudo pacman -S \
-    labwc rofi mako wlrctl \
+    labwc rofi wlrctl \
     blueman \
     pipewire wireplumber pavucontrol-qt \
     gpu-screen-recorder qt6-multimedia grim slurp imv \
@@ -205,7 +206,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh` symlinks `labwc/`, `quickshell/`, `mako/`, `rofi/`, and `scripts/` into `~/.config/`, installs helper scripts to `~/.local/bin/`, and links labwc menu icons.
+`install.sh` symlinks `labwc/`, `quickshell/`, `rofi/`, and `scripts/` into `~/.config/`, installs helper scripts to `~/.local/bin/`, and links labwc menu icons.
 
 ### 3 — Google Calendar / Tasks
 
@@ -233,7 +234,7 @@ Pillbox's Wallpaper panel calls `yinctl` to set image/video wallpapers. Solid co
 
 ### Pillbox — in progress
 - [x] Media Player panel (W-3) — MPRIS controls, album art, volume
-- [ ] Notification layer — Pillbox takes over from mako; mako removed
+- [x] Notification layer (W-6) — built-in D-Bus daemon, count pill, scrollable card panel; mako removed
 - [ ] ScreenrecPill — recording indicator (stub registered, not yet implemented)
 - [ ] Style system finalization — palette extraction (pywal/matugen), fix candidates resolved, v2 tokens
 - [ ] Wallpaper panel — testing and touch-up; video thumbnails via ffmpeg

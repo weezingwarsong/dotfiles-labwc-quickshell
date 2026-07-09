@@ -64,6 +64,43 @@ Player selection: `_selectPlayer()` runs on every state/track change — picks P
 
 ---
 
+### NotificationServer
+
+**File:** `root-processes/NotificationServer.qml` (planned — replaces mako)
+
+Implements the D-Bus notification daemon directly via `Quickshell.Services.Notifications`. mako must be stopped (or removed from autostart) before this process claims the `org.freedesktop.Notifications` bus name.
+
+**Owns:**
+- `property var notifications` — `trackedNotifications` model from Quickshell's `NotificationServer`; used directly as Repeater model in the panel
+- `property int countTotal` — total tracked (un-dismissed) notifications
+- `property int countCritical` — count of urgency 2 (critical) notifications
+- `property int _tsVersion` / `function getTimestamp(id)` — timestamp captured on arrival; reactive via `_tsVersion` dependency trick
+- `signal newNotification(notif)` — emitted on each arrival; NotificationPill listens to trigger peek
+
+**Per-notification fields (direct properties on each `Notification` object):**
+
+| Field | Notes |
+|---|---|
+| `appName` | Sender app display name |
+| `summary` | One-liner title |
+| `body` | Optional body text (may be empty) |
+| `urgency` | `NotificationUrgency.Low / Normal / Critical` |
+| `image` | URL string — empty if none |
+| `actions` | List of `NotificationAction` objects with `identifier`, `text`, `invoke()` |
+| `id` | Unique uint — used as key for timestamp lookup |
+
+**Methods:**
+- `notification.dismiss()` — removes from `trackedNotifications`; counts update via `trackedNotificationsChanged`
+- `notification.actions[i].invoke()` — sends D-Bus `ActionInvoked` reply to the originating app
+- `root.clearAll()` — calls `dismiss()` on all tracked notifications
+- `root.getTimestamp(id)` — returns `Date` captured at arrival time
+
+**Counts** are maintained by `_recalc()`, triggered by `Connections { onTrackedNotificationsChanged }` and `onNotification`. Not derived from a native `.count` — `countCritical` requires iteration to filter by urgency.
+
+**No persistence.** Notification list is in-memory only — cleared on quickshell restart. `keepOnReload: false`.
+
+---
+
 ## Pills
 
 ### Time Pill ✓
@@ -140,6 +177,35 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 **Stage 2 reveal:** `shouldReveal` is true for 3 seconds after any `playerUpdated` event (track change or playback state change). Driven by local `_peeking` flag + `Timer`. Rapid events extend the peek window.
 
 **Display:** Playback state glyph (`String.fromCodePoint(0xf04b/0xf04c/0xf04d)`) + track title. CJK track names handled transparently via fontconfig.
+
+---
+
+### Notification Pill ✅
+
+**File:** `module-pills/NotificationPill.qml`
+
+**What it does:** Shows a running count of un-dismissed notifications. Peeks for 7 s on each new arrival so the user notices without demanding persistent attention.
+
+**Data sources (injected):** `NotificationServer`
+
+**Stage 1 priority:**
+
+| State | Priority | Notes |
+|---|---|---|
+| Any notification, within 7 s of arrival | `2` | Briefly beats TimePill (priority 1) during peek window |
+| Idle (no peek active) | `0` | TimePill wins; pill is not visible |
+| No notifications | `0` | Same — pill contributes nothing |
+
+**Stage 2 reveal:** `shouldReveal = true` for 7 s after any `newNotification` signal, driven by a local `Timer`. Rapid arrivals extend the window. After the timer fires, pill hides until the next notification.
+
+**Display:**
+- When `countCritical > 0`: `"N | C"` — e.g. `"4 | 2"`
+- When `countCritical === 0`: `"N"` — e.g. `"3"`
+- Pill not visible when `countTotal === 0` (priority 0, TimePill wins)
+
+**Background:** `Qt.darker(color11, 1.5)` (visible dark red) when `countCritical > 0` during peek; default `pillBgColor` otherwise. `criticalBgColor` (`Qt.darker 2.4`) is too dark to distinguish from `pillBgColor` at pill scale — the less-darkened variant is used instead.
+
+**Note:** `PillWindow` reads `activePill.bgColor` if the property exists; falls back to `Style.pillBgColor` if undefined (all other pills).
 
 ---
 
@@ -408,3 +474,82 @@ Clicking the album art (or music glyph placeholder) calls `wlrctl toplevel focus
 - [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper"]`
 - [x] `module-panels/qmldir` — `MediaPlayerPanel 1.0` (pre-registered as stub)
 - [x] labwc `rc.xml` — W-3 → `toggleMediaPlayer`
+
+---
+
+### Notification Panel ✅
+
+**File:** `module-panels/NotificationPanel.qml` · **Keybind:** W-6
+
+**Data sources (injected):** `NotificationServer`
+
+**Layout (top to bottom):**
+
+```
+PanelNavBar                         ← ‹ / › navigation
+─────────────────────────────────
+[ Clear all ]                       ← right-aligned button; hidden when list is empty
+─────────────────────────────────
+Notification cards (scrollable)     ← newest first, Flickable wrapper
+─────────────────────────────────
+"No notifications" empty state      ← shown when list is empty
+```
+
+**Notification card:**
+
+Each card is a `Rectangle` with padding on all sides. Background color communicates urgency:
+- Urgency 0 (low): `surfaceLowColor`
+- Urgency 1 (normal): `surfaceMidColor`
+- Urgency 2 (critical): `criticalBgColor` at low opacity (tinted, not solid)
+
+**Dismiss:** Right-click anywhere on the card → `notificationServer.dismiss(id)`. `[×]` button (top-right) does the same — redundant, for discoverability. Both paths call the same dismiss.
+
+**Left-click** on the card body (not on a button) → invoke the `"default"` action if present, then dismiss.
+
+**Card layout — two columns:**
+
+```
+[ img ]  timestamp                      [ × ]
+         Summary
+         Body text
+         [ Action 1 ] [ Action 2 ] [ ⋮ ]
+         [ Action 3 ] [ Action 4 ]        ← expanded row, hidden by default
+```
+
+- **Left column:** square image thumbnail (`fillMode: PreserveAspectCrop`, `clip: true`). Hidden when `notification.image` is empty — right column spans full width in that case.
+- **Right column** (top to bottom):
+  1. **Header row** — `timestamp` right-aligned (`textMuted`, mono, e.g. `"14:07"`) · `[×]` dismiss button far-right
+  2. **Summary** — `summary` text (`textNormal`, slightly larger than body size)
+  3. **Body** — `body` text (`textMuted`, body size). Hidden when empty. Multiline — no truncation.
+  4. **Primary action row** — up to 2 `PanelButton`s, then `[⋮]` icon button if more actions exist. Hidden when `actions` is empty.
+  5. **Overflow action row** — remaining actions (max 2 more, so up to 4 total labeled actions). Hidden until `[⋮]` is tapped; `[⋮]` toggles it. Hidden entirely when ≤ 2 actions.
+
+**Action button labels:** elided with `"…"` if they overflow the button width. Full label shown in a `ToolTip` on hover.
+
+**Action invocation:** clicking any action button calls `notificationServer.invokeAction(id, actionId)` then `notificationServer.dismiss(id)`.
+
+**Scrollable list:** `Flickable` with `contentHeight` = sum of card heights + spacing. `clip: true`. The panel has a max height cap (same `_maxHeight` as all panels in `PanelSurface`). Overflow scrolls rather than extending off-screen.
+
+Cards are separated by `Style.panelMargin / 2` spacing.
+
+**Empty state:** When `notificationServer.countTotal === 0`, show a single centred line `"No notifications"` in `textMuted`.
+
+**Clear all button:** A `PanelButton` with `variant: "critical"` (to stand out), label `"Clear all"`. Calls `notificationServer.clearAll()`. Hidden when list is empty.
+
+**Opening side-effect:** When the panel opens, if any critical notification is in the list, set the `NotificationPill`'s `_criticalAcknowledged = true` — stops the persistent shouldReveal (user has seen it). Priority stays at 500 until critical is actually dismissed via the panel.
+
+#### Wiring checklist
+
+- [x] `NotificationServer.qml` — D-Bus daemon, notification list, counts
+- [x] `NotificationPanel.qml` — panel UI
+- [x] `NotificationPill.qml` — pill display
+- [x] `FifoListener.qml` — `toggleNotificationsRequested` signal + `"toggleNotifications"` dispatch
+- [x] `shell.qml` — instantiate `NotificationServer`, `onToggleNotificationsRequested` → `panelController.toggle("notifications")`; inject `notificationServer` into `PanelSurface` and `NotificationPill`
+- [x] `PanelSurface.qml` — `"notifications"` Loader case + `notificationServer` injection
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "notifications", "settings", "wallpaper"]`
+- [x] `module-panels/qmldir` — register `NotificationPanel`
+- [x] `module-pills/qmldir` — register `NotificationPill`
+- [x] `PillController.qml` — `notificationPill` property added; priority 2 peek slot
+- [x] `PillWindow.qml` — reads `activePill.bgColor` for critical background
+- [x] labwc `rc.xml` — W-6 → `toggleNotifications`
+- [x] mako removed from runtime (`killall mako`); remove from `labwc/autostart`

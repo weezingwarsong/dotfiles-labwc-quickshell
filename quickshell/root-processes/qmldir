@@ -10,3 +10,4 @@ WorkspaceProcess 1.0 WorkspaceProcess.qml
 ToplevelProcess 1.0 ToplevelProcess.qml
 MprisProcess 1.0 MprisProcess.qml
 WallpaperProcess 1.0 WallpaperProcess.qml
+NotificationServer 1.0 NotificationServer.qml

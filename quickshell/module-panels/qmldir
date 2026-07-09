@@ -14,3 +14,4 @@ SettingsPanel 1.0 SettingsPanel.qml
 WallpaperPanel 1.0 WallpaperPanel.qml
 TimerWidget 1.0 TimerWidget.qml
 WindowSwitcherPanel 1.0 WindowSwitcherPanel.qml
+NotificationPanel 1.0 NotificationPanel.qml

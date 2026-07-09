@@ -20,7 +20,8 @@ PanelWindow {
     property var timerProcess:     null
     property var toplevelProcess:  null
     property var wallpaperProcess: null
-    property var mprisProcess:    null
+    property var mprisProcess:        null
+    property var notificationServer:  null
 
     signal dismissRequested()
     signal navigateRequested(int direction)
@@ -99,6 +100,7 @@ PanelWindow {
                 if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
                 if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
                 if (root.activePanel === "mediaPlayer")    return Qt.resolvedUrl("../module-panels/MediaPlayerPanel.qml")
+                if (root.activePanel === "notifications")  return Qt.resolvedUrl("../module-panels/NotificationPanel.qml")
                 if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
                 if (root.activePanel === "wallpaper")      return Qt.resolvedUrl("../module-panels/WallpaperPanel.qml")
                 return ""
@@ -120,6 +122,11 @@ PanelWindow {
                 if (root.activePanel === "mediaPlayer") {
                     item.mprisProcess    = Qt.binding(function() { return root.mprisProcess    })
                     item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
+                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
+                    return
+                }
+                if (root.activePanel === "notifications") {
+                    item.notificationServer = Qt.binding(function() { return root.notificationServer })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }
