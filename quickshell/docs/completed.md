@@ -4,6 +4,74 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Wallpaper Service — Qt-Native Rewrite
+
+Full rewrite of the wallpaper stack, replacing the yin daemon with direct Qt rendering. Settings persistence fixed as a prerequisite.
+
+### Why yin was dropped
+- `yinctl` called from Quickshell's `Process` exited with code 6 (IPC failure). Wrapper script `helper/yin_set.sh` → `~/.local/bin/yin-set` was built as a workaround — but yin also failed on video (suspected GPU driver / package regression). External daemons abandoned entirely.
+
+### WallpaperWindow (shell.qml)
+- [x] Replaced `colorBg` PanelWindow (`WlrLayer.Bottom`) with `wallpaperWindow` at `WlrLayer.Background` — correct layer, no more z-fighting
+- [x] `Rectangle` child handles solid color; `AnimatedImage` child handles static images (`PreserveAspectCrop`, `cache: false`)
+- [x] `AnimatedImage` handles both static JPG/PNG/WebP/AVIF and animated GIF with a single element — no branching needed
+- [x] On startup: `AnimatedImage.source` binds to `Prefs.wallpaperPath` → wallpaper auto-restores, no explicit restore call
+- [ ] **Phase 2:** Video — `MediaPlayer` + `VideoOutput` (`QtMultimedia` + GStreamer). Deferred until GPU/driver situation is stable.
+
+### WallpaperProcess (root-processes/WallpaperProcess.qml)
+- [x] Removed `yinProc`, `_pendingYinPath`, `_applyYin()` entirely
+- [x] Replaced single `scanProc` with two separate processes:
+  - `_scanImgProc` — `find <dir> -maxdepth 1 -type f`, filtered by image extensions (`.jpg .jpeg .png .webp .avif .gif`), no size cap
+  - `_scanVidProc` — same with `-size -100M` flag, filtered by video extensions (`.mp4 .webm .mkv .mov`), 100 MB cap per file
+- [x] Both lists capped at 200 items to keep the Repeater fast
+- [x] `setVideo()` persists path/sourceType but does not attempt rendering (phase 2 placeholder)
+- [x] `_maybeExtract()` (matugen) unchanged — only triggered by `setImage()`, not video or slideshow advances
+
+### matugen color extraction
+- [x] `matugenProc` in WallpaperProcess fires when `Prefs.extractColors` is true and user picks an image
+- [x] Parses `base16` JSON section (`base00`–`base0f` → `color0Override`–`color15Override` in Prefs)
+- [x] `Style.qml` variable section reads Prefs overrides with Nord fallback: `Prefs.color0Override !== "" ? Prefs.color0Override : "#2E3440"`
+- [x] Toggle in Settings → Appearance. Turning off clears all overrides, restoring Nord.
+
+### WallpaperPanel (module-panels/WallpaperPanel.qml)
+- [x] Fixed critical layout bug: grid container `Item` used `height:` inside `ColumnLayout` — ColumnLayout reads `implicitHeight` (0 for plain Item), starving the grid of vertical space. Fixed with `implicitHeight:` on both grid containers.
+- [x] Switched both grids from `rows: 3, flow: TopToBottom, HorizontalFlick` to `columns: 3, flow: LeftToRight, VerticalFlick` — more natural UX, scrolls when > 9 items
+- [x] `.gif` files moved to image extensions list (handled by `AnimatedImage`, not video pipeline)
+
+### Infrastructure cleanup
+- [x] Removed `yin &` from `labwc/autostart`
+- [x] Removed `yin-set` symlink from `install.sh`
+- [x] `helper/yin_set.sh` retained as dead file (no references; low-priority cleanup)
+
+**Scope decisions (documented in wallpaper-service-planning.md, now archived):**
+- Global wallpaper only (no per-workspace) — additive later if needed
+- Video file size cap: 100 MB (LOTR trilogy = 25 GB; wallpaper loops < 50 MB)
+- Grid item cap: 200 per section
+- Theming kept in WallpaperProcess (trigger is wallpaper change event)
+
+**Next (filed as fix candidates):**
+- GIF wallpapers: should already work via AnimatedImage — test with actual GIF
+- Video wallpapers (phase 2): `import QtMultimedia`, `MediaPlayer` + `VideoOutput`
+- Visual layer makeover: replace Fixed section (hardcoded Nord semantic tokens) with a proper dynamic color system. Candidate: Material You / mat3 mapped onto the 16-slot base16 palette.
+
+---
+
+## Settings Persistence Fix
+
+- [x] `Prefs.qml` and `SettingsProcess.qml` both use `QtCore.Settings { location: ... }` to write to `~/.config/pillbox.conf`.
+
+**Root cause of the bug:** `StandardPaths.writableLocation()` in QML returns a `file://` URL string (e.g. `file:///home/rauf/.config`), not a plain filesystem path. The original code prepended `"file://"` on top of it, producing `file://file:///home/rauf/.config/pillbox.conf` — an invalid URL. QSettings silently rejected it and fell back to the default mechanism, which requires `organizationName` + `organizationDomain` (not set by Quickshell), so it failed with status 1 and wrote nothing to disk.
+
+**Fix:** Remove the `"file://"` prefix — use `location: StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/pillbox.conf"` directly. The URL returned by `StandardPaths` is already a valid `file://` URL; appending the filename suffix is sufficient.
+
+**Other dead ends investigated:**
+- Subdirectory `~/.config/pillbox/pillbox.conf` — QSettings does not `mkdir -p`; directory didn't exist so writes were silently dropped.
+- `Qt.resolvedUrl("../pillbox.conf")` — Quickshell's URL interceptor resolved this to `qs:@/pillbox.conf` and blackholed it.
+- `PersistentProperties` (Quickshell built-in) — only survives hot-reloads within a session, not full restarts.
+- `QuickshellSettings` — not a user-settings type; it configures the shell's working directory and file-watch behaviour.
+
+---
+
 ## Window Switcher — Desktop App List + Scroll
 
 Extended the window switcher (W-Tab) with:

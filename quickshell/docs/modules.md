@@ -319,23 +319,23 @@ All 7 `Prefs` properties get a live-updating control. Changes apply immediately 
 
 **Reset to defaults:** `PanelButton { variant: "critical"; label: "Reset to defaults" }` — calls every `Prefs.set*()` with its default value.
 
-#### Theme section (planned, v2)
+#### Theme section
 
-A toggle `extractColors: bool` (default off) in the Appearance tab. Fires on every wallpaper change to image/video. Extractor TBD (pywal / matugen / custom) — implement after wallpaper panel stabilizes.
+A toggle `extractColors: bool` (default true) in the Appearance tab. **Implemented:** fires on every image wallpaper selection. Runs `matugen image --json hex --dry-run --source-color-index 0 <path>`, parses the `base16` JSON section (`base00`–`base0f`), writes to `Prefs.color0Override`–`color15Override`. `Style.qml` reads each slot with Nord fallback (`Prefs.color0Override !== "" ? Prefs.color0Override : "#2E3440"`). Toggle off clears all overrides, restoring Nord. Not triggered on slideshow advances — only explicit picks.
 
 ---
 
-### Wallpaper Panel ✓ (testing + touch-up pending)
+### Wallpaper Panel ✅
 
 **File:** `module-panels/WallpaperPanel.qml` · **Keybind:** W-5
 
 **Data sources (injected):** `WallpaperProcess`
 
-Two tabs — `[ Color ] [ Media ]` — `PanelNavBar` as first row. Wallpaper is global (not per-workspace). Color extraction is a future toggle in Settings → Appearance, not in this panel.
+Two tabs — `[ Color ] [ Media ]` — `PanelNavBar` as first row. Wallpaper is global (not per-workspace). Color extraction toggle lives in Settings → Appearance (implemented).
 
 #### Color tab
 
-24 preset muted solid-color swatches in a 6-column grid. Click applies immediately — no confirm. Active swatch has accent border. Tooltips show the color name. Does not call yin — solid color is rendered by a fullscreen `PanelWindow` at `WlrLayer.Background` in `shell.qml` (`color: wallpaper.currentColor`, `visible: wallpaper.sourceType === "color"`).
+24 preset muted solid-color swatches in a 6-column grid. Click applies immediately — no confirm. Active swatch has accent border. Tooltips show the color name. Solid color is rendered by a `Rectangle` inside `wallpaperWindow` (`PanelWindow` at `WlrLayer.Background` in `shell.qml`), visible only when `wallpaper.sourceType === "color"`.
 
 Preset palette: 24 swatches ranging from very dark near-blacks to muted mid-tones (Nord Dark Blue `#3B4252`, Catppuccin Mocha `#1E1E2E`, Gruvbox Dark `#3C3836`, etc.). Full list in `WallpaperPanel.qml` `_swatches` property.
 
@@ -346,34 +346,45 @@ Preset palette: 24 swatches ranging from very dark near-blacks to muted mid-tone
 **Images section:**
 - `[ Single ] [ Slideshow ]` mode toggle
 - Slideshow controls (visible in slideshow mode): `[–]` interval `[+]` stepper (±5 s, min 5 s; persisted to `Prefs.slideshowInterval`) + `[Apply]` button — starts slideshow with selected tiles (or all images if none selected)
-- 3-row horizontally-scrollable thumbnail grid (`Grid { rows: 3; flow: TopToBottom }` inside a `Flickable`). Each tile: async image preview + truncated filename below. Active tile has accent border. Selected-for-slideshow tiles show a Nerd Font checkmark in the corner.
-- Extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`
+- 3-column vertically-scrollable thumbnail grid (`Grid { columns: 3; flow: LeftToRight }` inside `Flickable { flickableDirection: VerticalFlick }`). Each tile: async image preview + truncated filename below. Active tile has accent border. Selected-for-slideshow tiles show a Nerd Font checkmark in the corner.
+- Extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`, `.gif` — GIF handled by `AnimatedImage` (same element as static images; no branching needed)
 
-**Video / GIF section:**
-- Same 3-row horizontal grid, single selection only (no slideshow)
-- v1: Nerd Font play icon placeholder (no real thumbnail). v2: first-frame extraction via ffmpeg, cached to `~/.cache/pillbox/thumbs/`
-- Extensions: `.mp4`, `.webm`, `.mkv`, `.mov`, `.gif`
+**Video section:**
+- Same 3-column vertical grid, single selection only (no slideshow)
+- v1: Persists path/sourceType but video does not render — video rendering (phase 2) requires `import QtMultimedia` + `MediaPlayer` + `VideoOutput`. v2: first-frame thumbnail via ffmpeg, cached to `~/.cache/pillbox/thumbs/`
+- Extensions: `.mp4`, `.webm`, `.mkv`, `.mov` (`.gif` moved to Images — handled by `AnimatedImage`)
 
 **Empty states:** `"Set a directory above"` when no dir configured; `"No images found"` / `"No videos or GIFs found"` after a scan with no matches.
 
-**Error feedback:** `"yin not started"` inline text when `WallpaperProcess.lastError` is set (yinctl non-zero exit).
+**Error feedback:** Inline text when `WallpaperProcess.lastError` is set — e.g. scan returned no files, or matugen extraction failed.
 
 #### WallpaperProcess data layer
 
-- `setColor(hex)` — updates state, persists to Prefs, hides yin surface (color Rectangle takes over)
-- `setImage(path)` / `setVideo(path)` — updates state, persists to Prefs, calls `yinctl --img <path>`
-- `startSlideshow(files)` / `nextSlide()` / `stopSlideshow()` — interval `Timer` cycles files sequentially
-- `setSlideshowInterval(secs)` — updates `slideshowTimer.interval`, persists to Prefs
-- `scanDirectory(dir)` — runs `find <dir> -maxdepth 1 -type f`, sorts and splits output into `imageFiles`/`videoFiles` arrays by extension
-- Startup restore: if `sourceType` is image/video and `wallpaperPath` non-empty, calls `yinctl --img <wallpaperPath>` on `Component.onCompleted`
+**File:** `root-processes/WallpaperProcess.qml`
 
-**yin interaction:** yin handles image/video rendering. Solid color bypasses yin entirely. In color mode, yin keeps running with its last image underneath (invisible) — switching back to image/video reveals it without a new `yinctl` call.
+No external daemons. All rendering handled by `wallpaperWindow` in `shell.qml` via reactive bindings to `WallpaperProcess` state.
+
+Public API:
+- `setColor(hex)` — updates `sourceType`/`currentColor`, persists to Prefs. `wallpaperWindow` Rectangle becomes visible automatically.
+- `setImage(path)` — updates `sourceType`/`currentPath`, persists to Prefs, triggers `_maybeExtract()` if `Prefs.extractColors`. `wallpaperWindow` AnimatedImage updates via binding.
+- `setVideo(path)` — updates `sourceType`/`currentPath`, persists to Prefs. Phase 2 placeholder — renders nothing until `MediaPlayer` is wired.
+- `startSlideshow(files)` / `nextSlide()` / `stopSlideshow()` — interval `Timer` cycles files sequentially; `nextSlide` does NOT trigger matugen (intentional — avoids extraction every N seconds)
+- `setSlideshowInterval(secs)` — updates `slideshowTimer.interval`, persists to Prefs
+- `scanDirectory(dir)` — resets both file lists, then runs two separate `find` commands in parallel:
+  - `_scanImgProc`: `find <dir> -maxdepth 1 -type f`, extension filter in JS (`.jpg .jpeg .png .webp .avif .gif`), no size cap, 200-item cap
+  - `_scanVidProc`: same with `-size -100M`, extension filter (`.mp4 .webm .mkv .mov`), 200-item cap
+- Startup restore: `Component.onCompleted` calls `scanDirectory` to populate grids. Wallpaper itself auto-restores — `AnimatedImage.source` binds to `wallpaper.currentPath` (which reads `Prefs.wallpaperPath` on init). No explicit restore call needed.
+
+**Rendering surface:** `wallpaperWindow` in `shell.qml` — `PanelWindow` at `WlrLayer.Background` with `exclusiveZone: -1` covering the full screen. Two children, `visible` toggled by `sourceType`:
+- `Rectangle` — `visible: wallpaper.sourceType === "color"`; `color: wallpaper.currentColor`
+- `AnimatedImage` — `visible: wallpaper.sourceType === "image"`; `fillMode: PreserveAspectCrop`; `cache: false`
 
 **Pending (v2):**
-- [ ] Real video thumbnails via ffmpeg (first frame, cached per file)
-- [ ] `extractColors` toggle in Settings Appearance tab → Theme section
-- [ ] Thumbnail cache cleanup for `~/.cache/pillbox/thumbs/`
-- [ ] yin autostart via labwc autostart
+- [ ] Video rendering — `import QtMultimedia`, `MediaPlayer` + `VideoOutput`. Requires `qt6-multimedia` + GStreamer. Deferred until GPU/driver situation is stable.
+- [ ] GIF rendering — should already work via `AnimatedImage`. Needs end-to-end test with an actual animated GIF file.
+- [ ] Real video thumbnails — first frame via ffmpeg, cached to `~/.cache/pillbox/thumbs/`
+- [ ] Multi-monitor — currently `Quickshell.screens[0]` only. Additive: wrap `wallpaperWindow` in a `Repeater` over `Quickshell.screens`.
+- [ ] Visual layer makeover — current Fixed section in `Style.qml` uses hardcoded Nord semantic tokens. Future: dynamic mat3 / Material You color system mapped onto the base16 palette. All 16 slots already persisted via `Prefs.color0Override`–`color15Override`; Style.qml Variable section already reads them. The mapping logic and dynamic derivation of semantic tokens (not just raw palette) is the remaining work.
 
 ---
 

@@ -7,16 +7,9 @@ Item {
     signal googleDisconnected()
 
     // ── Persistence ───────────────────────────────────────────────────────────
-    // Qt.labs.settings requires organizationName/applicationName to derive a
-    // path automatically; Quickshell doesn't set these. Specify fileName
-    // explicitly via StandardPaths so QSettings always has a valid target.
-    // QSettings creates the parent directory if it does not exist.
-
     Settings {
         id: _store
-        // QtCore.Settings uses location (url) for a custom file path.
-        // StandardPaths returns an absolute path; prepend "file://" to form a valid file URL.
-        location: "file://" + StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/pillbox/pillbox.conf"
+        location: StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/pillbox.conf"
         property bool   googleConnected: true
         property string locationMode:    "auto"   // "auto" | "manual"
         property string locationString:  ""

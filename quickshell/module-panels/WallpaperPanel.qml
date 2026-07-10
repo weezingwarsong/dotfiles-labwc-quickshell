@@ -276,7 +276,7 @@ Item {
             // Image grid
             Item {
                 Layout.fillWidth: true
-                height: root.wallpaperProcess && root.wallpaperProcess.imageFiles.length > 0
+                implicitHeight: root.wallpaperProcess && root.wallpaperProcess.imageFiles.length > 0
                     ? 3 * root._tileH + 2 * root._spacing
                     : _emptyImg.implicitHeight + 8
                 clip: true
@@ -297,15 +297,15 @@ Item {
                 Flickable {
                     visible: root.wallpaperProcess && root.wallpaperProcess.imageFiles.length > 0
                     anchors.fill: parent
-                    flickableDirection: Flickable.HorizontalFlick
-                    contentWidth:  _imgGrid.width
-                    contentHeight: height
+                    flickableDirection: Flickable.VerticalFlick
+                    contentWidth:  width
+                    contentHeight: _imgGrid.height
                     clip: true
 
                     Grid {
                         id: _imgGrid
-                        rows:    3
-                        flow:    Grid.TopToBottom
+                        columns: 3
+                        flow:    Grid.LeftToRight
                         spacing: root._spacing
 
                         Repeater {
@@ -323,7 +323,7 @@ Item {
 
             Item {
                 Layout.fillWidth: true
-                height: root.wallpaperProcess && root.wallpaperProcess.videoFiles.length > 0
+                implicitHeight: root.wallpaperProcess && root.wallpaperProcess.videoFiles.length > 0
                     ? 3 * root._tileH + 2 * root._spacing
                     : _emptyVid.implicitHeight + 8
                 clip: true
@@ -343,15 +343,15 @@ Item {
                 Flickable {
                     visible: root.wallpaperProcess && root.wallpaperProcess.videoFiles.length > 0
                     anchors.fill: parent
-                    flickableDirection: Flickable.HorizontalFlick
-                    contentWidth:  _vidGrid.width
-                    contentHeight: height
+                    flickableDirection: Flickable.VerticalFlick
+                    contentWidth:  width
+                    contentHeight: _vidGrid.height
                     clip: true
 
                     Grid {
                         id: _vidGrid
-                        rows:    3
-                        flow:    Grid.TopToBottom
+                        columns: 3
+                        flow:    Grid.LeftToRight
                         spacing: root._spacing
 
                         Repeater {

@@ -558,6 +558,42 @@ Item {
                 }
             }
 
+            // Theme
+            Text {
+                text: "Theme"
+                color: Style.textPrimary
+                font.family: Style.fontMono
+                font.pixelSize: Style.fontSizeHeading
+                font.bold: true
+            }
+
+            PanelCard {
+                RowLayout {
+                    y: parent.padding
+                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
+                    spacing: 6
+                    Text {
+                        text: "Extract colors from wallpaper"
+                        color: Style.textSecondary
+                        font.family: Style.fontMono
+                        font.pixelSize: Style.fontSizeBody
+                        Layout.fillWidth: true
+                    }
+                    PanelButton {
+                        label: Prefs.extractColors ? "On" : "Off"
+                        variant: Prefs.extractColors ? "accent" : "default"
+                        onClicked: {
+                            if (Prefs.extractColors) {
+                                Prefs.setExtractColors(false)
+                                Prefs.clearColorOverrides()
+                            } else {
+                                Prefs.setExtractColors(true)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Reset
             PanelButton {
                 label: "Reset to defaults"
@@ -570,6 +606,8 @@ Item {
                     Prefs.setRadiusScale(1.0)
                     Prefs.setBorderWidth(1)
                     Prefs.setElementBorderWidth(1)
+                    Prefs.setExtractColors(false)
+                    Prefs.clearColorOverrides()
                 }
             }
         }

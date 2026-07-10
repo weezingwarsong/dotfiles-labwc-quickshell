@@ -85,7 +85,7 @@ Several known issues are tracked in the docs as **fix candidates** and intention
 - Pill dimension tokens (`pillHeight: 24`, `pillPaddingH: 20`, etc.) are hardcoded; should be Style tokens
 - Email address not shown in Settings Services tab (shows "Connected" instead)
 - Click-outside dismiss disabled for WindowSwitcher (should work like all other panels)
-- User preference changes don't persist across quickshell restarts
+- ~~User preference changes don't persist across quickshell restarts~~ **Fixed** — see completed.md
 - TimePill urgent state has no distinct visual treatment (criticalBgColor candidate)
 
 ---

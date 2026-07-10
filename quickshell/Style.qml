@@ -15,23 +15,25 @@ QtObject {
     // color4–6    = text on dark backgrounds (Snow Storm)
     // color7–10   = frost blues (accents, focus, indicators)
     // color11–15  = aurora (semantic states: critical, success, …)
+    // Each slot falls back to its Nord default when no override is set.
+    // Overrides are written by WallpaperProcess via matugen (base16 mapping).
     readonly property color transparent: "transparent"
-    readonly property color color0:  "#2E3440"   // nord0  — background
-    readonly property color color1:  "#3B4252"   // nord1  — low surface, faint border
-    readonly property color color2:  "#434C5E"   // nord2  — raised surface, button fill
-    readonly property color color3:  "#4C566A"   // nord3  — dim border, inactive text
-    readonly property color color4:  "#D8DEE9"   // nord4  — secondary text
-    readonly property color color5:  "#E5E9F0"   // nord5  — standard body text
-    readonly property color color6:  "#ECEFF4"   // nord6  — primary / heading text
-    readonly property color color7:  "#8FBCBB"   // nord7  — frost teal (unassigned)
-    readonly property color color8:  "#88C0D0"   // nord8  — frost ice-blue, dot indicators
-    readonly property color color9:  "#81A1C1"   // nord9  — frost soft-blue, accent text
-    readonly property color color10: "#5E81AC"   // nord10 — frost deep-blue, focus / borders
-    readonly property color color11: "#BF616A"   // nord11 — aurora red, critical state
-    readonly property color color12: "#D08770"   // nord12 — aurora orange (unassigned)
-    readonly property color color13: "#EBCB8B"   // nord13 — aurora yellow (unassigned)
-    readonly property color color14: "#A3BE8C"   // nord14 — aurora green, success
-    readonly property color color15: "#B48EAD"   // nord15 — aurora purple (unassigned)
+    readonly property color color0:  Prefs.color0Override  !== "" ? Prefs.color0Override  : "#2E3440"
+    readonly property color color1:  Prefs.color1Override  !== "" ? Prefs.color1Override  : "#3B4252"
+    readonly property color color2:  Prefs.color2Override  !== "" ? Prefs.color2Override  : "#434C5E"
+    readonly property color color3:  Prefs.color3Override  !== "" ? Prefs.color3Override  : "#4C566A"
+    readonly property color color4:  Prefs.color4Override  !== "" ? Prefs.color4Override  : "#D8DEE9"
+    readonly property color color5:  Prefs.color5Override  !== "" ? Prefs.color5Override  : "#E5E9F0"
+    readonly property color color6:  Prefs.color6Override  !== "" ? Prefs.color6Override  : "#ECEFF4"
+    readonly property color color7:  Prefs.color7Override  !== "" ? Prefs.color7Override  : "#8FBCBB"
+    readonly property color color8:  Prefs.color8Override  !== "" ? Prefs.color8Override  : "#88C0D0"
+    readonly property color color9:  Prefs.color9Override  !== "" ? Prefs.color9Override  : "#81A1C1"
+    readonly property color color10: Prefs.color10Override !== "" ? Prefs.color10Override : "#5E81AC"
+    readonly property color color11: Prefs.color11Override !== "" ? Prefs.color11Override : "#BF616A"
+    readonly property color color12: Prefs.color12Override !== "" ? Prefs.color12Override : "#D08770"
+    readonly property color color13: Prefs.color13Override !== "" ? Prefs.color13Override : "#EBCB8B"
+    readonly property color color14: Prefs.color14Override !== "" ? Prefs.color14Override : "#A3BE8C"
+    readonly property color color15: Prefs.color15Override !== "" ? Prefs.color15Override : "#B48EAD"
 
     // ── Fonts ────────────────────────────────────────────────────────────────
     readonly property string fontMono: Prefs.fontMono   // user-adjustable

@@ -40,6 +40,7 @@ echo "  linked google-auth-notify → ~/.local/bin"
 ln -snf "$DOTFILES/helper/weather/weather_fetch.py" "$HOME/.local/bin/weather-fetch"
 echo "  linked weather-fetch → ~/.local/bin"
 
+
 # Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find gcal-fetch.
 # labwc reads this file before launching child processes; the user's shell PATH is not inherited.
 LOCAL_BIN="$HOME/.local/bin"

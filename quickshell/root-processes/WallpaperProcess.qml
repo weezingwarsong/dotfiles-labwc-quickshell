@@ -12,8 +12,8 @@ Item {
     property int    slideshowInterval: Prefs.slideshowInterval    // seconds
 
     // ── Directory scan results ────────────────────────────────────────────────
-    property var imageFiles: []   // [{path, name}]  — images only
-    property var videoFiles: []   // [{path, name}]  — video + gif
+    property var imageFiles: []   // [{path, name}]  — images only, capped at 200
+    property var videoFiles: []   // [{path, name}]  — video only,  capped at 200
 
     // ── Slideshow ─────────────────────────────────────────────────────────────
     property bool slideshow:      false
@@ -32,7 +32,7 @@ Item {
         root.lastError   = ""
         Prefs.setWallpaperSourceType("image")
         Prefs.setWallpaperPath(path)
-        _applyYin(path)
+        _maybeExtract(path)
     }
 
     function setVideo(path) {
@@ -42,7 +42,7 @@ Item {
         root.lastError   = ""
         Prefs.setWallpaperSourceType("video")
         Prefs.setWallpaperPath(path)
-        _applyYin(path)
+        // Video rendering is phase 2 — no matugen on video files
     }
 
     function setColor(color) {
@@ -52,7 +52,6 @@ Item {
         root.lastError    = ""
         Prefs.setWallpaperSourceType("color")
         Prefs.setWallpaperColor(color)
-        // No yin call — the color background window in shell.qml handles rendering.
     }
 
     function startSlideshow(files) {
@@ -65,7 +64,6 @@ Item {
         root.lastError      = ""
         Prefs.setWallpaperSourceType("image")
         Prefs.setWallpaperPath(files[0])
-        _applyYin(files[0])
     }
 
     function stopSlideshow() {
@@ -83,69 +81,114 @@ Item {
         var path = root.slideshowFiles[root._slideshowIdx]
         root.currentPath = path
         Prefs.setWallpaperPath(path)
-        _applyYin(path)
     }
 
     function scanDirectory(dir) {
-        if (dir === "" || scanProc.running) return
+        if (dir === "" || _scanImgProc.running || _scanVidProc.running) return
         Prefs.setWallpaperDir(dir)
-        root.wallpaperDir = dir
-        scanProc.running = true
+        root.wallpaperDir  = dir
+        root.imageFiles    = []
+        root.videoFiles    = []
+        _scanImgProc.running = true
+        _scanVidProc.running = true
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
-    property string _pendingYinPath: ""
+    property string _extractPath: ""
 
-    function _applyYin(path) {
-        root._pendingYinPath = path
-        if (yinProc.running) return
-        yinProc.running = true
+    function _maybeExtract(path) {
+        if (!Prefs.extractColors || path === "") return
+        root._extractPath = path
+        if (matugenProc.running) return
+        matugenProc.running = true
     }
 
+    // Image scan — no size cap (even a 50 MB PNG is fine as a static wallpaper).
+    // Results capped at 200 items to keep the Repeater fast.
     Process {
-        id: yinProc
-        command: ["yinctl", "--img", root._pendingYinPath]
-        onExited: function(code, signal) {
-            if (code !== 0) {
-                root.lastError = "yin not started"
-                console.log("[WallpaperProcess] yinctl exited", code, "— is yin running?")
-            } else {
-                root.lastError = ""
-            }
-        }
-    }
-
-    Process {
-        id: scanProc
+        id: _scanImgProc
         command: ["find", root.wallpaperDir, "-maxdepth", "1", "-type", "f"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var imageExts = [".jpg", ".jpeg", ".png", ".webp", ".avif"]
-                var videoExts = [".mp4", ".webm", ".mkv", ".mov", ".gif"]
-                var imgs = [], vids = []
+                var exts = [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"]
+                var imgs = []
                 text.split("\n").forEach(function(p) {
+                    if (imgs.length >= 200) return
                     p = p.trim()
                     if (p === "") return
                     var lower = p.toLowerCase()
-                    var name  = p.split("/").pop()
-                    if (imageExts.some(function(e) { return lower.endsWith(e) }))
-                        imgs.push({ path: p, name: name })
-                    else if (videoExts.some(function(e) { return lower.endsWith(e) }))
-                        vids.push({ path: p, name: name })
+                    if (exts.some(function(e) { return lower.endsWith(e) }))
+                        imgs.push({ path: p, name: p.split("/").pop() })
                 })
                 imgs.sort(function(a, b) { return a.name.localeCompare(b.name) })
-                vids.sort(function(a, b) { return a.name.localeCompare(b.name) })
                 root.imageFiles = imgs
-                root.videoFiles = vids
-                console.log("[WallpaperProcess] scan:", imgs.length, "images,",
-                    vids.length, "videos in", root.wallpaperDir)
+                console.log("[WallpaperProcess] images:", imgs.length, "in", root.wallpaperDir)
             }
         }
         onExited: function(code, signal) {
             if (code !== 0)
-                console.log("[WallpaperProcess] scan failed, code", code,
-                    "— check that the directory exists:", root.wallpaperDir)
+                console.log("[WallpaperProcess] image scan failed, code", code,
+                    "— check directory:", root.wallpaperDir)
+        }
+    }
+
+    // Video scan — hard cap at 100 MB per file. Wallpaper loops are almost always
+    // under 50 MB; feature films are 20–50 GB. The 100 MB line is defensible.
+    // Results also capped at 200 items.
+    Process {
+        id: _scanVidProc
+        command: ["find", root.wallpaperDir, "-maxdepth", "1", "-type", "f", "-size", "-100M"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var exts = [".mp4", ".webm", ".mkv", ".mov"]
+                var vids = []
+                text.split("\n").forEach(function(p) {
+                    if (vids.length >= 200) return
+                    p = p.trim()
+                    if (p === "") return
+                    var lower = p.toLowerCase()
+                    if (exts.some(function(e) { return lower.endsWith(e) }))
+                        vids.push({ path: p, name: p.split("/").pop() })
+                })
+                vids.sort(function(a, b) { return a.name.localeCompare(b.name) })
+                root.videoFiles = vids
+                console.log("[WallpaperProcess] videos:", vids.length, "in", root.wallpaperDir)
+            }
+        }
+        onExited: function(code, signal) {
+            if (code !== 0)
+                console.log("[WallpaperProcess] video scan failed, code", code,
+                    "— check directory:", root.wallpaperDir)
+        }
+    }
+
+    // matugen extracts a 16-color base16 palette from the wallpaper image.
+    // base00–base0f map 1:1 to color0–color15 in Style.qml.
+    Process {
+        id: matugenProc
+        command: ["matugen", "image", "--json", "hex", "--dry-run",
+                  "--source-color-index", "0", root._extractPath]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var data = JSON.parse(text)
+                    var b16  = data.base16
+                    var keys = ["base00","base01","base02","base03",
+                                "base04","base05","base06","base07",
+                                "base08","base09","base0a","base0b",
+                                "base0c","base0d","base0e","base0f"]
+                    for (var i = 0; i < 16; i++)
+                        Prefs["setColor" + i + "Override"](b16[keys[i]].dark.color)
+                    console.log("[WallpaperProcess] palette extracted from", root._extractPath)
+                } catch (e) {
+                    console.log("[WallpaperProcess] matugen parse error:", e)
+                }
+            }
+        }
+        onExited: function(code, signal) {
+            if (code !== 0)
+                console.log("[WallpaperProcess] matugen exited", code, "— is matugen installed?")
         }
     }
 
@@ -160,12 +203,7 @@ Item {
     Component.onCompleted: {
         console.log("[WallpaperProcess] started | sourceType:", root.sourceType,
             "| dir:", root.wallpaperDir)
-        // Restore last wallpaper on startup
-        if ((root.sourceType === "image" || root.sourceType === "video")
-                && root.currentPath !== "")
-            _applyYin(root.currentPath)
-        // Populate file grids if a directory was previously set
         if (root.wallpaperDir !== "")
-            scanProc.running = true
+            scanDirectory(root.wallpaperDir)
     }
 }

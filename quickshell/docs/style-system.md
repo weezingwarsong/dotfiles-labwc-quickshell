@@ -18,7 +18,7 @@ How visual tokens, user preferences, and the color palette are organized in Pill
 
 ```
 Prefs.qml  (pragma Singleton)
-    └── QtCore.Settings → ~/.config/pillbox/pillbox.conf
+    └── QtCore.Settings → ~/.config/pillbox.conf
     └── Exposes readonly aliases + set*() functions
             ↓
 Style.qml  (pragma Singleton)
@@ -38,20 +38,20 @@ All components — read Style.* only, never Variable or Prefs directly
 All settings operate on two layers:
 
 - **Defaults** — compiled-in baseline. Never written to disk. The permanent reference point.
-- **User layer** — overrides only. Stored in `~/.config/pillbox/pillbox.conf`. Only keys the user has explicitly changed are persisted.
+- **User layer** — overrides only. Stored in `~/.config/pillbox.conf`. Only keys the user has explicitly changed are persisted.
 
 Resolved value = user override if present, otherwise the compiled default. `QtCore.Settings` handles this automatically.
 
 > **Fix candidate:** Modified fields (values that differ from their compiled default) should be visually distinguished in the Settings → Appearance UI with a subtle accent tint. Not yet implemented.
 
-> **Fix candidate (deferred):** User preference changes do not currently persist across quickshell restarts. The intention is that any value written via a `Prefs.set*()` call survives a quickshell reload and is restored on next launch. `QtCore.Settings` is the intended mechanism — the fix is to ensure it is wired and flushed correctly before the process exits.
+> ~~**Fix candidate (deferred):**~~ **Fixed** — Preferences now persist across restarts via `QtCore.Settings` writing to `~/.config/pillbox.conf`. Root cause: `StandardPaths.writableLocation()` in QML returns a `file://` URL string, not a plain filesystem path. The original code prepended `"file://"` again, producing `file://file:///...` — an invalid double-scheme URL that QSettings silently rejected. Fix: use the URL string directly as the `location` value. See completed.md.
 
 ---
 
 ## Prefs.qml
 
 **File:** `Prefs.qml` (root, `pragma Singleton`)
-**Persists to:** `~/.config/pillbox/pillbox.conf`
+**Persists to:** `~/.config/pillbox.conf`
 
 ### Appearance properties
 
@@ -77,21 +77,30 @@ These are two separate settings so a user who wants a borderless pill/panel cont
 | `wallpaperDir` | `string` | `""` | `setWallpaperDir(v)` |
 | `slideshowInterval` | `int` | `60` | `setSlideshowInterval(v)` |
 
-### v2 — Palette overrides (deferred)
+### Palette overrides ✅ Implemented
 
-Per-slot palette overrides so users can customise individual colors without replacing the whole theme. Style falls back to the Nord default when a slot is unset.
+Per-slot palette overrides let users customise individual colors without replacing the whole theme. Style falls back to the Nord default when a slot is unset.
 
 ```qml
 // In Prefs._store:
 property string color0Override: ""
-// ... color1Override–color15Override
+// ... color1Override–color15Override (all 16 slots)
 
 // In Style.qml Variable section:
-readonly property color color0: Prefs.color0Override || "#2E3440"
+readonly property color color0: Prefs.color0Override !== "" ? Prefs.color0Override : "#2E3440"
 // ... color1–color15 same pattern
 ```
 
-This is also the integration point for wallpaper color extraction (pywal / matugen output format matches the 16-slot terminal palette exactly).
+Override values are populated by `WallpaperProcess._maybeExtract()` via `matugen image --json hex --dry-run`. The 16 base16 slots (`base00`–`base0f`) map directly to `color0Override`–`color15Override`. All 16 slots write to `~/.config/pillbox.conf` on wallpaper change (when `Prefs.extractColors` is true).
+
+**Phase 2 — mat3 / Material You dynamic system:**
+
+The current Fixed section (`textPrimary`, `accentBgColor`, etc.) has hardcoded Nord-derived mappings. A proper dynamic system would:
+- Map the extracted 16-slot palette onto Material You (mat3) roles: `primary`, `secondary`, `tertiary`, `error`, `surface`, `background`, etc.
+- Derive semantic tokens from those roles rather than from fixed palette indices
+- Allow the entire visual layer to recolor when a new wallpaper is picked, not just raw color swatches
+
+This is additive — the 16 override slots already persist and feed `Style.qml`. The remaining work is in how Fixed maps Variable → semantic tokens.
 
 ### v2 — Timing constants (deferred)
 
@@ -271,7 +280,7 @@ All items tagged above, collected here for easy tracking:
 | 4 | `dotIndicator` single-use | `Style.qml` Fixed | Remove; move `color8` inline in CalendarPanel |
 | 5 | Pill dimension tokens hardcoded | `PillWindow`, `MprisPill`, `WindowPill` | Add `pillHeight`, `pillPaddingH`, `pillTextMaxWidth`, `pillContentSpacing` to Style Fixed |
 | 6 | Modified prefs fields have no accent tint | `SettingsPanel.qml` Appearance tab | Add subtle `accentBgColor` tint to fields whose value differs from the compiled default |
-| 7 | Preference changes do not persist across restarts (deferred) | `Prefs.qml` / `QtCore.Settings` | Ensure `QtCore.Settings` is correctly wired and flushed so user values survive quickshell reload |
+| 7 | ~~Preference changes do not persist across restarts~~ | ~~`Prefs.qml` / `QtCore.Settings`~~ | **Fixed** — `StandardPaths.writableLocation()` returns a URL string; double-prefixing produced invalid location. See completed.md. |
 
 ---
 

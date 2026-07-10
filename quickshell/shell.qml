@@ -41,10 +41,11 @@ ShellRoot {
     WallpaperProcess   { id: wallpaper }
     NotificationServer { id: notifServer }
 
-    // Solid color background — only visible when wallpaper source is "color".
-    // yin handles image/video; this Rectangle handles the trivial solid case.
+    // Wallpaper window — Background layer, always present, covers all workspaces.
+    // No external daemon: Qt renders color/image/GIF directly.
+    // Video (phase 2) will be added here once tested.
     PanelWindow {
-        id: colorBg
+        id: wallpaperWindow
         screen:        Quickshell.screens[0]
         exclusiveZone: -1
         WlrLayershell.layer: WlrLayer.Background
@@ -52,8 +53,22 @@ ShellRoot {
         anchors.right:  true
         anchors.top:    true
         anchors.bottom: true
-        color: wallpaper.currentColor
-        visible: wallpaper.sourceType === "color"
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            visible: wallpaper.sourceType === "color"
+            color:   wallpaper.currentColor
+        }
+
+        AnimatedImage {
+            anchors.fill: parent
+            visible:      wallpaper.sourceType === "image"
+            source:       wallpaper.sourceType === "image" ? "file://" + wallpaper.currentPath : ""
+            fillMode:     Image.PreserveAspectCrop
+            asynchronous: true
+            cache:        false
+        }
     }
 
     TimePill {
