@@ -133,6 +133,8 @@ PanelWindow {
                 if (root.activePanel === "wallpaper") {
                     item.wallpaperProcess = Qt.binding(function() { return root.wallpaperProcess })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
+                    if (root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== "")
+                        root.wallpaperProcess.scanDirectory(root.wallpaperProcess.wallpaperDir)
                     return
                 }
                 // calendar

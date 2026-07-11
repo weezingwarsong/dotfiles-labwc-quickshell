@@ -349,12 +349,12 @@ Preset palette: 24 swatches ranging from very dark near-blacks to muted mid-tone
 - 3-column vertically-scrollable thumbnail grid (`Grid { columns: 3; flow: LeftToRight }` inside `Flickable { flickableDirection: VerticalFlick }`). Each tile: async image preview + truncated filename below. Active tile has accent border. Selected-for-slideshow tiles show a Nerd Font checkmark in the corner.
 - Extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`, `.gif` — GIF handled by `AnimatedImage` (same element as static images; no branching needed)
 
-**Video section:**
+**Videos section:**
 - Same 3-column vertical grid, single selection only (no slideshow)
-- v1: Persists path/sourceType but video does not render — video rendering (phase 2) requires `import QtMultimedia` + `MediaPlayer` + `VideoOutput`. v2: first-frame thumbnail via ffmpeg, cached to `~/.cache/pillbox/thumbs/`
-- Extensions: `.mp4`, `.webm`, `.mkv`, `.mov` (`.gif` moved to Images — handled by `AnimatedImage`)
+- Tiles show ffmpeg thumbnail when ready (`thumbsReady[path]`); play icon placeholder until then
+- Extensions: `.mp4`, `.webm`, `.mkv`, `.mov` (`.gif` stays in Images — handled by `AnimatedImage`)
 
-**Empty states:** `"Set a directory above"` when no dir configured; `"No images found"` / `"No videos or GIFs found"` after a scan with no matches.
+**Empty states:** `"Set a directory above"` when no dir configured; `"No images found"` / `"No videos found"` after a scan with no matches.
 
 **Error feedback:** Inline text when `WallpaperProcess.lastError` is set — e.g. scan returned no files, or matugen extraction failed.
 
@@ -367,22 +367,24 @@ No external daemons. All rendering handled by `wallpaperWindow` in `shell.qml` v
 Public API:
 - `setColor(hex)` — updates `sourceType`/`currentColor`, persists to Prefs. `wallpaperWindow` Rectangle becomes visible automatically.
 - `setImage(path)` — updates `sourceType`/`currentPath`, persists to Prefs, triggers `_maybeExtract()` if `Prefs.extractColors`. `wallpaperWindow` AnimatedImage updates via binding.
-- `setVideo(path)` — updates `sourceType`/`currentPath`, persists to Prefs. Phase 2 placeholder — renders nothing until `MediaPlayer` is wired.
+- `setVideo(path)` — updates `sourceType`/`currentPath`, persists to Prefs. Triggers color extraction via thumbnail JPEG once thumb is ready (`_pendingVideoExtract` deferred path).
 - `startSlideshow(files)` / `nextSlide()` / `stopSlideshow()` — interval `Timer` cycles files sequentially; `nextSlide` does NOT trigger matugen (intentional — avoids extraction every N seconds)
 - `setSlideshowInterval(secs)` — updates `slideshowTimer.interval`, persists to Prefs
-- `scanDirectory(dir)` — resets both file lists, then runs two separate `find` commands in parallel:
-  - `_scanImgProc`: `find <dir> -maxdepth 1 -type f`, extension filter in JS (`.jpg .jpeg .png .webp .avif .gif`), no size cap, 200-item cap
-  - `_scanVidProc`: same with `-size -100M`, extension filter (`.mp4 .webm .mkv .mov`), 200-item cap
-- Startup restore: `Component.onCompleted` calls `scanDirectory` to populate grids. Wallpaper itself auto-restores — `AnimatedImage.source` binds to `wallpaper.currentPath` (which reads `Prefs.wallpaperPath` on init). No explicit restore call needed.
+- `scanDirectory(dir)` — runs two `find` commands in parallel. Clears file lists only when `dir` differs from current `wallpaperDir` (same-dir rescans update lists in-place, no grid flash). Called on startup and on every wallpaper panel open:
+  - `_scanImgProc`: `find <dir> -maxdepth 1 -type f -not ( -iname "*.gif" -size +50M )`, extension filter (`.jpg .jpeg .png .webp .avif .gif`), 200-item cap
+  - `_scanVidProc`: same with `-size -100M`, extension filter (`.mp4 .webm .mkv .mov`), 200-item cap; triggers `_startThumbQueue` on completion
+- `thumbPath(videoPath)` — returns `~/.cache/pillbox/thumbs/<name>.jpg`; public, used by panel tiles
+- `thumbsReady` — JS object (`path → true`), reassigned on each ffmpeg completion for QML reactivity. Persists for Quickshell session lifetime; thumbnail JPEGs persist on disk.
+- Startup restore: `Component.onCompleted` calls `scanDirectory` to populate grids and start thumb queue. Wallpaper auto-restores — `AnimatedImage`/`MediaPlayer` source binds to `wallpaper.currentPath`. No explicit restore call needed.
 
-**Rendering surface:** `wallpaperWindow` in `shell.qml` — `PanelWindow` at `WlrLayer.Background` with `exclusiveZone: -1` covering the full screen. Two children, `visible` toggled by `sourceType`:
+**Rendering surface:** `wallpaperWindow` in `shell.qml` — `PanelWindow` at `WlrLayer.Background` with `exclusiveZone: -1` covering the full screen. Three children, `visible` toggled by `sourceType`:
 - `Rectangle` — `visible: wallpaper.sourceType === "color"`; `color: wallpaper.currentColor`
 - `AnimatedImage` — `visible: wallpaper.sourceType === "image"`; `fillMode: PreserveAspectCrop`; `cache: false`
+- `MediaPlayer` + `VideoOutput` — `visible: wallpaper.sourceType === "video"`; `loops: Infinite`; `AudioOutput { volume: 0 }`; `fillMode: PreserveAspectCrop`
 
-**Pending (v2):**
-- [ ] Video rendering — `import QtMultimedia`, `MediaPlayer` + `VideoOutput`. Requires `qt6-multimedia` + GStreamer. Deferred until GPU/driver situation is stable.
-- [ ] GIF rendering — should already work via `AnimatedImage`. Needs end-to-end test with an actual animated GIF file.
-- [ ] Real video thumbnails — first frame via ffmpeg, cached to `~/.cache/pillbox/thumbs/`
+**Remaining fix candidates:**
+- [ ] GIF wallpapers — should work via `AnimatedImage`; needs end-to-end test with an actual animated GIF file
+- [ ] Active wallpaper goes blank if file deleted from disk — no fallback to color mode
 - [ ] Multi-monitor — currently `Quickshell.screens[0]` only. Additive: wrap `wallpaperWindow` in a `Repeater` over `Quickshell.screens`.
 - [ ] Visual layer makeover — current Fixed section in `Style.qml` uses hardcoded Nord semantic tokens. Future: dynamic mat3 / Material You color system mapped onto the base16 palette. All 16 slots already persisted via `Prefs.color0Override`–`color15Override`; Style.qml Variable section already reads them. The mapping logic and dynamic derivation of semantic tokens (not just raw palette) is the remaining work.
 

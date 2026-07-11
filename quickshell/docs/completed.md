@@ -4,6 +4,41 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Wallpaper — Video Rendering, Thumbnails & Panel Improvements
+
+### Video rendering (shell.qml)
+- [x] `import QtMultimedia` added
+- [x] `MediaPlayer` + `AudioOutput { volume: 0 }` + `VideoOutput` added to `wallpaperWindow`
+- [x] `_vidPlayer.source` binds to `wallpaper.currentPath` when `sourceType === "video"`; `onSourceChanged: if (source !== "") play()` auto-starts playback
+- [x] `loops: MediaPlayer.Infinite` — seamless looping, muted audio
+- [x] Backend: `qt6-multimedia-ffmpeg` (FFmpeg direct — `gst-plugins-good` not installed, GStreamer path skipped)
+
+### Video thumbnails (WallpaperProcess.qml)
+- [x] `_mkdirProc` — `mkdir -p ~/.cache/pillbox/thumbs` on startup
+- [x] `_thumbProc` — sequential ffmpeg queue: `-ss 00:00:01 -i <path> -frames:v 1 -q:v 3 <cache>.jpg`. Input seek (`-ss` before `-i`) seeks in the container before decoding — fast on large files
+- [x] `thumbsReady` — JS object reassigned on each completion for QML reactivity (`path → true`). Only new paths (not already in `thumbsReady`) get queued for ffmpeg
+- [x] `thumbPath(videoPath)` — public function returning cache JPEG path; used by both `WallpaperProcess` and `WallpaperPanel`
+- [x] Queue starts after `_scanVidProc` finishes
+- [x] `_pendingVideoExtract` — if user picks a video before its thumb is ready, matugen fires automatically when that thumb completes
+- [x] `setVideo()` now triggers color extraction via thumbnail JPEG (was a placeholder)
+
+### Panel improvements (WallpaperPanel.qml + PanelSurface.qml)
+- [x] Video tile: `Image` shows ffmpeg thumbnail when `thumbsReady[path]`; play icon placeholder until then. `clip: true` + `layer.enabled: true` for radius clipping — matches image tile pattern
+- [x] `_hasThumb` property on tile delegate drives thumbnail/placeholder toggle reactively
+- [x] Video section renamed "VIDEO / GIF" → "Videos" (GIFs stay in Images — rendered by `AnimatedImage`)
+- [x] Empty state: "No videos or GIFs found" → "No videos found"
+- [x] Scan on panel open: `PanelSurface.onLoaded` triggers `scanDirectory` each time the wallpaper panel loads — picks up files added or removed since last scan
+- [x] No-flash rescan: `scanDirectory` only clears file lists when the directory actually changes; same-directory rescans update lists in-place when results arrive
+- [x] GIF size cap: `_scanImgProc` excludes GIFs over 50 MB via `-not ( -iname "*.gif" -size +50M )` — `AnimatedImage` decodes on CPU; large GIFs are expensive
+
+**Key decisions:**
+- `qt6-multimedia-ffmpeg` used over GStreamer — `gst-plugins-good` absent; FFmpeg path works cleanly on this system
+- `AudioOutput { volume: 0 }` is required — Qt logs a warning without it; volume 0 keeps wallpaper silent
+- `thumbsReady` is in-memory per Quickshell session; thumbnail JPEGs persist on disk across restarts, but the map rebuilds from disk via scan on startup/panel-open
+- GIF 50 MB cap chosen as practical ceiling — GIFs above this are rare for wallpaper use; users making large animated wallpapers use WebP or MP4
+
+---
+
 ## Wallpaper Service — Qt-Native Rewrite
 
 Full rewrite of the wallpaper stack, replacing the yin daemon with direct Qt rendering. Settings persistence fixed as a prerequisite.
@@ -16,7 +51,7 @@ Full rewrite of the wallpaper stack, replacing the yin daemon with direct Qt ren
 - [x] `Rectangle` child handles solid color; `AnimatedImage` child handles static images (`PreserveAspectCrop`, `cache: false`)
 - [x] `AnimatedImage` handles both static JPG/PNG/WebP/AVIF and animated GIF with a single element — no branching needed
 - [x] On startup: `AnimatedImage.source` binds to `Prefs.wallpaperPath` → wallpaper auto-restores, no explicit restore call
-- [ ] **Phase 2:** Video — `MediaPlayer` + `VideoOutput` (`QtMultimedia` + GStreamer). Deferred until GPU/driver situation is stable.
+- [x] **Video:** `MediaPlayer` + `VideoOutput` added — see "Video Rendering" entry above
 
 ### WallpaperProcess (root-processes/WallpaperProcess.qml)
 - [x] Removed `yinProc`, `_pendingYinPath`, `_applyYin()` entirely
@@ -24,8 +59,8 @@ Full rewrite of the wallpaper stack, replacing the yin daemon with direct Qt ren
   - `_scanImgProc` — `find <dir> -maxdepth 1 -type f`, filtered by image extensions (`.jpg .jpeg .png .webp .avif .gif`), no size cap
   - `_scanVidProc` — same with `-size -100M` flag, filtered by video extensions (`.mp4 .webm .mkv .mov`), 100 MB cap per file
 - [x] Both lists capped at 200 items to keep the Repeater fast
-- [x] `setVideo()` persists path/sourceType but does not attempt rendering (phase 2 placeholder)
-- [x] `_maybeExtract()` (matugen) unchanged — only triggered by `setImage()`, not video or slideshow advances
+- [x] `setVideo()` persists path/sourceType; rendering and color extraction now fully implemented (see above)
+- [x] `_maybeExtract()` (matugen) — triggered by `setImage()` and `setVideo()` (via thumbnail); not triggered on slideshow advances
 
 ### matugen color extraction
 - [x] `matugenProc` in WallpaperProcess fires when `Prefs.extractColors` is true and user picks an image
@@ -49,10 +84,11 @@ Full rewrite of the wallpaper stack, replacing the yin daemon with direct Qt ren
 - Grid item cap: 200 per section
 - Theming kept in WallpaperProcess (trigger is wallpaper change event)
 
-**Next (filed as fix candidates):**
-- GIF wallpapers: should already work via AnimatedImage — test with actual GIF
-- Video wallpapers (phase 2): `import QtMultimedia`, `MediaPlayer` + `VideoOutput`
+**Remaining fix candidates:**
+- GIF wallpapers: should work via `AnimatedImage` — needs end-to-end test with an actual animated GIF file
+- Active wallpaper goes blank if file is deleted from disk — no fallback to color mode
 - Visual layer makeover: replace Fixed section (hardcoded Nord semantic tokens) with a proper dynamic color system. Candidate: Material You / mat3 mapped onto the 16-slot base16 palette.
+- Multi-monitor: `wallpaperWindow` currently targets `Quickshell.screens[0]` only
 
 ---
 

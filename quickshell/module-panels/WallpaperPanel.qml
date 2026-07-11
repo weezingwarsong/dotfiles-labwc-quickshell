@@ -318,8 +318,8 @@ Item {
 
             PanelDivider {}
 
-            // ── Video / GIF section ───────────────────────────────────────────
-            SectionLabel { text: "Video / GIF" }
+            // ── Video section ─────────────────────────────────────────────────
+            SectionLabel { text: "Videos" }
 
             Item {
                 Layout.fillWidth: true
@@ -333,7 +333,7 @@ Item {
                     visible: !root.wallpaperProcess || root.wallpaperProcess.videoFiles.length === 0
                     anchors.centerIn: parent
                     text:  root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
-                        ? "No videos or GIFs found"
+                        ? "No videos found"
                         : "Set a directory above"
                     color:          Style.textMuted
                     font.family:    Style.fontMono
@@ -460,6 +460,10 @@ Item {
                 && root.wallpaperProcess.sourceType === "video"
                 && root.wallpaperProcess.currentPath === modelData.path
 
+            readonly property bool _hasThumb:
+                root.wallpaperProcess
+                && !!root.wallpaperProcess.thumbsReady[modelData.path]
+
             Rectangle {
                 id: _vidBg
                 anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -468,9 +472,23 @@ Item {
                 color:  Style.surfaceMidColor
                 border.width: _active ? 2 : 1
                 border.color: _active ? Style.accentColor : Style.borderFaintColor
+                clip: true
+
+                Image {
+                    anchors.fill: parent
+                    visible:      _hasThumb
+                    source:       _hasThumb
+                                  ? ("file://" + root.wallpaperProcess.thumbPath(modelData.path))
+                                  : ""
+                    fillMode:     Image.PreserveAspectCrop
+                    asynchronous: true
+                    smooth:       true
+                    layer.enabled: true
+                }
 
                 Text {
                     anchors.centerIn: parent
+                    visible:        !_hasThumb
                     text:           String.fromCodePoint(0xf040a)  // nf-md-play_box_outline
                     font.family:    Style.fontNerd
                     font.pixelSize: Math.round(root._imgH * 0.45)

@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import QtMultimedia
 import "./root-processes"
 import "./module-pills"
 import "./module-panels"
@@ -42,8 +43,7 @@ ShellRoot {
     NotificationServer { id: notifServer }
 
     // Wallpaper window — Background layer, always present, covers all workspaces.
-    // No external daemon: Qt renders color/image/GIF directly.
-    // Video (phase 2) will be added here once tested.
+    // No external daemon: Qt renders color/image/GIF/video directly.
     PanelWindow {
         id: wallpaperWindow
         screen:        Quickshell.screens[0]
@@ -68,6 +68,22 @@ ShellRoot {
             fillMode:     Image.PreserveAspectCrop
             asynchronous: true
             cache:        false
+        }
+
+        MediaPlayer {
+            id:          _vidPlayer
+            source:      wallpaper.sourceType === "video" ? ("file://" + wallpaper.currentPath) : ""
+            loops:       MediaPlayer.Infinite
+            videoOutput: _videoOutput
+            audioOutput: AudioOutput { volume: 0 }
+            onSourceChanged: if (source !== "") play()
+        }
+
+        VideoOutput {
+            id:           _videoOutput
+            anchors.fill: parent
+            visible:      wallpaper.sourceType === "video"
+            fillMode:     VideoOutput.PreserveAspectCrop
         }
     }
 
