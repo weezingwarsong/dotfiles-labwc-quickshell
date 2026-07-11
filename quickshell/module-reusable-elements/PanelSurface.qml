@@ -115,6 +115,7 @@ PanelWindow {
                     item.dismissed.connect(function() { root.dismissRequested() })
                     return
                 }
+                item.activePanel = Qt.binding(function() { return root.activePanel })
                 if (root.activePanel === "settings") {
                     item.settingsProcess = Qt.binding(function() { return root.settingsProcess })
                     item.calendarProcess = Qt.binding(function() { return root.calendarProcess })

@@ -6,7 +6,8 @@ import Quickshell.Services.Notifications
 Item {
     id: root
 
-    property var notificationServer: null
+    property var    notificationServer: null
+    property string activePanel:        ""
     signal navigateRequested(int direction)
 
     readonly property bool _hasNotifs: notificationServer && notificationServer.countTotal > 0
@@ -46,6 +47,7 @@ Item {
 
         PanelNavBar {
             Layout.fillWidth: true
+            activePanel: root.activePanel
             onNavigateRequested: (dir) => root.navigateRequested(dir)
         }
 

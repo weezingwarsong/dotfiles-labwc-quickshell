@@ -6,9 +6,10 @@ Item {
     id: root
 
     // ── Injected processes ────────────────────────────────────────────────────
-    property var settingsProcess:  null
-    property var calendarProcess:  null
-    property var tasksProcess:     null
+    property var    settingsProcess:  null
+    property var    calendarProcess:  null
+    property var    tasksProcess:     null
+    property string activePanel:      ""
 
     signal navigateRequested(int direction)
 
@@ -107,7 +108,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
         spacing: 12
 
-        PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+        PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
         // ── Tab bar ───────────────────────────────────────────────────────────
 

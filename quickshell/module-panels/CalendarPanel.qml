@@ -17,6 +17,7 @@ Item {
     // ── View state ────────────────────────────────────────────────────────────
     property string _view: "glance"  // "glance" | "expanded" | "timer"
 
+    property string activePanel: ""
     signal navigateRequested(int direction)
 
     // Nav arrows and task bullets — fixed at 11px (between body and heading)
@@ -140,7 +141,7 @@ Item {
                 anchors.margins: 12
                 spacing: 8
 
-                PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+                PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
                 // Date + weather row
                 RowLayout {
@@ -382,7 +383,7 @@ Item {
                 anchors.margins: 12
                 spacing: 8
 
-                PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+                PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
                 Text {
                     text: "↑ Back"
@@ -413,7 +414,7 @@ Item {
                 anchors.margins: 12
                 spacing: 8
 
-                PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+                PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
                 Text {
                     text: "↑ Back"

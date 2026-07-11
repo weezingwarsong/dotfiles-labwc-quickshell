@@ -6,8 +6,9 @@ import Quickshell.Io
 Item {
     id: root
 
-    property var audioProcess:   null
-    property var networkProcess: null
+    property var    audioProcess:   null
+    property var    networkProcess: null
+    property string activePanel:    ""
     signal navigateRequested(int direction)
 
     implicitHeight: _col.implicitHeight + 24
@@ -26,7 +27,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
         spacing: 10
 
-        PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+        PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
         // ── Audio | Network ───────────────────────────────────────────────────
         RowLayout {

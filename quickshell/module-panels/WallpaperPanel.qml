@@ -5,7 +5,8 @@ import QtQuick.Controls as QQC
 Item {
     id: root
 
-    property var wallpaperProcess: null
+    property var    wallpaperProcess: null
+    property string activePanel:      ""
     signal navigateRequested(int direction)
 
     implicitHeight: _col.implicitHeight + 24
@@ -75,7 +76,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
         spacing: 10
 
-        PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+        PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
         // Tab bar
         TogglePair {

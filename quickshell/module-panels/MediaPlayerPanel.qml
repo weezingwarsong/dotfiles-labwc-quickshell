@@ -4,8 +4,9 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    property var mprisProcess:    null
-    property var toplevelProcess: null
+    property var    mprisProcess:    null
+    property var    toplevelProcess: null
+    property string activePanel:     ""
     signal navigateRequested(int direction)
 
     function _focusPlayer() {
@@ -52,6 +53,7 @@ Item {
         // ── Nav bar ───────────────────────────────────────────────────────────
         PanelNavBar {
             Layout.fillWidth: true
+            activePanel: root.activePanel
             onNavigateRequested: (dir) => root.navigateRequested(dir)
         }
 
