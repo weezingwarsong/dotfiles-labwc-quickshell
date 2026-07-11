@@ -46,6 +46,21 @@ Item {
         property string color13Override:  ""
         property string color14Override:  ""
         property string color15Override:  ""
+
+        // ── Mat3 semantic roles ───────────────────────────────────────────────
+        // Written alongside base16 on each extraction. Empty = use colorN fallback in Style.qml.
+        property string mat3PrimaryOverride:              ""
+        property string mat3PrimaryContainerOverride:     ""
+        property string mat3BackgroundOverride:           ""
+        property string mat3OnBackgroundOverride:         ""
+        property string mat3SurfaceContainerLowOverride:  ""
+        property string mat3SurfaceContainerHighOverride: ""
+        property string mat3OnSurfaceOverride:            ""
+        property string mat3OnSurfaceVariantOverride:     ""
+        property string mat3OutlineOverride:              ""
+        property string mat3OutlineVariantOverride:       ""
+        property string mat3ErrorOverride:                ""
+        property string mat3ErrorContainerOverride:       ""
     }
 
     // ── Public (read) ─────────────────────────────────────────────────────────
@@ -81,6 +96,19 @@ Item {
     readonly property string color14Override: _store.color14Override
     readonly property string color15Override: _store.color15Override
 
+    readonly property string mat3PrimaryOverride:              _store.mat3PrimaryOverride
+    readonly property string mat3PrimaryContainerOverride:     _store.mat3PrimaryContainerOverride
+    readonly property string mat3BackgroundOverride:           _store.mat3BackgroundOverride
+    readonly property string mat3OnBackgroundOverride:         _store.mat3OnBackgroundOverride
+    readonly property string mat3SurfaceContainerLowOverride:  _store.mat3SurfaceContainerLowOverride
+    readonly property string mat3SurfaceContainerHighOverride: _store.mat3SurfaceContainerHighOverride
+    readonly property string mat3OnSurfaceOverride:            _store.mat3OnSurfaceOverride
+    readonly property string mat3OnSurfaceVariantOverride:     _store.mat3OnSurfaceVariantOverride
+    readonly property string mat3OutlineOverride:              _store.mat3OutlineOverride
+    readonly property string mat3OutlineVariantOverride:       _store.mat3OutlineVariantOverride
+    readonly property string mat3ErrorOverride:                _store.mat3ErrorOverride
+    readonly property string mat3ErrorContainerOverride:       _store.mat3ErrorContainerOverride
+
     // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
     function setFontNerd(v)           { _store.fontNerd           = v }
@@ -114,6 +142,19 @@ Item {
     function setColor14Override(v)  { _store.color14Override = v }
     function setColor15Override(v)  { _store.color15Override = v }
 
+    function setMat3PrimaryOverride(v)              { _store.mat3PrimaryOverride              = v }
+    function setMat3PrimaryContainerOverride(v)     { _store.mat3PrimaryContainerOverride     = v }
+    function setMat3BackgroundOverride(v)           { _store.mat3BackgroundOverride           = v }
+    function setMat3OnBackgroundOverride(v)         { _store.mat3OnBackgroundOverride         = v }
+    function setMat3SurfaceContainerLowOverride(v)  { _store.mat3SurfaceContainerLowOverride  = v }
+    function setMat3SurfaceContainerHighOverride(v) { _store.mat3SurfaceContainerHighOverride = v }
+    function setMat3OnSurfaceOverride(v)            { _store.mat3OnSurfaceOverride            = v }
+    function setMat3OnSurfaceVariantOverride(v)     { _store.mat3OnSurfaceVariantOverride     = v }
+    function setMat3OutlineOverride(v)              { _store.mat3OutlineOverride              = v }
+    function setMat3OutlineVariantOverride(v)       { _store.mat3OutlineVariantOverride       = v }
+    function setMat3ErrorOverride(v)                { _store.mat3ErrorOverride                = v }
+    function setMat3ErrorContainerOverride(v)       { _store.mat3ErrorContainerOverride       = v }
+
     function clearColorOverrides() {
         _store.color0Override  = ""
         _store.color1Override  = ""
@@ -131,6 +172,21 @@ Item {
         _store.color13Override = ""
         _store.color14Override = ""
         _store.color15Override = ""
+    }
+
+    function clearMat3Overrides() {
+        _store.mat3PrimaryOverride              = ""
+        _store.mat3PrimaryContainerOverride     = ""
+        _store.mat3BackgroundOverride           = ""
+        _store.mat3OnBackgroundOverride         = ""
+        _store.mat3SurfaceContainerLowOverride  = ""
+        _store.mat3SurfaceContainerHighOverride = ""
+        _store.mat3OnSurfaceOverride            = ""
+        _store.mat3OnSurfaceVariantOverride     = ""
+        _store.mat3OutlineOverride              = ""
+        _store.mat3OutlineVariantOverride       = ""
+        _store.mat3ErrorOverride                = ""
+        _store.mat3ErrorContainerOverride       = ""
     }
 
     Component.onCompleted: console.log(

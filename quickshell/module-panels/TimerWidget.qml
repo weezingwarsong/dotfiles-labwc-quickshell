@@ -109,7 +109,7 @@ Item {
                 Layout.fillWidth: true
                 height: 20; radius: Style.radSm
                 color: startHover.containsMouse ? Style.accentBgHover : Style.accentBgColor
-                border.color: Style.borderAccentColor; border.width: 1
+                border.color: Style.accentColor; border.width: 1
                 Text {
                     anchors.centerIn: parent
                     text: root.timerProcess && root.timerProcess.active ? "Stop" : "Start"
@@ -142,7 +142,7 @@ Item {
                 height: 20; radius: Style.radSm
                 visible: !root.timerProcess || root.timerProcess.mode !== "stopwatch"
                 color: durationHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                border.color: root._inputExpanded ? Style.borderAccentColor : Style.borderSoftColor
+                border.color: root._inputExpanded ? Style.accentColor : Style.borderSoftColor
                 border.width: 1
                 Text {
                     anchors.centerIn: parent
@@ -187,7 +187,7 @@ Item {
             height: 28; radius: Style.radSm
             visible: root._inputExpanded && (!root.timerProcess || root.timerProcess.mode !== "stopwatch")
             color: Style.surfaceLowColor
-            border.color: Style.borderAccentColor; border.width: 1
+            border.color: Style.accentColor; border.width: 1
 
             onVisibleChanged: if (visible) Qt.callLater(durationInput.forceActiveFocus)
 

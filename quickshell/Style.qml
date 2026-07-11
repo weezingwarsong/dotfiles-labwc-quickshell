@@ -41,40 +41,53 @@ QtObject {
     readonly property string fontCJK:  "Sarasa Mono SC" // constant — not user-adjustable in v1
 
     // =========================================================================
+    // ─── Mat3 Roles (populated by matugen; fall back to colorN when unset) ───
+    // =========================================================================
+    readonly property color mat3Primary:              Prefs.mat3PrimaryOverride              !== "" ? Prefs.mat3PrimaryOverride              : style.color10
+    readonly property color mat3PrimaryContainer:     Prefs.mat3PrimaryContainerOverride     !== "" ? Prefs.mat3PrimaryContainerOverride     : Qt.darker(style.color10, 2.4)
+    readonly property color mat3Background:           Prefs.mat3BackgroundOverride           !== "" ? Prefs.mat3BackgroundOverride           : style.color0
+    readonly property color mat3OnBackground:         Prefs.mat3OnBackgroundOverride         !== "" ? Prefs.mat3OnBackgroundOverride         : style.color6
+    readonly property color mat3SurfaceContainerLow:  Prefs.mat3SurfaceContainerLowOverride  !== "" ? Prefs.mat3SurfaceContainerLowOverride  : style.color1
+    readonly property color mat3SurfaceContainerHigh: Prefs.mat3SurfaceContainerHighOverride !== "" ? Prefs.mat3SurfaceContainerHighOverride : style.color2
+    readonly property color mat3OnSurface:            Prefs.mat3OnSurfaceOverride            !== "" ? Prefs.mat3OnSurfaceOverride            : style.color5
+    readonly property color mat3OnSurfaceVariant:     Prefs.mat3OnSurfaceVariantOverride     !== "" ? Prefs.mat3OnSurfaceVariantOverride     : style.color4
+    readonly property color mat3Outline:              Prefs.mat3OutlineOverride              !== "" ? Prefs.mat3OutlineOverride              : style.color3
+    readonly property color mat3OutlineVariant:       Prefs.mat3OutlineVariantOverride       !== "" ? Prefs.mat3OutlineVariantOverride       : style.color1
+    readonly property color mat3Error:                Prefs.mat3ErrorOverride                !== "" ? Prefs.mat3ErrorOverride                : style.color11
+    readonly property color mat3ErrorContainer:       Prefs.mat3ErrorContainerOverride       !== "" ? Prefs.mat3ErrorContainerOverride       : Qt.darker(style.color11, 2.4)
+
+    // =========================================================================
     // ─── Fixed (Semantic Tokens) ─────────────────────────────────────────────
     // =========================================================================
 
     // ── Surfaces & Structure ─────────────────────────────────────────────────
-    readonly property color pillBgColor:       style.color0
-    readonly property color panelBgColor:      style.color0
-    readonly property color panelBorderColor:  style.color1
-    readonly property color panelDividerColor: style.color2
-    readonly property color surfaceLowColor:   style.color1
-    readonly property color surfaceMidColor:   style.color2
+    readonly property color pillBgColor:       style.mat3Background
+    readonly property color panelBgColor:      style.mat3Background
+    readonly property color panelBorderColor:  style.mat3OutlineVariant
+    readonly property color panelDividerColor: style.mat3OutlineVariant
+    readonly property color surfaceLowColor:   style.mat3SurfaceContainerLow
+    readonly property color surfaceMidColor:   style.mat3SurfaceContainerHigh
 
     // ── Borders ──────────────────────────────────────────────────────────────
-    readonly property color borderSoftColor:   style.color3
-    readonly property color borderFaintColor:  style.color1
-    readonly property color borderAccentColor: style.color10
+    readonly property color borderFaintColor:  style.mat3OutlineVariant
+    readonly property color borderSoftColor:   style.mat3Outline
 
     // ── Accent ───────────────────────────────────────────────────────────────
-    readonly property color accentBgColor:   Qt.darker(style.color10, 2.4)
-    readonly property color accentBgHover:   Qt.darker(style.color10, 1.8)
-    readonly property color accentColor:     style.color10
-    readonly property color criticalBgColor: Qt.darker(style.color11, 2.4)
+    readonly property color accentBgColor:   style.mat3PrimaryContainer
+    readonly property color accentBgHover:   Qt.lighter(style.mat3PrimaryContainer, 1.3)
+    readonly property color accentColor:     style.mat3Primary
+    readonly property color criticalBgColor: style.mat3ErrorContainer
     readonly property color successBgColor:  Qt.darker(style.color14, 2.4)
 
     // ── Text ─────────────────────────────────────────────────────────────────
-    readonly property color textPrimary:   style.color6   // headings, pill text
-    readonly property color textNormal:    style.color5   // standard body
-    readonly property color textSecondary: style.color4   // secondary content, labels
-    readonly property color textMuted:     style.color4   // de-emphasised / timestamps
-    readonly property color textFaint:     style.color2   // barely-visible anchors
-    readonly property color textAccent:    style.color9   // accent links, highlighted text
-    readonly property color textCritical:  style.color11  // error / alert
-    readonly property color textSuccess:   style.color14  // completion / positive
-    readonly property color textWeekend:   style.color10  // calendar weekend day numbers
-    readonly property color dotIndicator:  style.color8   // calendar event dot markers
+    readonly property color textPrimary:   style.mat3OnBackground   // headings, pill text
+    readonly property color textNormal:    style.mat3OnSurface       // standard body
+    readonly property color textSecondary: style.mat3OnSurfaceVariant // secondary content, labels
+    readonly property color textMuted:     style.mat3Outline          // de-emphasised / timestamps
+    readonly property color textFaint:     style.mat3OutlineVariant   // barely-visible anchors
+    readonly property color textAccent:    style.mat3Primary          // accent links, highlighted text
+    readonly property color textCritical:  style.mat3Error            // error / alert
+    readonly property color textSuccess:   style.color14              // completion / positive
 
     // ── Layout constants ──────────────────────────────────────────────────────
     readonly property int buttonHeight: 22

@@ -144,12 +144,24 @@ Item {
                     RowLayout {
                         spacing: 6
                         StatusDot { active: settingsProcess && settingsProcess.googleConnected }
-                        Text {
-                            text: (settingsProcess && settingsProcess.googleConnected)
-                                ? "Connected" : "Not connected"
-                            color: Style.textNormal
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
+                        ColumnLayout {
+                            spacing: 1
+                            Text {
+                                text: (settingsProcess && settingsProcess.googleConnected)
+                                    ? "Connected" : "Not connected"
+                                color: Style.textNormal
+                                font.family: Style.fontMono
+                                font.pixelSize: Style.fontSizeBody
+                            }
+                            Text {
+                                visible: settingsProcess
+                                    && settingsProcess.googleConnected
+                                    && settingsProcess.googleEmail !== ""
+                                text: settingsProcess ? settingsProcess.googleEmail : ""
+                                color: Style.textMuted
+                                font.family: Style.fontMono
+                                font.pixelSize: Style.fontSizeSubtle
+                            }
                         }
                     }
 

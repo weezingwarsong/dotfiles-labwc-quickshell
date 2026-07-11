@@ -1,5 +1,6 @@
 import QtQuick
 import QtCore
+import Quickshell.Io
 
 Item {
     id: root
@@ -20,6 +21,29 @@ Item {
     readonly property bool   googleConnected: _store.googleConnected
     readonly property string locationMode:    _store.locationMode
     readonly property string locationString:  _store.locationString
+    property string          googleEmail:     ""
+
+    // ── Email fetch ───────────────────────────────────────────────────────────
+
+    Process {
+        id: _emailProc
+        command: ["gcal-fetch", "--email"]
+        stdout: SplitParser {
+            onRead: function(line) {
+                try {
+                    var obj = JSON.parse(line)
+                    if (obj.email) root.googleEmail = obj.email
+                } catch(e) {}
+            }
+        }
+        onExited: function(code) {
+            if (code !== 0) console.log("[SettingsProcess] gcal-fetch --email exited:", code)
+        }
+    }
+
+    function _fetchEmail() {
+        if (_store.googleConnected) _emailProc.running = true
+    }
 
     // ── Setters ───────────────────────────────────────────────────────────────
 
@@ -31,6 +55,7 @@ Item {
     // Called by SettingsPanel after gcal-fetch --revoke completes.
     function disconnect() {
         _store.googleConnected = false
+        root.googleEmail = ""
         googleDisconnected()
         console.log("[SettingsProcess] Google account disconnected")
     }
@@ -40,11 +65,15 @@ Item {
     // surfaces via CalendarProcess/TasksProcess.lastError.
     function reconnect() {
         _store.googleConnected = true
+        _fetchEmail()
         console.log("[SettingsProcess] Google account reconnected (optimistic)")
     }
 
-    Component.onCompleted: console.log(
-        "[SettingsProcess] started | googleConnected:", _store.googleConnected,
-        "| locationMode:", _store.locationMode,
-        "| locationString:", _store.locationString || "(none)")
+    Component.onCompleted: {
+        console.log(
+            "[SettingsProcess] started | googleConnected:", _store.googleConnected,
+            "| locationMode:", _store.locationMode,
+            "| locationString:", _store.locationString || "(none)")
+        _fetchEmail()
+    }
 }

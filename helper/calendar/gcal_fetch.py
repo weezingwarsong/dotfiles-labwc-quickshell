@@ -174,6 +174,14 @@ def fetch_events(creds, days_back=90, days_ahead=730, max_results=250):
     return events
 
 
+def fetch_email(creds):
+    """Return the user's email by reading the primary calendar's id field."""
+    authed_http = AuthorizedHttp(creds, http=httplib2.Http(timeout=HTTP_TIMEOUT_SECS))
+    service = build("calendar", "v3", http=authed_http, cache_discovery=False)
+    cal = service.calendarList().get(calendarId="primary").execute(num_retries=2)
+    return cal.get("id", "")
+
+
 def revoke_token():
     """Revoke Google OAuth token server-side (best-effort) and delete local token file."""
     creds = _load_cached_credentials()
@@ -197,6 +205,19 @@ def revoke_token():
 if __name__ == "__main__":
     if "--revoke" in sys.argv[1:]:
         revoke_token()
+        sys.exit(0)
+
+    if "--email" in sys.argv[1:]:
+        _lock = acquire_lock()
+        try:
+            credentials = get_credentials(interactive=False)
+            print(json.dumps({"email": fetch_email(credentials)}))
+        except SystemExit:
+            raise
+        except Exception as e:
+            log_error("email", str(e))
+            print(json.dumps({"email": ""}))
+            sys.exit(1)
         sys.exit(0)
 
     interactive = "--auth" in sys.argv[1:]

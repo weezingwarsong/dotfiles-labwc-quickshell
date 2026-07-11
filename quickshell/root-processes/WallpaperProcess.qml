@@ -249,6 +249,28 @@ Item {
                                 "base0c","base0d","base0e","base0f"]
                     for (var i = 0; i < 16; i++)
                         Prefs["setColor" + i + "Override"](b16[keys[i]].dark.color)
+
+                    if (data.colors) {
+                        var mat3Map = {
+                            "primary":                "setMat3PrimaryOverride",
+                            "primary_container":      "setMat3PrimaryContainerOverride",
+                            "background":             "setMat3BackgroundOverride",
+                            "on_background":          "setMat3OnBackgroundOverride",
+                            "surface_container_low":  "setMat3SurfaceContainerLowOverride",
+                            "surface_container_high": "setMat3SurfaceContainerHighOverride",
+                            "on_surface":             "setMat3OnSurfaceOverride",
+                            "on_surface_variant":     "setMat3OnSurfaceVariantOverride",
+                            "outline":                "setMat3OutlineOverride",
+                            "outline_variant":        "setMat3OutlineVariantOverride",
+                            "error":                  "setMat3ErrorOverride",
+                            "error_container":        "setMat3ErrorContainerOverride"
+                        }
+                        var roles = Object.keys(mat3Map)
+                        for (var j = 0; j < roles.length; j++) {
+                            var entry = data.colors[roles[j]]
+                            if (entry && entry.dark) Prefs[mat3Map[roles[j]]](entry.dark.color)
+                        }
+                    }
                     console.log("[WallpaperProcess] palette extracted from", root._extractPath)
                 } catch (e) {
                     console.log("[WallpaperProcess] matugen parse error:", e)

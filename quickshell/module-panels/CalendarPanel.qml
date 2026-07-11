@@ -214,7 +214,7 @@ Item {
                         model: ["M","T","W","T","F","S","S"]
                         Text {
                             text: modelData
-                            color: index >= 5 ? Style.textWeekend : Style.textMuted
+                            color: index >= 5 ? Style.accentColor : Style.textMuted
                             font.pixelSize: Style.fontSizeSubtle
                             horizontalAlignment: Text.AlignHCenter
                             Layout.fillWidth: true
@@ -239,13 +239,13 @@ Item {
 
                             Rectangle {
                                 anchors.centerIn: parent; width: 16; height: 16; radius: Style.radMd
-                                color: cellItem.cell.isToday ? Style.borderAccentColor : "transparent"
+                                color: cellItem.cell.isToday ? Style.accentColor : "transparent"
                                 visible: cellItem.cell.day > 0
                             }
                             Text {
                                 anchors.centerIn: parent
                                 text: cellItem.cell.day > 0 ? cellItem.cell.day : ""
-                                color: cellItem.cell.isToday ? Style.textPrimary : Style.textSecondary
+                                color: cellItem.cell.isToday ? Style.panelBgColor : Style.textSecondary
                                 font.pixelSize: Style.fontSizeSubtle
                                 font.weight: cellItem.cell.isToday ? Font.Bold : Font.Normal
                             }
@@ -253,7 +253,7 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.bottom: parent.bottom
                                 width: 3; height: 3; radius: 1.5
-                                color: cellItem.cell.isToday ? Style.dotIndicator : Style.borderAccentColor
+                                color: Style.accentColor
                                 visible: cellItem.cell.day > 0 && cellItem.cell.hasContent
                             }
 
@@ -387,7 +387,7 @@ Item {
 
                 Text {
                     text: "↑ Back"
-                    color: Style.borderAccentColor; font.pixelSize: root._navSize
+                    color: Style.accentColor; font.pixelSize: root._navSize
                     Layout.fillWidth: true
                     MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
                 }
@@ -418,7 +418,7 @@ Item {
 
                 Text {
                     text: "↑ Back"
-                    color: Style.borderAccentColor; font.pixelSize: root._navSize
+                    color: Style.accentColor; font.pixelSize: root._navSize
                     Layout.fillWidth: true
                     MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
                 }

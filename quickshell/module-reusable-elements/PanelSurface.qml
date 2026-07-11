@@ -4,7 +4,7 @@ import QtQuick
 
 // Fullscreen transparent overlay that hosts the active panel.
 // The visible panel content sits in a sized Item at the center-top of the screen.
-// A fullscreen MouseArea behind the panel dismisses on click-outside.
+// A fullscreen MouseArea (z:0) behind the panel dismisses on click-outside.
 PanelWindow {
     id: root
 
@@ -51,12 +51,10 @@ PanelWindow {
         : WlrKeyboardFocus.None
 
     // ── Click-outside dismiss layer ───────────────────────────────────────────
-    // Fullscreen, behind the panel container (z:0). Not shown for window
-    // switcher — it has its own dismiss path via activated() / ESC.
+    // Fullscreen, behind the panel container (z:0).
     MouseArea {
         anchors.fill: parent
         z: 0
-        enabled: root.activePanel !== "windowSwitcher"
         onClicked: root.dismissRequested()
     }
 
