@@ -9,7 +9,7 @@ QtObject {
 
     // Ordered navigation row. Window switcher is excluded by design.
     // Append new panel IDs here as panels are built.
-    readonly property var panelOrder: ["calendar", "control", "mediaPlayer", "notifications", "settings", "wallpaper"]
+    readonly property var panelOrder: ["calendar", "mediaPlayer", "settings", "wallpaper", "notifications", "control"]
 
     // ── API ───────────────────────────────────────────────────────────────────
 
