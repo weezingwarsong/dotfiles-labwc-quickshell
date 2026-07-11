@@ -1,36 +1,85 @@
 import QtQuick
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 
 Item {
     id: root
 
-    // ── Default nodes (reactive — update when PipeWire default changes) ────────
-    readonly property var sink:   Pipewire.defaultAudioSink
-    readonly property var source: Pipewire.defaultAudioSource
-    readonly property bool ready: Pipewire.ready
+    // Device names from PipeWire (works fine)
+    readonly property string sinkName:   Pipewire.defaultAudioSink
+                                         ? _nodeName(Pipewire.defaultAudioSink) : "—"
+    readonly property string sourceName: Pipewire.defaultAudioSource
+                                         ? _nodeName(Pipewire.defaultAudioSource) : "—"
 
-    // ── Convenience pass-throughs ─────────────────────────────────────────────
-    readonly property real   sinkVolume: sink   ? sink.audio.volume  : 0
-    readonly property bool   sinkMuted:  sink   ? sink.audio.muted   : false
-    readonly property string sinkName:   sink   ? _nodeName(sink)    : "—"
+    // Volume & mute from wpctl polling (PwNodeAudio.volume is not writable via QML)
+    property real   sinkVolume:   0
+    property bool   sinkMuted:    false
+    property real   sourceVolume: 0
+    property bool   sourceMuted:  false
 
-    readonly property real   sourceVolume: source ? source.audio.volume : 0
-    readonly property bool   sourceMuted:  source ? source.audio.muted  : false
-    readonly property string sourceName:   source ? _nodeName(source)   : "—"
+    function setSinkVolume(delta)   { _sinkCmd(_pct(delta)) }
+    function setSourceVolume(delta) { _sourceCmd(_pct(delta)) }
+    function toggleSinkMute()       { _sinkCmd(null) }
+    function toggleSourceMute()     { _sourceCmd(null) }
 
-    // ── Public API ────────────────────────────────────────────────────────────
+    function poll() {
+        if (!_sinkPoll.running)   _sinkPoll.running   = true
+        if (!_sourcePoll.running) _sourcePoll.running = true
+    }
 
-    function setSinkVolume(v)    { if (sink)   sink.audio.volume  = Math.max(0, Math.min(1, v)) }
-    function toggleSinkMute()    { if (sink)   sink.audio.muted   = !sink.audio.muted }
+    function _pct(d) {
+        return d > 0 ? (Math.round(d * 100) + "%+") : (Math.round(-d * 100) + "%-")
+    }
+    function _sinkCmd(volArg) {
+        if (_sinkOp.running) return
+        _sinkOp.command = volArg !== null
+            ? ["wpctl", "set-volume",  "@DEFAULT_AUDIO_SINK@", volArg]
+            : ["wpctl", "set-mute",    "@DEFAULT_AUDIO_SINK@", "toggle"]
+        _sinkOp.running = true
+    }
+    function _sourceCmd(volArg) {
+        if (_sourceOp.running) return
+        _sourceOp.command = volArg !== null
+            ? ["wpctl", "set-volume",  "@DEFAULT_AUDIO_SOURCE@", volArg]
+            : ["wpctl", "set-mute",    "@DEFAULT_AUDIO_SOURCE@", "toggle"]
+        _sourceOp.running = true
+    }
+    function _nodeName(n) {
+        return n.nickname !== "" ? n.nickname : n.description !== "" ? n.description : n.name
+    }
 
-    function setSourceVolume(v)  { if (source) source.audio.volume = Math.max(0, Math.min(1, v)) }
-    function toggleSourceMute()  { if (source) source.audio.muted  = !source.audio.muted }
+    // ── Poll timer ────────────────────────────────────────────────────────────
+    Timer { interval: 3000; repeat: true; running: true; onTriggered: root.poll() }
+    Component.onCompleted: poll()
 
-    // ── Internal ──────────────────────────────────────────────────────────────
+    // ── Operation processes ───────────────────────────────────────────────────
+    Process { id: _sinkOp;   onExited: Qt.callLater(root.poll) }
+    Process { id: _sourceOp; onExited: Qt.callLater(root.poll) }
 
-    function _nodeName(node) {
-        if (node.nickname  !== "") return node.nickname
-        if (node.description !== "") return node.description
-        return node.name
+    // ── Poll processes ────────────────────────────────────────────────────────
+    Process {
+        id: _sinkPoll
+        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var m = text.match(/Volume:\s+([\d.]+)(\s+\[MUTED\])?/)
+                if (!m) return
+                root.sinkVolume = parseFloat(m[1])
+                root.sinkMuted  = !!m[2]
+            }
+        }
+    }
+
+    Process {
+        id: _sourcePoll
+        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var m = text.match(/Volume:\s+([\d.]+)(\s+\[MUTED\])?/)
+                if (!m) return
+                root.sourceVolume = parseFloat(m[1])
+                root.sourceMuted  = !!m[2]
+            }
+        }
     }
 }

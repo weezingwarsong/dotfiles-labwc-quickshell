@@ -43,14 +43,22 @@ Item {
                 // Source (mic)
                 VolumeButton {
                     Layout.fillWidth: true
-                    node: root.audioProcess ? root.audioProcess.source : null
+                    volume: root.audioProcess ? root.audioProcess.sourceVolume : 0
+                    muted:  root.audioProcess ? root.audioProcess.sourceMuted  : false
+                    name:   root.audioProcess ? root.audioProcess.sourceName   : "—"
+                    onMuteToggled:  if (root.audioProcess) root.audioProcess.toggleSourceMute()
+                    onScrolled:     (d) => { if (root.audioProcess) root.audioProcess.setSourceVolume(d) }
                     onRightClicked: _pavuProc.running = true
                 }
 
                 // Sink (speaker)
                 VolumeButton {
                     Layout.fillWidth: true
-                    node: root.audioProcess ? root.audioProcess.sink : null
+                    volume: root.audioProcess ? root.audioProcess.sinkVolume : 0
+                    muted:  root.audioProcess ? root.audioProcess.sinkMuted  : false
+                    name:   root.audioProcess ? root.audioProcess.sinkName   : "—"
+                    onMuteToggled:  if (root.audioProcess) root.audioProcess.toggleSinkMute()
+                    onScrolled:     (d) => { if (root.audioProcess) root.audioProcess.setSinkVolume(d) }
                     onRightClicked: _pavuProc.running = true
                 }
             }
@@ -139,20 +147,20 @@ Item {
                 Item { Layout.fillWidth: true }
 
                 PanelButton {
-                    label: "Reconfigure"
+                    icon: "󰒓"; tooltip: "Reconfigure"
                     onClicked: _reconfigProc.running = true
                 }
                 PanelButton {
-                    label: "Exit"
+                    icon: "󰍃"; tooltip: "Exit"
                     onClicked: root._startCountdown("exit")
                 }
                 PanelButton {
-                    label: "Reboot"
+                    icon: "󰜉"; tooltip: "Reboot"
                     onClicked: root._startCountdown("reboot")
                 }
                 PanelButton {
-                    label:    "Shutdown"
-                    variant:  "critical"
+                    icon: "󰐥"; tooltip: "Shutdown"
+                    variant:   "critical"
                     onClicked: root._startCountdown("shutdown")
                 }
             }
@@ -207,7 +215,7 @@ Item {
             if (remaining <= 0) {
                 var action = root._pendingAction
                 root._pendingAction = ""
-                if      (action === "exit")     _exitProc.running     = true
+                if      (action === "exit")     console.log("[ControlPanel] exit stub — skipped")  // STUB
                 else if (action === "reboot")   _rebootProc.running   = true
                 else if (action === "shutdown") _shutdownProc.running = true
             } else {
@@ -228,14 +236,18 @@ Item {
     component VolumeButton: Rectangle {
         id: _vb
 
-        required property var node   // PwNode from AudioProcess (sink or source)
+        property real   volume: 0
+        property bool   muted:  false
+        property string name:   "—"
+        signal muteToggled()
+        signal scrolled(real delta)
         signal rightClicked()
 
         height:       Style.buttonHeight
         radius:       Style.radSm
-        color:        _vbHover.hovered ? Style.surfaceLowColor : Style.surfaceMidColor
+        color:        _vbMouse.containsMouse ? Style.surfaceLowColor : Style.surfaceMidColor
         border.width: Style.elementBorderWidth
-        border.color: node && node.audio.muted ? Style.accentColor : Style.borderSoftColor
+        border.color: _vb.muted ? Style.accentColor : Style.borderSoftColor
 
         property bool _showVol: false
 
@@ -245,39 +257,33 @@ Item {
             onTriggered: _vb._showVol = false
         }
 
-        HoverHandler { id: _vbHover }
-
         Text {
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 6 }
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             text: {
-                if (!_vb.node) return "—"
-                if (_vb.node.audio.muted) return "MUTED"
-                if (_vb._showVol) return Math.round(_vb.node.audio.volume * 100) + "%"
-                var n = _vb.node
-                return n.nickname !== "" ? n.nickname : n.description !== "" ? n.description : n.name
+                if (_vb.muted)     return "MUTED"
+                if (_vb._showVol)  return Math.round(_vb.volume * 100) + "%"
+                return _vb.name || "—"
             }
-            color:          _vb.node && _vb.node.audio.muted ? Style.textMuted : Style.textSecondary
+            color:          _vb.muted ? Style.textMuted : Style.textSecondary
             font.family:    Style.fontMono
             font.pixelSize: Style.fontSizeBody
         }
 
-        TapHandler {
-            acceptedButtons: Qt.LeftButton
-            onTapped: if (_vb.node) _vb.node.audio.muted = !_vb.node.audio.muted
-        }
-
-        TapHandler {
-            acceptedButtons: Qt.RightButton
-            onTapped: _vb.rightClicked()
-        }
-
-        WheelHandler {
-            onWheel: (event) => {
-                if (!_vb.node) return
-                var delta = event.angleDelta.y > 0 ? 0.05 : -0.05
-                _vb.node.audio.volume = Math.max(0, Math.min(1, _vb.node.audio.volume + delta))
+        MouseArea {
+            id:              _vbMouse
+            anchors.fill:    parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape:     Qt.PointingHandCursor
+            hoverEnabled:    true
+            onClicked: (mouse) => {
+                if (mouse.button === Qt.RightButton) { _vb.rightClicked(); return }
+                _vb.muteToggled()
+            }
+            onWheel: (wheel) => {
+                var delta = wheel.angleDelta.y > 0 ? 0.05 : -0.05
+                _vb.scrolled(delta)
                 _vb._showVol = true
                 _peekTimer.restart()
             }

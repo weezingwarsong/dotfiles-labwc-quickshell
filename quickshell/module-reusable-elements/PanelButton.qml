@@ -1,10 +1,12 @@
 import QtQuick
+import QtQuick.Controls as QQC
 
 Rectangle {
     id: root
 
     property string label:   ""
     property string icon:    ""
+    property string tooltip: ""
     property string variant: "default"  // "default" | "accent" | "critical"
 
     signal clicked()
@@ -55,5 +57,11 @@ Rectangle {
 
     TapHandler {
         onTapped: root.clicked()
+    }
+
+    QQC.ToolTip {
+        visible: _hover.hovered && root.tooltip !== ""
+        text:    root.tooltip
+        delay:   500
     }
 }

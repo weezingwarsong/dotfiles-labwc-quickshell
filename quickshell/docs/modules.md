@@ -611,12 +611,13 @@ Quick-access panel for audio, network status, and session actions. Desktop-orien
 
 ### Audio
 
-- **Source:** `Quickshell.Services.Pipewire` via `AudioProcess` (`root-processes/AudioProcess.qml`)
-- `Pipewire.defaultAudioSink` / `Pipewire.defaultAudioSource` — reactive `PwNode` references, no graph traversal
-- **VolumeButton** (inline component, uppercase required): left-click mutes/unmutes, scroll ±5%, right-click → `pavucontrol-qt`
+- **Source:** `AudioProcess` (`root-processes/AudioProcess.qml`) — subprocess-based; `wpctl get-volume` polled every 3s, `wpctl set-volume` / `wpctl set-mute` for writes. Device names only from `Pipewire.defaultAudioSink/Source.nickname` (string props work; `PwNodeAudio.volume` does not expose a writable Q_PROPERTY in this build).
+- **VolumeButton** (inline component — must be uppercase): `volume`, `muted`, `name` props in; `muteToggled()`, `scrolled(delta)`, `rightClicked()` signals out. ControlPanel wires signals to AudioProcess methods.
+- Scroll uses `MouseArea.onWheel` — `WheelHandler` did not fire inside the inline component on this setup.
 - Label priority: **MUTED** → volume% (1.5s peek after scroll) → device name (nickname > description > name)
 - Muted: border = `accentColor`, text = `textMuted`
 - Two buttons stacked: source (mic) then sink (speaker)
+- Session buttons use Nerd Font glyphs only (`󰒓` `󰍃` `󰜉` `󰐥`); tooltips via `QQC.ToolTip` (500ms delay). `PanelButton` has `tooltip: string` property.
 
 ### Network
 

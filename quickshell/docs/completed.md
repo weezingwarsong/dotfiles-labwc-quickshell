@@ -4,11 +4,21 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Control Panel (W-7) — post-ship fixes
+
+- [x] Session buttons: text labels → Nerd Font glyphs (`󰒓` `󰍃` `󰜉` `󰐥`), tooltips via `QQC.ToolTip` on hover (500ms delay). `PanelButton` now has `tooltip` property + import.
+- [x] `WheelHandler` → `MouseArea.onWheel`: WheelHandler silently didn't fire inside the inline component on this setup; `MouseArea` with `onWheel` is the established working pattern (matches MediaPlayerPanel).
+- [x] `AudioProcess` rewritten from PipeWire-native to subprocess: `PwNodeAudio.volume` reads and writes as 0 via QML even though the C++ object is valid — likely not exposed as a writable Q_PROPERTY in this Quickshell build. Volume and mute now go through `wpctl get-volume` / `wpctl set-volume` / `wpctl set-mute` (same as labwc keybinds). Device names still read from `Pipewire.defaultAudioSink/Source.nickname` (string properties work fine).
+- [x] `VolumeButton` interface changed from `required property var node` (PwNode) to `property real volume`, `property bool muted`, `property string name` + signals `muteToggled()` / `scrolled(real delta)` / `rightClicked()`. ControlPanel wires signals to AudioProcess methods.
+- [x] Exit button stubbed (`console.log` only) during testing — to be re-wired when ready.
+
+---
+
 ## Control Panel (W-7)
 
 ### Audio (AudioProcess.qml + ControlPanel.qml)
-- [x] `AudioProcess` — thin wrapper over `Quickshell.Services.Pipewire`; exposes `sink` / `source` as reactive `PwNode` references via `Pipewire.defaultAudioSink` / `Pipewire.defaultAudioSource`. No graph traversal needed.
-- [x] Inline `VolumeButton` component (uppercase required for inline components): left-click mutes/unmutes, scroll wheel ±5% volume, right-click opens `pavucontrol-qt`
+- [x] `AudioProcess` — polls `wpctl get-volume @DEFAULT_AUDIO_SINK/SOURCE@` every 3s; runs `wpctl set-volume` / `wpctl set-mute` for changes; re-polls after each command. Device names from `Pipewire.defaultAudioSink/Source` (string props work).
+- [x] Inline `VolumeButton` component (uppercase required for QML inline components): left-click mutes/unmutes, scroll ±5% volume, right-click opens `pavucontrol-qt`
 - [x] Label priority: **MUTED** (when muted) → volume% (for 1.5s after any scroll) → device name (nickname > description > name)
 - [x] Muted state: button border highlights with `accentColor`, text color switches to `textMuted`
 - [x] Two VolumeButton rows: source (mic) on top, sink (speaker) below
