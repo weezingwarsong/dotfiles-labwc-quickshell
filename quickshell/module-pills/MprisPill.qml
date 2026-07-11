@@ -37,11 +37,12 @@ Item {
 
     property Component visualComponent: Component {
         Row {
-            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
             spacing: 6
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
                 text: {
                     if (!root.mprisProcess || !root.mprisProcess.activePlayer) return ""
                     var s = root.mprisProcess.activePlayer.playbackState
@@ -55,7 +56,8 @@ Item {
             }
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
                 width: Math.min(implicitWidth, 200)
                 text: root.mprisProcess && root.mprisProcess.activePlayer
                     ? root.mprisProcess.activePlayer.trackTitle

@@ -280,6 +280,38 @@ Item {
                     }
                 }
 
+                // Refresh button — bottom-right of month grid
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: 14
+
+                    Text {
+                        id: _refreshBtn
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: ""
+                        color: _refreshHover.hovered ? Style.textNormal : Style.textMuted
+                        font.family: Style.fontNerd
+                        font.pixelSize: root._navSize
+
+                        HoverHandler { id: _refreshHover }
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (root.calendarProcess) root.calendarProcess.refresh()
+                                if (root.tasksProcess)    root.tasksProcess.refresh()
+                            }
+                        }
+                        ToolTip {
+                            visible: _refreshHover.hovered
+                            delay: 300
+                            text: "Refresh"
+                        }
+                    }
+                }
+
                 PanelDivider { Layout.topMargin: 4 }
 
                 // Events today

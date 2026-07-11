@@ -507,12 +507,43 @@ Item {
                     anchors { left: parent.left; right: parent.right; margins: parent.padding }
                     spacing: 8
 
-                    // Container border
+                    // Pill border
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
                         Text {
-                            text: "Container"
+                            text: "Pill"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 72
+                        }
+                        PanelButton {
+                            label: "Off"
+                            variant: Prefs.pillBorderWidth === 0 ? "accent" : "default"
+                            Layout.fillWidth: true
+                            onClicked: Prefs.setPillBorderWidth(0)
+                        }
+                        PanelButton {
+                            label: "Thin"
+                            variant: Prefs.pillBorderWidth === 1 ? "accent" : "default"
+                            Layout.fillWidth: true
+                            onClicked: Prefs.setPillBorderWidth(1)
+                        }
+                        PanelButton {
+                            label: "Thick"
+                            variant: Prefs.pillBorderWidth === 2 ? "accent" : "default"
+                            Layout.fillWidth: true
+                            onClicked: Prefs.setPillBorderWidth(2)
+                        }
+                    }
+
+                    // Panel border
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Panel"
                             color: Style.textSecondary
                             font.family: Style.fontMono
                             font.pixelSize: Style.fontSizeBody
@@ -568,6 +599,31 @@ Item {
                             onClicked: Prefs.setElementBorderWidth(2)
                         }
                     }
+
+                    // Border color
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Color"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 72
+                        }
+                        PanelButton {
+                            label: "Subtle"
+                            variant: Prefs.borderColorMode === "subtle" ? "accent" : "default"
+                            Layout.fillWidth: true
+                            onClicked: Prefs.setBorderColorMode("subtle")
+                        }
+                        PanelButton {
+                            label: "Vibrant"
+                            variant: Prefs.borderColorMode === "vibrant" ? "accent" : "default"
+                            Layout.fillWidth: true
+                            onClicked: Prefs.setBorderColorMode("vibrant")
+                        }
+                    }
                 }
             }
 
@@ -599,6 +655,7 @@ Item {
                             if (Prefs.extractColors) {
                                 Prefs.setExtractColors(false)
                                 Prefs.clearColorOverrides()
+                                Prefs.clearMat3Overrides()
                             } else {
                                 Prefs.setExtractColors(true)
                             }
@@ -617,10 +674,13 @@ Item {
                     Prefs.setFontSizePill(13)
                     Prefs.setFontSizeBase(10)
                     Prefs.setRadiusScale(1.0)
+                    Prefs.setPillBorderWidth(1)
                     Prefs.setBorderWidth(1)
                     Prefs.setElementBorderWidth(1)
+                    Prefs.setBorderColorMode("subtle")
                     Prefs.setExtractColors(false)
                     Prefs.clearColorOverrides()
+                    Prefs.clearMat3Overrides()
                 }
             }
         }

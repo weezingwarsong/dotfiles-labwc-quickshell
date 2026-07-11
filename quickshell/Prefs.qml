@@ -16,8 +16,10 @@ Item {
         property int    fontSizePill:       13
         property int    fontSizeBase:       10
         property real   radiusScale:        1.0
+        property int    pillBorderWidth:    1
         property int    borderWidth:        1
         property int    elementBorderWidth: 1
+        property string borderColorMode:   "subtle"   // "subtle" | "vibrant"
 
         property string wallpaperSourceType:  "color"
         property string wallpaperPath:        ""
@@ -69,8 +71,10 @@ Item {
     readonly property int    fontSizePill:       _store.fontSizePill
     readonly property int    fontSizeBase:       _store.fontSizeBase
     readonly property real   radiusScale:        _store.radiusScale
+    readonly property int    pillBorderWidth:    _store.pillBorderWidth
     readonly property int    borderWidth:        _store.borderWidth
     readonly property int    elementBorderWidth: _store.elementBorderWidth
+    readonly property string borderColorMode:    _store.borderColorMode
 
     readonly property string wallpaperSourceType:  _store.wallpaperSourceType
     readonly property string wallpaperPath:        _store.wallpaperPath
@@ -115,8 +119,10 @@ Item {
     function setFontSizePill(v)       { _store.fontSizePill       = v }
     function setFontSizeBase(v)       { _store.fontSizeBase       = v }
     function setRadiusScale(v)        { _store.radiusScale        = v }
+    function setPillBorderWidth(v)    { _store.pillBorderWidth    = v }
     function setBorderWidth(v)        { _store.borderWidth        = v }
     function setElementBorderWidth(v) { _store.elementBorderWidth = v }
+    function setBorderColorMode(v)    { _store.borderColorMode    = v }
 
     function setWallpaperSourceType(v)  { _store.wallpaperSourceType  = v }
     function setWallpaperPath(v)        { _store.wallpaperPath        = v }

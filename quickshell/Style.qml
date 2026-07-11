@@ -69,7 +69,9 @@ QtObject {
     readonly property color surfaceMidColor:   style.mat3SurfaceContainerHigh
 
     // ── Borders ──────────────────────────────────────────────────────────────
-    readonly property color borderFaintColor:  style.mat3OutlineVariant
+    // borderFaintColor drives pill border, panel border, and panel divider.
+    // "vibrant" steps up to mat3Outline for a more visible container edge.
+    readonly property color borderFaintColor:  Prefs.borderColorMode === "vibrant" ? style.mat3Outline : style.mat3OutlineVariant
     readonly property color borderSoftColor:   style.mat3Outline
 
     // ── Accent ───────────────────────────────────────────────────────────────
@@ -109,6 +111,7 @@ QtObject {
     readonly property real radLg: Math.round(10 * Prefs.radiusScale)  // pills, panels
 
     // ── Border widths ────────────────────────────────────────────────────────
-    readonly property int borderWidth:        Prefs.borderWidth         // pill + panel containers
+    readonly property int pillBorderWidth:    Prefs.pillBorderWidth     // pill container
+    readonly property int borderWidth:        Prefs.borderWidth         // panel containers
     readonly property int elementBorderWidth: Prefs.elementBorderWidth  // buttons, inputs
 }

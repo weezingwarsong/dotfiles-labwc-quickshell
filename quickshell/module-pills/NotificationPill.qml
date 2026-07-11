@@ -48,7 +48,8 @@ Item {
 
     property Component visualComponent: Component {
         Text {
-            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
+            verticalAlignment: Text.AlignVCenter
             text:           root._displayText
             color:          Style.textPrimary
             font.family:    Style.fontMono

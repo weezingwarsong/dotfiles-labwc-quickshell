@@ -10,7 +10,7 @@ PanelWindow {
 
     screen: Quickshell.screens[0]
     anchors.top: true
-    margins.top: Screen.height * 0.01
+    margins.top: Screen.height * 0.02
     exclusiveZone: 0
     color: "transparent"
 
@@ -24,6 +24,8 @@ PanelWindow {
         anchors.fill: parent
         radius: Style.radLg
         color: (activePill && activePill.bgColor) ? activePill.bgColor : Style.pillBgColor
+        border.color: Style.borderFaintColor
+        border.width: Style.pillBorderWidth
 
         Loader {
             id: contentLoader

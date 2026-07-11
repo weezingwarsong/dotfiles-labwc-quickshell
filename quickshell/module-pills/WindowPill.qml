@@ -20,11 +20,12 @@ Item {
 
     property Component visualComponent: Component {
         Row {
-            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
             spacing: 6
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
                 text: root._glyphFor(root._appId)
                 color: Style.textPrimary
                 font.family: Style.fontNerd
@@ -32,7 +33,8 @@ Item {
             }
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
                 width: Math.min(implicitWidth, 200)
                 text: root._appId
                 color: Style.textPrimary

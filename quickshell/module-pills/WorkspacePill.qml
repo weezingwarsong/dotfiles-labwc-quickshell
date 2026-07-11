@@ -38,11 +38,12 @@ Item {
     // ── Visual component ──────────────────────────────────────────────────────
     property Component visualComponent: Component {
         Row {
-            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
             spacing: 8
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
                 text: root.displayText
                 color: Style.textPrimary
                 font.pixelSize: Style.fontSizePill
@@ -50,13 +51,14 @@ Item {
             }
 
             Row {
-                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height
                 spacing: 2
 
                 Repeater {
                     model: root.workspaceProcess ? root.workspaceProcess.list.length : 0
                     Text {
-                        anchors.verticalCenter: parent.verticalCenter
+                        height: parent.height
+                        verticalAlignment: Text.AlignVCenter
                         text: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
                             ? String.fromCodePoint(0xf444)
                             : String.fromCodePoint(0xf4c3)
