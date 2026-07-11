@@ -248,7 +248,9 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 
 **File:** `module-panels/WindowSwitcherPanel.qml` · **Keybind:** W-Tab
 
-**Data sources (injected):** `ToplevelProcess`
+**Data sources (injected):** `ToplevelProcess`, `DesktopEntries` (Quickshell singleton)
+
+**Dual role: window switcher + app launcher.** Replaces both rofi's window and drun modes. Open windows are always listed; desktop apps appear below a separator when the filter input is non-empty. Single keybind covers both use cases.
 
 **Behavior:** Keyboard-driven. Filter `TextInput` has focus immediately on open — user can type without clicking. List below filter narrows in real time (case-insensitive match on `appId + title`). Arrow keys move selection, Enter focuses window or launches app + closes panel, Escape closes without acting. Entire list is wrapped in a `Flickable` — any number of windows is scrollable without growing off-screen.
 
