@@ -18,14 +18,16 @@ A 24px rounded rectangle anchored top-center of the primary screen. Hidden by de
 
 | Priority | Pill | Active when | Beats |
 |---|---|---|---|
-| 200 | `WindowPill` | Window switcher panel is open | Everything |
-| 100 | `WorkspacePill` | Within 1.5 s of a workspace switch | TimePill urgent + MPRIS + clock |
-| 10 | `TimePill` (urgent) | Next calendar event ≤ 10 min away, **or** a countdown/stopwatch is running | MPRIS playing |
+| 1000 | `NotificationPill` | Critical notification, within 10 s of arrival | Everything |
+| 200 | `WindowPill` | Window switcher panel is open | All except critical notification |
+| 100 | `WorkspacePill` | Within 1.5 s of a workspace switch | TimePill urgent + MPRIS + normal notification + clock |
+| 10 | `TimePill` (urgent) | Next calendar event ≤ 10 min away, **or** a countdown/stopwatch is running | MPRIS playing + normal notification |
+| 6 | `NotificationPill` | Any notification, within 7 s of arrival | MPRIS playing |
 | 5 | `MprisPill` | A player is in Playing state with a non-empty track title | Idle clock |
 | 1 | `TimePill` (fallback) | Always — permanent floor so hover/latch always show something | — |
-| 0 | `MprisPill` / `WorkspacePill` | When condition clears | — |
+| 0 | `MprisPill` / `WorkspacePill` / `NotificationPill` | When condition clears | — |
 
-Key intent: an imminent calendar event or active timer must win over now-playing MPRIS (10 > 5). When nothing urgent is happening, MPRIS playing wins over the idle clock (5 > 1).
+Key intent: critical notifications override everything. Normal notifications break through MPRIS but yield to workspace/window-switcher context. Imminent calendar events and active timers win over MPRIS (10 > 5). MPRIS playing wins over idle clock (5 > 1).
 
 ### Panel
 
@@ -162,6 +164,7 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 | `WorkspacePill.qml` | 100 | 1.5 s after workspace switch | ✓ built |
 | `WindowPill.qml` | 200 | While window switcher is open | ✓ built |
 | `MprisPill.qml` | 5 (playing) / 0 | 3 s after any track/state change | ✓ built |
+| `NotificationPill.qml` | 1000 (critical) / 6 (normal) / 0 | 10 s (critical) or 7 s (normal) after arrival | ✓ built |
 | `ScreenrecPill.qml` | TBD | TBD — screen recording indicator | 🔲 stub (file registered, no implementation) |
 
 ### Panels (`module-panels/`)
@@ -179,7 +182,7 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 ## Geometry
 
 - **Screen reference:** `Quickshell.screens[0]` — primary screen only.
-- **Pill:** `PanelWindow`, `anchors.top: true`, width content-driven (implicitWidth + 40), height 24px. `margins.top: Screen.height * 0.01`.
+- **Pill:** `PanelWindow`, `anchors.top: true`, width content-driven (implicitWidth + 40), height 24px. `margins.top: Screen.height * 0.02`.
 - **Panel:** `PanelWindow`, width `Screen.width * 0.15`, height content-driven (capped at `Screen.height - 2 * panelY`). Top edge at `Screen.width * 0.10` from screen top.
 - **Color background (wallpaper):** fullscreen `PanelWindow` at `WlrLayer.Background`, `exclusiveZone: -1`. Visible only when `wallpaper.sourceType === "color"`.
 
@@ -241,7 +244,8 @@ echo toggleSettings   > ~/.local/share/pillbox/pillbox.fifo
 echo toggleWallpaper  > ~/.local/share/pillbox/pillbox.fifo
 
 # Check quickshell logs (filter noise)
-cat /run/user/1000/quickshell/by-id/*/log.qslog | grep -v "Cannot install"
+# Use newest session file — multiple files accumulate across restarts
+ls -t /run/user/1000/quickshell/by-id/*/log.qslog | head -1 | xargs strings | grep -v "Cannot install"
 
 # Wallpaper — test yinctl directly
 yinctl --img /path/to/image.jpg

@@ -4,6 +4,94 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Visual Layer — Pill Polish + Notification Priority
+
+All pills receive visual treatment. Notification pill gets two-tier urgency.
+
+### Pill borders
+- [x] `PillWindow`: `border.color: Style.borderFaintColor` + `border.width: Style.pillBorderWidth`
+- [x] `Prefs`: `pillBorderWidth` (default 1, setter `setPillBorderWidth`) + `borderColorMode` ("subtle" / "vibrant", setter `setBorderColorMode`)
+- [x] `Style`: `pillBorderWidth` Prefs-derived; `borderFaintColor` mode-driven (subtle = `mat3OutlineVariant`, vibrant = `mat3Outline`)
+- [x] `SettingsPanel` Borders card: added Pill row (Off/Thin/Thick) and Color mode row (Subtle/Vibrant); Reset button calls `setPillBorderWidth(1)` + `setBorderColorMode("subtle")` + `clearMat3Overrides()`
+
+### Pill top margin
+- [x] `PillWindow`: `margins.top: Screen.height * 0.01` → `0.02` (~22px at 1080p, ~29px at 1440p)
+
+### Vertical text centering
+- [x] All five pills: replaced `anchors.verticalCenter: parent.verticalCenter` on Row/Text elements with `height: parent.height` + `verticalAlignment: Text.AlignVCenter`. Root cause: JetBrainsMono Nerd Font inflates the line-height bounding box for icon glyphs, causing `verticalCenter` to position above visual center.
+
+### TimePill urgent states (both built)
+- [x] Calendar-imminent mode (`_calendarImminent && !_timerActive`): `bgColor = accentBgColor`; scrolling marquee text `"${summary} in ${N}m"`, 200 px cap, 1.5 s pause at each end, 20 ms/px; `onTextChanged` resets scroll so minute-by-minute updates restart cleanly
+- [x] Urgent countdown (`_urgentCountdown`: timer mode, active, `_remainMs < 10 000`): `bgColor = criticalBgColor`; text color `textCritical`; appends `displayCenti` to show centiseconds
+- [x] `_calendarText` computed property derives `"${nextEvent.summary} in ${minutes}m"` from `calendarProcess.nextEvent`
+
+### Pill glyph + text polish
+- [x] `WorkspacePill`: active workspace dot → `accentColor`; inactive dots → `textMuted`
+- [x] `MprisPill`: playback glyph → `accentColor` (static); text → `"Artist — Title"` with fallback chain (artist+title → title → artist); text scrolls in clipped container (same 200 px / 1.5 s / 20 ms/px pattern as TimePill); glyph stays static while text scrolls
+- [x] `WindowPill`: app glyph → `accentColor`
+
+### NotificationPill — two-tier priority
+- [x] **Normal** peek: priority 6, 7 s — beats MprisPill (5); yields to WorkspacePill (100) and WindowPill (200)
+- [x] **Critical** peek: priority 1000, 10 s — beats every other pill including WindowPill
+- [x] `bgColor`: `criticalBgColor` when any critical notification tracked; `pillBgColor` otherwise
+- [x] Text color: `textCritical` when critical; `textPrimary` otherwise
+- [x] Display format: `"N !C"` (was `"N | C"`) to make the critical count visually distinct
+- [x] Two independent timers (`_peekTimer` 7 000 ms, `_criticalPeekTimer` 10 000 ms)
+
+### CalendarPanel — refresh button
+- [x] Nerd Font refresh glyph (nf-fa-refresh, ``), bottom-right of month grid, `textMuted` → `textNormal` on hover, tooltip "Refresh", 300 ms delay
+- [x] On click: `calendarProcess.refresh()` + `tasksProcess.refresh()`
+
+### Mako — D-Bus activation blocked
+- [x] mako was not in `labwc/autostart` but ships `/usr/share/dbus-1/services/fr.emersion.mako.service`, which auto-launched it on the first notification and stole `org.freedesktop.Notifications` before Quickshell could claim it
+- [x] Fix: `systemctl --user mask mako` → symlinks `mako.service → /dev/null`, permanently blocking D-Bus activation without uninstalling the package
+
+**Key decisions:**
+- Normal notification priority 6 (not 10+): should break through MPRIS but not override workspace/window-switcher — those are immediate UI context cues
+- Critical priority 1000: no other pill should ever suppress a critical notification
+- `borderFaintColor` mode-driven rather than adding a second border token — keeps the token count low while giving the user the control they need
+- Scroll speed 20 ms/px (same for both MprisPill and TimePill) for consistency; `onTextChanged` resets position so content changes don't mid-scroll
+
+---
+
+## Material Design 3 Color Pipeline
+
+Full mat3 pipeline from matugen → Prefs → Style → components. Replaces Nord-specific heuristics with wallpaper-driven semantic colors.
+
+### WallpaperProcess
+- [x] After base16 extraction, added mat3 block parsing `data.colors.<role>.dark.color` for 12 roles
+- [x] Roles → Prefs setters: `primary`, `primary_container`, `background`, `on_background`, `surface_container_low`, `surface_container_high`, `on_surface`, `on_surface_variant`, `outline`, `outline_variant`, `error`, `error_container`
+
+### Prefs.qml
+- [x] 12 `mat3*Override` string properties (all default `""`) + readonly aliases + setters
+- [x] `clearMat3Overrides()` — resets all 12; called by Reset button and extractColors toggle-off
+
+### Style.qml
+- [x] New Section 1.5 — Mat3 Roles: 12 `readonly property color mat3*` with override-or-fallback pattern
+- [x] Fixed section redesigned (Option B): mat3 roles define the semantics
+  - `pillBgColor` / `panelBgColor` ← `mat3Background`
+  - `surfaceLowColor` ← `mat3SurfaceContainerLow`, `surfaceMidColor` ← `mat3SurfaceContainerHigh`
+  - `borderFaintColor` ← mode-driven (`mat3OutlineVariant` subtle / `mat3Outline` vibrant)
+  - `borderSoftColor` ← `mat3Outline`
+  - `accentColor` ← `mat3Primary`, `accentBgColor` ← `mat3PrimaryContainer`
+  - `criticalBgColor` ← `mat3ErrorContainer`
+  - `textPrimary` ← `mat3OnBackground`, `textNormal` ← `mat3OnSurface`
+  - `textSecondary` ← `mat3OnSurfaceVariant`, `textMuted` ← `mat3Outline` (**fix resolved**: now genuinely dimmer than secondary)
+  - `textFaint` ← `mat3OutlineVariant`, `textAccent` ← `mat3Primary`, `textCritical` ← `mat3Error`
+- [x] Removed: `borderAccentColor` (redundant with `accentColor`), `textWeekend` (CalendarPanel uses `accentColor` inline), `dotIndicator` (CalendarPanel uses `accentColor` inline)
+
+### Component touch-ups
+- [x] `CalendarPanel`: `textWeekend` → `accentColor` (weekend headers); `borderAccentColor` → `accentColor` (today cell, event dots, back links); today cell text → `panelBgColor` (contrast fix: mat3 primary is light in dark mode — light text on light accent bg was unreadable)
+- [x] `TimerWidget`: 3× `borderAccentColor` → `accentColor`
+
+**Key decisions:**
+- Option B mapping: mat3 roles define the intent, not the other way around. We ask "what does mat3 say this surface/text/border should be?" — not "which colorN is closest to my existing token?". This required redesigning the Fixed section vocabulary.
+- `textSuccess` stays on `color14` (Aurora green) — mat3 has no success/positive role
+- `accentBgHover` derived as `Qt.lighter(mat3PrimaryContainer, 1.3)` — no mat3 hover role exists; this produces a consistent brightness step regardless of palette
+- Verified: `data.colors.<role>.dark.color` path in matugen v4.1.0 JSON (not `data.base16`)
+
+---
+
 ## Control Panel (W-7) — post-ship fixes
 
 - [x] Session buttons: text labels → Nerd Font glyphs (`󰒓` `󰍃` `󰜉` `󰐥`), tooltips via `QQC.ToolTip` on hover (500ms delay). `PanelButton` now has `tooltip` property + import.

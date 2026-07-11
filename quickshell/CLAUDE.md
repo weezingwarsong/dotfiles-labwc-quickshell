@@ -45,9 +45,9 @@ echo toggleWallpaper > ~/.local/share/pillbox/pillbox.fifo
 echo "setTimer:30"  > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/.local/share/pillbox/pillbox.fifo
 ```
 
-**Check logs:**
+**Check logs (use newest session file):**
 ```bash
-cat /run/user/1000/quickshell/by-id/*/log.qslog | grep -v "Cannot install"
+ls -t /run/user/1000/quickshell/by-id/*/log.qslog | head -1 | xargs strings | grep -v "Cannot install"
 ```
 
 **Never run sudo via Bash** — hand the command to the user to paste themselves.
@@ -79,14 +79,14 @@ New panel in `module-panels/`:
 
 Several known issues are tracked in the docs as **fix candidates** and intentionally deferred. Do not fix them without being asked. Key ones:
 
-- `textMuted` should be `color3`, currently `color4` (same as `textSecondary`)
-- `borderAccentColor` is redundant with `accentColor` — both `color10`; remove one
-- `textWeekend` and `dotIndicator` are single-use CalendarPanel tokens; should move inline
 - Pill dimension tokens (`pillHeight: 24`, `pillPaddingH: 20`, etc.) are hardcoded; should be Style tokens
+- ~~`textMuted` should be `color3`, currently `color4` (same as `textSecondary`)~~ **Fixed** — mat3 pipeline: `textMuted` now maps to `mat3Outline`, which is genuinely dimmer than `textSecondary` (`mat3OnSurfaceVariant`)
+- ~~`borderAccentColor` is redundant with `accentColor` — both `color10`; remove one~~ **Fixed** — `borderAccentColor` removed from Style; callsites use `accentColor` directly
+- ~~`textWeekend` and `dotIndicator` are single-use CalendarPanel tokens; should move inline~~ **Fixed** — both removed from Style; CalendarPanel uses `accentColor` inline
 - ~~Email address not shown in Settings Services tab~~ **Fixed** — `gcal-fetch --email` reads primary calendar id (= Gmail address) via calendar.readonly scope; `SettingsProcess` exposes `googleEmail`; displayed below "Connected" in `textMuted`/`fontSizeSubtle`
 - ~~Click-outside dismiss disabled for WindowSwitcher~~ **Fixed** — removed `enabled: activePanel !== "windowSwitcher"` guard from PanelSurface dismiss MouseArea
 - ~~User preference changes don't persist across quickshell restarts~~ **Fixed** — see completed.md
-- TimePill urgent state has no distinct visual treatment (criticalBgColor candidate)
+- ~~TimePill urgent state has no distinct visual treatment~~ **Fixed** — calendar imminent uses `accentBgColor` + scrolling marquee; countdown < 10s uses `criticalBgColor` + `textCritical` + centiseconds
 
 ---
 

@@ -4,13 +4,11 @@ How visual tokens, user preferences, and the color palette are organized in Pill
 
 ---
 
-## Status — POC, Wired Last
+## Status — Implemented
 
-> **The current Style.qml and Prefs.qml are a working proof-of-concept sufficient to build and test all panels and pills. They are intentionally not the final implementation.**
->
-> The full style system is designed to be wired last — after all panels and pills are feature-complete and tested. At that point: token tables are finalized, all fix candidates below are resolved, the palette section is built out in Prefs, and Style.qml is cleaned up. Until then, POC tokens remain in place so development is not blocked.
->
-> Fix candidates in this document mark where the current code deviates from the intended design.
+The mat3 color pipeline is fully implemented. `Style.qml` now derives all semantic tokens from Material Design 3 roles, which are populated by `matugen` on wallpaper change and persisted via `Prefs.qml`. Nord palette values serve as fallbacks when extraction is off or matugen is not installed.
+
+Non-color concerns (typography scale, radius, border widths, layout constants) remain Prefs-driven as before. Pill dimension tokens (`pillHeight`, `pillPaddingH`, etc.) are the remaining hardcoded fix candidate — deferred to a future pass.
 
 ---
 
@@ -44,8 +42,6 @@ Resolved value = user override if present, otherwise the compiled default. `QtCo
 
 > **Fix candidate:** Modified fields (values that differ from their compiled default) should be visually distinguished in the Settings → Appearance UI with a subtle accent tint. Not yet implemented.
 
-> ~~**Fix candidate (deferred):**~~ **Fixed** — Preferences now persist across restarts via `QtCore.Settings` writing to `~/.config/pillbox.conf`. Root cause: `StandardPaths.writableLocation()` in QML returns a `file://` URL string, not a plain filesystem path. The original code prepended `"file://"` again, producing `file://file:///...` — an invalid double-scheme URL that QSettings silently rejected. Fix: use the URL string directly as the `location` value. See completed.md.
-
 ---
 
 ## Prefs.qml
@@ -62,10 +58,12 @@ Resolved value = user override if present, otherwise the compiled default. `QtCo
 | `fontSizePill` | `int` | `13` | `setFontSizePill(v)` | Pill text — independent of panel scale |
 | `fontSizeBase` | `int` | `10` | `setFontSizeBase(v)` | Panel text scale anchor |
 | `radiusScale` | `real` | `1.0` | `setRadiusScale(v)` | 0.0 = sharp · 0.5 = subtle · 1.0 = default |
-| `borderWidth` | `int` | `1` | `setBorderWidth(v)` | Pill + panel container borders (0 / 1 / 2) |
+| `pillBorderWidth` | `int` | `1` | `setPillBorderWidth(v)` | Pill container border only (0 / 1 / 2) |
+| `borderWidth` | `int` | `1` | `setBorderWidth(v)` | Panel container borders (0 / 1 / 2) |
 | `elementBorderWidth` | `int` | `1` | `setElementBorderWidth(v)` | Buttons, inputs within panels (0 / 1 / 2) |
+| `borderColorMode` | `string` | `"subtle"` | `setBorderColorMode(v)` | `"subtle"` = `mat3OutlineVariant`; `"vibrant"` = `mat3Outline` for `borderFaintColor` |
 
-These are two separate settings so a user who wants a borderless pill/panel container isn't forced into borderless buttons too — container chrome and interactive-element chrome scale independently.
+Three separate border width settings so pill, panel container, and interactive-element chrome scale independently.
 
 ### Wallpaper properties
 
@@ -79,7 +77,7 @@ These are two separate settings so a user who wants a borderless pill/panel cont
 
 ### Palette overrides ✅ Implemented
 
-Per-slot palette overrides let users customise individual colors without replacing the whole theme. Style falls back to the Nord default when a slot is unset.
+Per-slot palette overrides let users customise individual colors without replacing the whole theme.
 
 ```qml
 // In Prefs._store:
@@ -91,16 +89,28 @@ readonly property color color0: Prefs.color0Override !== "" ? Prefs.color0Overri
 // ... color1–color15 same pattern
 ```
 
-Override values are populated by `WallpaperProcess._maybeExtract()` via `matugen image --json hex --dry-run`. The 16 base16 slots (`base00`–`base0f`) map directly to `color0Override`–`color15Override`. All 16 slots write to `~/.config/pillbox.conf` on wallpaper change (when `Prefs.extractColors` is true).
+Override values are populated by `WallpaperProcess._maybeExtract()` via `matugen image --json hex --dry-run`. The 16 base16 slots (`base00`–`base0f`) map directly to `color0Override`–`color15Override`.
 
-**Phase 2 — mat3 / Material You dynamic system:**
+### Mat3 role overrides ✅ Implemented
 
-The current Fixed section (`textPrimary`, `accentBgColor`, etc.) has hardcoded Nord-derived mappings. A proper dynamic system would:
-- Map the extracted 16-slot palette onto Material You (mat3) roles: `primary`, `secondary`, `tertiary`, `error`, `surface`, `background`, etc.
-- Derive semantic tokens from those roles rather than from fixed palette indices
-- Allow the entire visual layer to recolor when a new wallpaper is picked, not just raw color swatches
+12 additional string properties for Material Design 3 semantic roles, all defaulting to `""`:
 
-This is additive — the 16 override slots already persist and feed `Style.qml`. The remaining work is in how Fixed maps Variable → semantic tokens.
+| Prefs property | Setter | Mat3 role |
+|---|---|---|
+| `mat3PrimaryOverride` | `setMat3PrimaryOverride(v)` | `primary` |
+| `mat3PrimaryContainerOverride` | `setMat3PrimaryContainerOverride(v)` | `primary_container` |
+| `mat3BackgroundOverride` | `setMat3BackgroundOverride(v)` | `background` |
+| `mat3OnBackgroundOverride` | `setMat3OnBackgroundOverride(v)` | `on_background` |
+| `mat3SurfaceContainerLowOverride` | `setMat3SurfaceContainerLowOverride(v)` | `surface_container_low` |
+| `mat3SurfaceContainerHighOverride` | `setMat3SurfaceContainerHighOverride(v)` | `surface_container_high` |
+| `mat3OnSurfaceOverride` | `setMat3OnSurfaceOverride(v)` | `on_surface` |
+| `mat3OnSurfaceVariantOverride` | `setMat3OnSurfaceVariantOverride(v)` | `on_surface_variant` |
+| `mat3OutlineOverride` | `setMat3OutlineOverride(v)` | `outline` |
+| `mat3OutlineVariantOverride` | `setMat3OutlineVariantOverride(v)` | `outline_variant` |
+| `mat3ErrorOverride` | `setMat3ErrorOverride(v)` | `error` |
+| `mat3ErrorContainerOverride` | `setMat3ErrorContainerOverride(v)` | `error_container` |
+
+`clearMat3Overrides()` resets all 12 to `""`. Called by the Reset button and when `extractColors` is toggled off.
 
 ### v2 — Timing constants (deferred)
 
@@ -154,55 +164,75 @@ Font tokens also live in Variable:
 
 `fontCJK` exists because `font.families` (the Qt list-form fallback) is not available in this Qt build. Components use `font.family: Style.fontMono` (single family); Qt asks fontconfig for any missing glyphs and fontconfig resolves to Sarasa for CJK characters. `fontCJK` documents the intent — when `font.families` becomes available, it becomes the explicit fallback list instead of relying on fontconfig.
 
+### Section 1.5 — Mat3 Roles
+
+Between Variable and Fixed. Each property reads the Prefs override and falls back to a Nord-derived equivalent so the UI is stable when extraction is off.
+
+| Token | Prefs override | Nord fallback |
+|---|---|---|
+| `mat3Primary` | `mat3PrimaryOverride` | `color10` |
+| `mat3PrimaryContainer` | `mat3PrimaryContainerOverride` | `Qt.darker(color10, 2.4)` |
+| `mat3Background` | `mat3BackgroundOverride` | `color0` |
+| `mat3OnBackground` | `mat3OnBackgroundOverride` | `color6` |
+| `mat3SurfaceContainerLow` | `mat3SurfaceContainerLowOverride` | `color1` |
+| `mat3SurfaceContainerHigh` | `mat3SurfaceContainerHighOverride` | `color2` |
+| `mat3OnSurface` | `mat3OnSurfaceOverride` | `color5` |
+| `mat3OnSurfaceVariant` | `mat3OnSurfaceVariantOverride` | `color4` |
+| `mat3Outline` | `mat3OutlineOverride` | `color3` |
+| `mat3OutlineVariant` | `mat3OutlineVariantOverride` | `color1` |
+| `mat3Error` | `mat3ErrorOverride` | `color11` |
+| `mat3ErrorContainer` | `mat3ErrorContainerOverride` | `Qt.darker(color11, 2.4)` |
+
+---
+
 ### Section 2 — Fixed (semantic tokens)
 
-Semantic mappings over the Variable palette. Components always use these names, never `color0` etc. directly. When the palette changes, Fixed tokens update automatically.
+Semantic mappings over the Mat3 Roles section. Components always use these names. When the wallpaper changes and mat3 roles update, all Fixed tokens update automatically on the same frame.
 
 #### Surfaces & Structure
 
-| Token | Source | Role | Status |
-|---|---|---|---|
-| `pillBgColor` | `color0` | Pill window background | ✓ |
-| `panelBgColor` | `color0` | Panel window background — separate token from `pillBgColor` so they can diverge | ✓ |
-| `panelBorderColor` | `color1` | Panel outer border | ✓ |
-| `panelDividerColor` | `color2` | `PanelDivider` horizontal rule | ✓ |
-| `surfaceLowColor` | `color1` | Raised section bg (`PanelCard`), hover rows | ✓ |
-| `surfaceMidColor` | `color2` | Buttons, text inputs, filter bar | ✓ |
+| Token | Source | Role |
+|---|---|---|
+| `pillBgColor` | `mat3Background` | Pill window background |
+| `panelBgColor` | `mat3Background` | Panel window background |
+| `panelBorderColor` | `mat3OutlineVariant` | Panel outer border |
+| `panelDividerColor` | `mat3OutlineVariant` | `PanelDivider` horizontal rule |
+| `surfaceLowColor` | `mat3SurfaceContainerLow` | Raised section bg (`PanelCard`), hover rows |
+| `surfaceMidColor` | `mat3SurfaceContainerHigh` | Buttons, text inputs, filter bar |
 
 #### Borders
 
-| Token | Source | Role | Status |
-|---|---|---|---|
-| `borderFaintColor` | `color1` | Pill + panel container border — very subtle | ✓ |
-| `borderSoftColor` | `color3` | Buttons, inputs — slightly more visible | ✓ |
-| `borderAccentColor` | `color10` | Accent / focus border | ✓ — **fix candidate: redundant with `accentColor`; both = `color10`. Remove `borderAccentColor`, use `accentColor` everywhere.** |
+| Token | Source | Role |
+|---|---|---|
+| `borderFaintColor` | `mat3OutlineVariant` (subtle) or `mat3Outline` (vibrant) | Pill + panel container border — mode-driven by `Prefs.borderColorMode` |
+| `borderSoftColor` | `mat3Outline` | Buttons, inputs |
+
+`borderFaintColor` is the only mode-driven token. "Subtle" gives a near-invisible border matching the panel edge; "Vibrant" steps up one level for more definition.
 
 #### Accent
 
-| Token | Source | Role | Status |
-|---|---|---|---|
-| `accentBgColor` | `Qt.darker(color10, 2.4)` | Selected/active bg (TogglePair selected, window switcher selection) | ✓ |
-| `accentBgHover` | `Qt.darker(color10, 1.8)` | Hover on accent interactive elements | ✓ |
-| `accentColor` | `color10` | Accent text, active borders, today cell bg in calendar | ✓ |
-| `criticalBgColor` | `Qt.darker(color11, 2.4)` | Error state tint | ✓ |
-| `successBgColor` | `Qt.darker(color14, 2.4)` | Positive state tint | ✓ |
+| Token | Source | Role |
+|---|---|---|
+| `accentColor` | `mat3Primary` | Accent glyphs, active borders, today cell bg in calendar |
+| `accentBgColor` | `mat3PrimaryContainer` | Selected/active bg (TogglePair selected, window switcher selection) |
+| `accentBgHover` | `Qt.lighter(mat3PrimaryContainer, 1.3)` | Hover on accent interactive elements |
+| `criticalBgColor` | `mat3ErrorContainer` | Error state tint (TimePill urgent, NotificationPill critical) |
+| `successBgColor` | `Qt.darker(color14, 2.4)` | Positive state tint — no mat3 equivalent |
 
 #### Text
 
-The text hierarchy is ordered by contrast against the dark background (high → low), then semantic states.
+The hierarchy maps onto mat3's own contrast gradient — `textMuted` is now genuinely dimmer than `textSecondary`.
 
-| Token | Source | Role | Status |
-|---|---|---|---|
-| `textPrimary` | `color6` | Headings, pill text | ✓ |
-| `textNormal` | `color5` | Standard body copy | ✓ |
-| `textSecondary` | `color4` | Button labels, secondary info | ✓ |
-| `textMuted` | `color4` | Timestamps, section labels, text on accent bg | ✓ POC — **fix candidate: must change to `color3`**. Current `textMuted` (`color4`) is the same value as `textSecondary`, making them indistinguishable. The intended value is `color3` (dimmer). Components using `textMuted` today will render slightly darker after the fix — intentional. |
-| `textFaint` | `color2` | Barely-visible structural anchors | ✓ |
-| `textAccent` | `color9` | Interactive / branded text | ✓ |
-| `textCritical` | `color11` | Error / alert state | ✓ |
-| `textSuccess` | `color14` | Positive / completion state | ✓ |
-| `textWeekend` | `color10` | Calendar weekend day numbers | ✓ POC — **fix candidate: single-use token (CalendarPanel only). Move inline, remove from Style.** |
-| `dotIndicator` | `color8` | Calendar event dot markers | ✓ POC — **fix candidate: single-use token (CalendarPanel only). Move inline, remove from Style.** |
+| Token | Source | Role |
+|---|---|---|
+| `textPrimary` | `mat3OnBackground` | Headings, pill text |
+| `textNormal` | `mat3OnSurface` | Standard body copy |
+| `textSecondary` | `mat3OnSurfaceVariant` | Button labels, secondary info |
+| `textMuted` | `mat3Outline` | Timestamps, section labels — dimmer than `textSecondary` |
+| `textFaint` | `mat3OutlineVariant` | Barely-visible structural anchors |
+| `textAccent` | `mat3Primary` | Links, highlighted text |
+| `textCritical` | `mat3Error` | Error / alert state |
+| `textSuccess` | `color14` | Positive / completion state — no mat3 equivalent |
 
 #### Layout Constants
 
@@ -238,7 +268,8 @@ Re-derive whenever the user changes a Prefs value. No restart required.
 
 | Token | Default | Role |
 |---|---|---|
-| `borderWidth` | `1` | Pill + panel container borders |
+| `pillBorderWidth` | `1` | Pill container border |
+| `borderWidth` | `1` | Panel container borders |
 | `elementBorderWidth` | `1` | Buttons, inputs within panels |
 
 ---
@@ -270,17 +301,15 @@ WorkspacePill-only spacing (`8` between name and dot cluster, `2` between dots) 
 
 ## Open Fix Candidates (summary)
 
-All items tagged above, collected here for easy tracking:
-
 | # | What | Where | Fix |
 |---|---|---|---|
-| 1 | `textMuted` must change value | `Style.qml` Fixed | Change from `color4` to `color3`; audit all callsites — they'll render slightly dimmer |
-| 2 | `borderAccentColor` redundant | `Style.qml` Fixed | Remove; replace callsites with `accentColor` |
-| 3 | `textWeekend` single-use | `Style.qml` Fixed | Remove; move `color10` inline in CalendarPanel |
-| 4 | `dotIndicator` single-use | `Style.qml` Fixed | Remove; move `color8` inline in CalendarPanel |
-| 5 | Pill dimension tokens hardcoded | `PillWindow`, `MprisPill`, `WindowPill` | Add `pillHeight`, `pillPaddingH`, `pillTextMaxWidth`, `pillContentSpacing` to Style Fixed |
-| 6 | Modified prefs fields have no accent tint | `SettingsPanel.qml` Appearance tab | Add subtle `accentBgColor` tint to fields whose value differs from the compiled default |
-| 7 | ~~Preference changes do not persist across restarts~~ | ~~`Prefs.qml` / `QtCore.Settings`~~ | **Fixed** — `StandardPaths.writableLocation()` returns a URL string; double-prefixing produced invalid location. See completed.md. |
+| 1 | Pill dimension tokens hardcoded | `PillWindow`, `MprisPill`, `WindowPill` | Add `pillHeight`, `pillPaddingH`, `pillTextMaxWidth`, `pillContentSpacing` to Style Fixed |
+| 2 | Modified prefs fields have no accent tint | `SettingsPanel.qml` Appearance tab | Add subtle `accentBgColor` tint to fields whose value differs from the compiled default |
+| ~~3~~ | ~~`textMuted` must change value~~ | ~~`Style.qml`~~ | **Fixed** — mat3 pipeline: `textMuted → mat3Outline` is genuinely dimmer than `textSecondary → mat3OnSurfaceVariant` |
+| ~~4~~ | ~~`borderAccentColor` redundant~~ | ~~`Style.qml`~~ | **Fixed** — removed; callsites use `accentColor` |
+| ~~5~~ | ~~`textWeekend` single-use~~ | ~~`Style.qml`~~ | **Fixed** — removed; CalendarPanel uses `accentColor` inline |
+| ~~6~~ | ~~`dotIndicator` single-use~~ | ~~`Style.qml`~~ | **Fixed** — removed; CalendarPanel uses `accentColor` inline |
+| ~~7~~ | ~~Preference changes do not persist~~ | ~~`Prefs.qml`~~ | **Fixed** — see completed.md |
 
 ---
 

@@ -11,16 +11,26 @@ Item {
     readonly property bool _hasCritical: notificationServer ? notificationServer.countCritical > 0 : false
     readonly property bool _hasAny:      notificationServer ? notificationServer.countTotal > 0 : false
 
-    property bool _peeking: false
+    property bool _peeking:         false  // normal peek — 7s
+    property bool _peekingCritical: false  // critical peek — 10s, beats all
 
-    // Priority: 2 during 7s peek window (beats TimePill at 1), 0 otherwise
-    readonly property int  priority:     (_peeking && _hasAny) ? 2 : 0
-    readonly property bool shouldReveal: (_peeking && _hasAny)
+    // Normal peek: 6 (beats MprisPill 5, yields to WorkspacePill 100 / WindowPill 200)
+    // Critical peek: 1000 (beats everything)
+    readonly property int  priority: {
+        if (_peekingCritical && _hasAny) return 1000
+        if (_peeking && _hasAny)         return 6
+        return 0
+    }
+    readonly property bool shouldReveal: (_peeking || _peekingCritical) && _hasAny
 
     Connections {
         target: notificationServer
         enabled: notificationServer !== null
-        function onNewNotification() {
+        function onNewNotification(notif) {
+            if (notif && notif.urgency === NotificationUrgency.Critical) {
+                root._peekingCritical = true
+                _criticalPeekTimer.restart()
+            }
             root._peeking = true
             _peekTimer.restart()
         }
@@ -32,18 +42,22 @@ Item {
         onTriggered: root._peeking = false
     }
 
+    Timer {
+        id: _criticalPeekTimer
+        interval: 10000
+        onTriggered: root._peekingCritical = false
+    }
+
     // ── Visual component ──────────────────────────────────────────────────────
 
-    // Red background while critical notifications are present and pill is visible
-    readonly property color bgColor: _hasCritical
-        ? Qt.darker(Style.color11, 1.5)
-        : Style.pillBgColor
+    // Critical background while critical notifications are present and pill is visible
+    readonly property color bgColor: _hasCritical ? Style.criticalBgColor : Style.pillBgColor
 
     readonly property string _displayText: {
         if (!notificationServer || notificationServer.countTotal === 0) return ""
         var total    = notificationServer.countTotal
         var critical = notificationServer.countCritical
-        return critical > 0 ? (total + " | " + critical) : ("" + total)
+        return critical > 0 ? (total + " !" + critical) : ("" + total)
     }
 
     property Component visualComponent: Component {
@@ -51,7 +65,7 @@ Item {
             height: parent.height
             verticalAlignment: Text.AlignVCenter
             text:           root._displayText
-            color:          Style.textPrimary
+            color:          root._hasCritical ? Style.textCritical : Style.textPrimary
             font.family:    Style.fontMono
             font.pixelSize: Style.fontSizePill
         }

@@ -1,5 +1,13 @@
 # Material Design 3 Color Workflow
 
+> **ARCHIVED** — This document was a planning/design doc. The pipeline described here has been fully implemented. For the authoritative current state see:
+> - `docs/style-system.md` — Section 1.5 (Mat3 Roles), Fixed section redesign, Prefs extensions
+> - `docs/completed.md` — "Material Design 3 Color Pipeline" entry (reverse-chronological)
+>
+> This file is kept as a historical record of the design intent.
+
+---
+
 How to wire matugen's mat3 semantic roles through the Pillbox theme pipeline so that the entire UI recolors correctly from any wallpaper — not just Nord-like palettes.
 
 ## Scope

@@ -66,9 +66,9 @@ Player selection: `_selectPlayer()` runs on every state/track change — picks P
 
 ### NotificationServer
 
-**File:** `root-processes/NotificationServer.qml` (planned — replaces mako)
+**File:** `root-processes/NotificationServer.qml`
 
-Implements the D-Bus notification daemon directly via `Quickshell.Services.Notifications`. mako must be stopped (or removed from autostart) before this process claims the `org.freedesktop.Notifications` bus name.
+Implements the D-Bus notification daemon directly via `Quickshell.Services.Notifications`. mako is not in `labwc/autostart`, but it ships a D-Bus activation file (`/usr/share/dbus-1/services/fr.emersion.mako.service`) that auto-launches it on the first notification — this steals the bus name before Quickshell can claim it. Fix: `systemctl --user mask mako` (symlinks `mako.service → /dev/null`, blocking D-Bus activation permanently).
 
 **Owns:**
 - `property var notifications` — `trackedNotifications` model from Quickshell's `NotificationServer`; used directly as Repeater model in the panel
@@ -124,11 +124,18 @@ Implements the D-Bus notification daemon directly via `Quickshell.Services.Notif
 
 Hover and W-1 latch are **not** TimePill-specific — they are universal `PillController` behaviors that reveal whatever pill is currently winning. They apply regardless of `shouldReveal`.
 
-**Display (`displayText`):**
+**Display:**
 - Timer or stopwatch active → `TimerProcess.displayText` (e.g. `"00:01:30"`)
 - Otherwise → `ClockProcess.displayTime` (e.g. `"14:07"`)
 
-**Visual urgent state (not yet built):** When `_calendarImminent` or `_timerActive` is true (priority 10), the pill currently looks identical to the idle clock. The intent is a distinct urgent visual treatment — `criticalBgColor` is the candidate background. Deferred until all panels are feature-complete.
+**Visual urgent states:**
+
+| State | Trigger | Background | Text | Extra |
+|---|---|---|---|---|
+| Calendar imminent | `_calendarImminent` (≤ 10 min), timer not active | `accentBgColor` | `textPrimary` | Scrolling marquee: `"Event title in Nm"`, capped at 200 px, 1.5 s pause at each end |
+| Urgent countdown | Timer mode, active, `_remainMs < 10 000` | `criticalBgColor` | `textCritical` | Appends centiseconds to `displayText` |
+
+`bgColor` property is read by `PillWindow` and replaces the default `pillBgColor`. The three-way ternary: `_urgentCountdown → criticalBgColor`, `_calendarImminent && !_timerActive → accentBgColor`, else `pillBgColor`.
 
 ---
 
@@ -144,7 +151,7 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 
 **Stage 2 reveal:** Driven by a local `Timer` inside `WorkspacePill` — restarted on each `workspaceChanged`; fires `shouldReveal = false` after 1.5 s. Rapid switches extend the window.
 
-**Display:** Current workspace name (left) + Nerd Font radiobox glyphs (one per workspace, active/inactive, right).
+**Display:** Current workspace name (left) + Nerd Font radiobox glyphs (one per workspace, right). Active workspace glyph uses `accentColor`; inactive glyphs use `textMuted`.
 
 ---
 
@@ -160,7 +167,7 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 
 **Stage 2 reveal:** Set externally by `shell.qml` as a binding: `shouldReveal: panelController.activePanel === "windowSwitcher"`. No internal timer or logic.
 
-**Display:** Nerd Font glyph (matched on `focused.appId`) + `focused.appId` text.
+**Display:** Nerd Font app glyph in `accentColor` (matched on `focused.appId`) + `focused.appId` text in `textPrimary`.
 
 ---
 
@@ -176,7 +183,9 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 
 **Stage 2 reveal:** `shouldReveal` is true for 3 seconds after any `playerUpdated` event (track change or playback state change). Driven by local `_peeking` flag + `Timer`. Rapid events extend the peek window.
 
-**Display:** Playback state glyph (`String.fromCodePoint(0xf04b/0xf04c/0xf04d)`) + track title. CJK track names handled transparently via fontconfig.
+**Display:** Playback state glyph (`String.fromCodePoint(0xf04b/0xf04c/0xf04d)`) in `accentColor` (static) + scrolling text in `textPrimary`. Text content: `"Artist — Title"` when both are non-empty, otherwise whichever is available. Text scrolls left when it exceeds 200 px (1.5 s pause at each end, 20 ms/px, resets on track change). CJK track names handled transparently via fontconfig.
+
+`trackArtist` in Quickshell is a single `QString` — multiple artists appear comma-joined as delivered by the player.
 
 ---
 
@@ -184,28 +193,32 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 
 **File:** `module-pills/NotificationPill.qml`
 
-**What it does:** Shows a running count of un-dismissed notifications. Peeks for 7 s on each new arrival so the user notices without demanding persistent attention.
+**What it does:** Shows a running count of un-dismissed notifications. Peeks on each new arrival — briefly for normal notifications, urgently and exclusively for critical ones.
 
 **Data sources (injected):** `NotificationServer`
 
-**Stage 1 priority:**
+**Stage 1 priority — two-tier:**
 
-| State | Priority | Notes |
-|---|---|---|
-| Any notification, within 7 s of arrival | `2` | Briefly beats TimePill (priority 1) during peek window |
-| Idle (no peek active) | `0` | TimePill wins; pill is not visible |
-| No notifications | `0` | Same — pill contributes nothing |
+| State | Priority | Duration | Notes |
+|---|---|---|---|
+| Critical notification arrived | `1000` | 10 s | Beats every other pill including WindowPill (200) |
+| Normal notification arrived | `6` | 7 s | Beats MprisPill (5); yields to WorkspacePill (100) and WindowPill (200) |
+| Idle (no peek active) | `0` | — | TimePill wins; pill is not visible |
 
-**Stage 2 reveal:** `shouldReveal = true` for 7 s after any `newNotification` signal, driven by a local `Timer`. Rapid arrivals extend the window. After the timer fires, pill hides until the next notification.
+Two separate `Timer` objects: `_peekTimer` (7 000 ms, cleared by `_peeking = false`) and `_criticalPeekTimer` (10 000 ms, cleared by `_peekingCritical = false`). A critical arrival starts both timers; a normal arrival starts only `_peekTimer`. Priority uses `_peekingCritical` before `_peeking` so critical urgency is never suppressed.
+
+**Stage 2 reveal:** `shouldReveal = (_peeking || _peekingCritical) && _hasAny`. Rapid arrivals extend whichever timer applies.
 
 **Display:**
-- When `countCritical > 0`: `"N | C"` — e.g. `"4 | 2"`
+- When `countCritical > 0`: `"N !C"` — e.g. `"4 !2"`
 - When `countCritical === 0`: `"N"` — e.g. `"3"`
-- Pill not visible when `countTotal === 0` (priority 0, TimePill wins)
+- Pill not visible when `countTotal === 0` (priority 0)
 
-**Background:** `Qt.darker(color11, 1.5)` (visible dark red) when `countCritical > 0` during peek; default `pillBgColor` otherwise. `criticalBgColor` (`Qt.darker 2.4`) is too dark to distinguish from `pillBgColor` at pill scale — the less-darkened variant is used instead.
+**Colors:**
+- Background: `criticalBgColor` when `_hasCritical` (any critical notification tracked), `pillBgColor` otherwise
+- Text: `textCritical` when `_hasCritical`, `textPrimary` otherwise
 
-**Note:** `PillWindow` reads `activePill.bgColor` if the property exists; falls back to `Style.pillBgColor` if undefined (all other pills).
+**Note:** `PillWindow` reads `activePill.bgColor` if the property exists; falls back to `Style.pillBgColor` if undefined.
 
 ---
 
@@ -222,7 +235,7 @@ Hover and W-1 latch are **not** TimePill-specific — they are universal `PillCo
 **Glance** (default on open):
 1. Date header — day of week, day, month, year
 2. Current weather — icon, temp, condition, high/low
-3. Month grid — mini calendar; days with events/tasks get dot indicators; month navigation arrows
+3. Month grid — mini calendar; days with events/tasks get dot indicators; month navigation arrows. Refresh button (nf-fa-refresh glyph, bottom-right, `textMuted` → `textNormal` on hover, tooltip "Refresh") triggers `calendarProcess.refresh()` + `tasksProcess.refresh()` immediately.
 4. Today's events — up to 3, with times
 5. Today's tasks — up to 3
 6. Footer: `More ↓` (→ expanded) · `Timer` (→ timer view) · `Edit ↗` (Google Calendar in browser)
@@ -315,15 +328,21 @@ All 7 `Prefs` properties get a live-updating control. Changes apply immediately 
 
 **Corner rounding card:** Three-way selector `[None] [Subtle] [● Default]` → `Prefs.radiusScale` (0.0 / 0.5 / 1.0)
 
-**Borders card:** Two three-way selectors:
-- Container border `[Off] [● Thin] [Thick]` → `Prefs.borderWidth` (0 / 1 / 2)
+**Borders card:** Four controls:
+- Pill border `[Off] [● Thin] [Thick]` → `Prefs.pillBorderWidth` (0 / 1 / 2)
+- Panel border `[Off] [● Thin] [Thick]` → `Prefs.borderWidth` (0 / 1 / 2)
 - Element border `[Off] [● Thin] [Thick]` → `Prefs.elementBorderWidth` (0 / 1 / 2)
+- Color mode `[● Subtle] [Vibrant]` → `Prefs.borderColorMode` ("subtle" / "vibrant"). Subtle = `mat3OutlineVariant`; Vibrant = `mat3Outline` (stronger contrast).
 
-**Reset to defaults:** `PanelButton { variant: "critical"; label: "Reset to defaults" }` — calls every `Prefs.set*()` with its default value.
+**Reset to defaults:** `PanelButton { variant: "critical"; label: "Reset to defaults" }` — calls every `Prefs.set*()` with its default value, including `Prefs.clearMat3Overrides()` and `Prefs.setPillBorderWidth(1)`.
 
 #### Theme section
 
-A toggle `extractColors: bool` (default true) in the Appearance tab. **Implemented:** fires on every image wallpaper selection. Runs `matugen image --json hex --dry-run --source-color-index 0 <path>`, parses the `base16` JSON section (`base00`–`base0f`), writes to `Prefs.color0Override`–`color15Override`. `Style.qml` reads each slot with Nord fallback (`Prefs.color0Override !== "" ? Prefs.color0Override : "#2E3440"`). Toggle off clears all overrides, restoring Nord. Not triggered on slideshow advances — only explicit picks.
+A toggle `extractColors: bool` (default true) in the Appearance tab. **Implemented:** fires on every image wallpaper selection. Runs `matugen image --json hex --dry-run --source-color-index 0 <path>`, parses both:
+- `base16` section (`base00`–`base0f`) → `Prefs.color0Override`–`color15Override`
+- `colors` section (12 mat3 semantic roles) → `Prefs.mat3*Override` slots
+
+`Style.qml` reads each slot with Nord/derived fallback. Toggle off clears both color and mat3 overrides via `Prefs.clearColorOverrides()` + `Prefs.clearMat3Overrides()`, restoring Nord defaults. Not triggered on slideshow advances — only explicit picks.
 
 ---
 
@@ -584,7 +603,7 @@ A right-aligned `RowLayout` of 24×24 icon buttons from `SystemTray.items` (the 
 - [x] `PillController.qml` — `notificationPill` property added; priority 2 peek slot
 - [x] `PillWindow.qml` — reads `activePill.bgColor` for critical background
 - [x] labwc `rc.xml` — W-6 → `toggleNotifications`
-- [x] mako removed from runtime (`killall mako`); remove from `labwc/autostart`
+- [x] mako masked: `systemctl --user mask mako` — blocks D-Bus activation (mako was never in `labwc/autostart` but its service file auto-launched it on first notification)
 
 ---
 
