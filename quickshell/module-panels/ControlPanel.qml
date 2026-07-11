@@ -215,7 +215,7 @@ Item {
             if (remaining <= 0) {
                 var action = root._pendingAction
                 root._pendingAction = ""
-                if      (action === "exit")     console.log("[ControlPanel] exit stub — skipped")  // STUB
+                if      (action === "exit")     _exitProc.running     = true
                 else if (action === "reboot")   _rebootProc.running   = true
                 else if (action === "shutdown") _shutdownProc.running = true
             } else {
