@@ -62,7 +62,8 @@ Item {
                         text: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
                             ? String.fromCodePoint(0xf444)
                             : String.fromCodePoint(0xf4c3)
-                        color: Style.textPrimary
+                        color: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
+                            ? Style.accentColor : Style.textMuted
                         font.family: Style.fontNerd
                         font.pixelSize: Style.fontSizePill
                     }

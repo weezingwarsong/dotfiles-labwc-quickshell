@@ -50,22 +50,54 @@ Item {
                     if (s === MprisPlaybackState.Paused)  return String.fromCodePoint(0xf04c)  // nf-fa-pause
                     return String.fromCodePoint(0xf04d)                                        // nf-fa-stop
                 }
-                color: Style.textPrimary
+                color: Style.accentColor
                 font.family: Style.fontNerd
                 font.pixelSize: Style.fontSizePill
             }
 
-            Text {
+            Item {
+                id: mprisScrollClip
                 height: parent.height
-                verticalAlignment: Text.AlignVCenter
-                width: Math.min(implicitWidth, 200)
-                text: root.mprisProcess && root.mprisProcess.activePlayer
-                    ? root.mprisProcess.activePlayer.trackTitle
-                    : ""
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizePill
-                elide: Text.ElideRight
+                width: Math.min(mprisScrollText.implicitWidth, 200)
+                clip: true
+
+                Text {
+                    id: mprisScrollText
+                    height: parent.height
+                    verticalAlignment: Text.AlignVCenter
+                    text: {
+                        if (!root.mprisProcess || !root.mprisProcess.activePlayer) return ""
+                        var p = root.mprisProcess.activePlayer
+                        var a = p.trackArtist || ""
+                        var t = p.trackTitle  || ""
+                        if (a && t) return a + " — " + t
+                        return t || a
+                    }
+                    color: Style.textPrimary
+                    font.family: Style.fontMono
+                    font.pixelSize: Style.fontSizePill
+
+                    onTextChanged: {
+                        x = 0
+                        mprisScrollAnim.restart()
+                    }
+                }
+
+                SequentialAnimation {
+                    id: mprisScrollAnim
+                    running: mprisScrollText.implicitWidth > mprisScrollClip.width
+                    loops: Animation.Infinite
+                    PauseAnimation { duration: 1500 }
+                    NumberAnimation {
+                        target: mprisScrollText
+                        property: "x"
+                        to: -(mprisScrollText.implicitWidth - mprisScrollClip.width)
+                        duration: Math.max(1, mprisScrollText.implicitWidth - mprisScrollClip.width) * 20
+                        easing.type: Easing.Linear
+                    }
+                    PauseAnimation { duration: 1500 }
+                    NumberAnimation { target: mprisScrollText; property: "x"; to: 0; duration: 0 }
+                }
             }
         }
     }

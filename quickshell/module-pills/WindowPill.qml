@@ -27,7 +27,7 @@ Item {
                 height: parent.height
                 verticalAlignment: Text.AlignVCenter
                 text: root._glyphFor(root._appId)
-                color: Style.textPrimary
+                color: Style.accentColor
                 font.family: Style.fontNerd
                 font.pixelSize: Style.fontSizePill
             }
