@@ -16,3 +16,4 @@ TimerWidget 1.0 TimerWidget.qml
 WindowSwitcherPanel 1.0 WindowSwitcherPanel.qml
 NotificationPanel 1.0 NotificationPanel.qml
 SysTrayBar 1.0 SysTrayBar.qml
+ControlPanel 1.0 ControlPanel.qml

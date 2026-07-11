@@ -21,6 +21,7 @@ ShellRoot {
         onToggleWallpaperRequested:      panelController.toggle("wallpaper")
         onToggleMediaPlayerRequested:    panelController.toggle("mediaPlayer")
         onToggleNotificationsRequested:  panelController.toggle("notifications")
+        onToggleControlRequested:        panelController.toggle("control")
         onTimerSet:                      function(secs) { timer.setTimer(secs) }
         onTimerStartRequested:           timer.startTimer()
         onTimerPauseRequested:           timer.pauseTimer()
@@ -41,6 +42,8 @@ ShellRoot {
     MprisProcess       { id: mpris }
     WallpaperProcess   { id: wallpaper }
     NotificationServer { id: notifServer }
+    AudioProcess       { id: audio }
+    NetworkProcess     { id: network }
 
     // Wallpaper window — Background layer, always present, covers all workspaces.
     // No external daemon: Qt renders color/image/GIF/video directly.
@@ -149,6 +152,8 @@ ShellRoot {
         wallpaperProcess: wallpaper
         mprisProcess:       mpris
         notificationServer: notifServer
+        audioProcess:       audio
+        networkProcess:     network
         onDismissRequested:  panelController.toggle(panelController.activePanel)
         onNavigateRequested: (dir) => panelController.navigate(dir)
     }

@@ -585,3 +585,64 @@ A right-aligned `RowLayout` of 24×24 icon buttons from `SystemTray.items` (the 
 - [x] `PillWindow.qml` — reads `activePill.bgColor` for critical background
 - [x] labwc `rc.xml` — W-6 → `toggleNotifications`
 - [x] mako removed from runtime (`killall mako`); remove from `labwc/autostart`
+
+---
+
+## Control Panel (W-7)
+
+**File:** `module-panels/ControlPanel.qml` · **Keybind:** W-7
+
+Quick-access panel for audio, network status, and session actions. Desktop-oriented — no brightness/battery.
+
+### Layout
+
+```
+┌─────────────────────────────────┐
+│  [nav]                          │
+│  Audio            │  Network    │
+│  [mic  VolumeBtn] │  [IP pill]  │
+│  [spk  VolumeBtn] │             │
+│  ┌──────────────────────────┐   │
+│  │     System (120px)       │   │
+│  └──────────────────────────┘   │
+│           [Reconfig] [Exit] [Reboot] [Shutdown] │
+└─────────────────────────────────┘
+```
+
+### Audio
+
+- **Source:** `Quickshell.Services.Pipewire` via `AudioProcess` (`root-processes/AudioProcess.qml`)
+- `Pipewire.defaultAudioSink` / `Pipewire.defaultAudioSource` — reactive `PwNode` references, no graph traversal
+- **VolumeButton** (inline component, uppercase required): left-click mutes/unmutes, scroll ±5%, right-click → `pavucontrol-qt`
+- Label priority: **MUTED** → volume% (1.5s peek after scroll) → device name (nickname > description > name)
+- Muted: border = `accentColor`, text = `textMuted`
+- Two buttons stacked: source (mic) then sink (speaker)
+
+### Network
+
+- **Source:** `NetworkProcess` (`root-processes/NetworkProcess.qml`) — polls `ip -4 route get 1.1.1.1` every 30s
+- IP pill: left-click → `nmcli networking on/off`; right-click → `nm-connection-editor`
+- Connected: shows local IP in `textSuccess`; disconnected: "No connection" in `textCritical`
+
+### System graphs placeholder
+
+- 120px reserved rectangle — future CPU/RAM/net graphs slot
+
+### Session row
+
+- **Reconfigure** → `labwc --reconfigure` (immediate, no confirm)
+- **Exit / Reboot / Shutdown** → 3-second countdown in-place, then executes
+- Countdown: `Date.now()` delta + 100ms Timer; full sentence ("Rebooting in 2s..."); **Cancel** button
+
+### Implementation checklist
+
+- [x] `AudioProcess.qml` — PipeWire default sink/source wrapper
+- [x] `NetworkProcess.qml` — ip-route polling + nmcli toggle
+- [x] `ControlPanel.qml` — panel UI
+- [x] `root-processes/qmldir` — register `AudioProcess`, `NetworkProcess`
+- [x] `module-panels/qmldir` — register `ControlPanel`
+- [x] `FifoListener.qml` — `toggleControl` signal + dispatch
+- [x] `PanelController.panelOrder` — `["calendar", "control", "mediaPlayer", "notifications", "settings", "wallpaper"]`
+- [x] `PanelSurface.qml` — `"control"` Loader case + `audioProcess`/`networkProcess` injection
+- [x] `shell.qml` — `AudioProcess`/`NetworkProcess` instantiation + wiring
+- [x] labwc `rc.xml` — W-7 → `toggleControl`

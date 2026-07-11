@@ -4,6 +4,39 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Control Panel (W-7)
+
+### Audio (AudioProcess.qml + ControlPanel.qml)
+- [x] `AudioProcess` — thin wrapper over `Quickshell.Services.Pipewire`; exposes `sink` / `source` as reactive `PwNode` references via `Pipewire.defaultAudioSink` / `Pipewire.defaultAudioSource`. No graph traversal needed.
+- [x] Inline `VolumeButton` component (uppercase required for inline components): left-click mutes/unmutes, scroll wheel ±5% volume, right-click opens `pavucontrol-qt`
+- [x] Label priority: **MUTED** (when muted) → volume% (for 1.5s after any scroll) → device name (nickname > description > name)
+- [x] Muted state: button border highlights with `accentColor`, text color switches to `textMuted`
+- [x] Two VolumeButton rows: source (mic) on top, sink (speaker) below
+
+### Network (NetworkProcess.qml + ControlPanel.qml)
+- [x] `NetworkProcess` — polls `ip -4 route get 1.1.1.1` every 30s; `connected: bool`, `localIp: string`
+- [x] IP display: left-click toggles `nmcli networking on/off`, right-click opens `nm-connection-editor`
+- [x] Connected → shows local IP in `textSuccess`; disconnected → "No connection" in `textCritical`
+
+### Session row
+- [x] Four buttons right-aligned: **Reconfigure** (labwc `--reconfigure`), **Exit**, **Reboot**, **Shutdown**
+- [x] Destructive actions (Exit / Reboot / Shutdown) trigger a 3-second countdown in-place
+- [x] Countdown uses `Date.now()` delta + 100ms Timer — same drift-free pattern as TimerProcess
+- [x] Cancel button dismisses countdown with no action
+- [x] Full sentences: "Exiting in Xs...", "Rebooting in Xs...", "Shutting down in Xs..."
+
+### System graphs placeholder
+- [x] 120px reserved rectangle with "System" faint label — visual slot for future CPU/RAM/net graphs
+
+### Wiring
+- [x] `AudioProcess` + `NetworkProcess` instantiated in `shell.qml`, injected into `PanelSurface`
+- [x] `FifoListener` dispatches `toggleControl` → `panelController.toggle("control")`
+- [x] `PanelController.panelOrder` includes "control" (left-right nav position: between calendar and mediaPlayer)
+- [x] `PanelSurface` sources `ControlPanel.qml` and injects `audioProcess` + `networkProcess` on load
+- [x] W-7 keybind added to `labwc/rc.xml`
+
+---
+
 ## Wallpaper — Video Rendering, Thumbnails & Panel Improvements
 
 ### Video rendering (shell.qml)
