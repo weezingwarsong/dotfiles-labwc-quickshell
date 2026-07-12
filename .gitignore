@@ -11,3 +11,5 @@ helper/watcher/qs-watcher
 quickshell/wallpaper/*
 helper/calendar/__pycache__/
 quickshell/archive/
+kitty/theme.conf
+qt6ct/colors/

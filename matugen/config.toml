@@ -12,3 +12,7 @@ output_path = "~/.config/kitty/theme.conf"
 [templates.labwc]
 input_path  = "~/.config/matugen/templates/labwc.themerc"
 output_path = "~/.local/share/themes/Pillbox/openbox-3/themerc"
+
+[templates.qt6ct]
+input_path  = "~/.config/matugen/templates/qt6ct.conf"
+output_path = "~/.config/qt6ct/colors/Pillbox.conf"
