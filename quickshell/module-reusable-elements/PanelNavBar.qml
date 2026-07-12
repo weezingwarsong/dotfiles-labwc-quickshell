@@ -25,7 +25,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         text:                root._titles[root.activePanel] || ""
-        color:               Style.textPrimary
+        color:               Style.accentColor
         font.family:         Style.fontMono
         font.pixelSize:      Style.fontSizeHeading
         horizontalAlignment: Text.AlignHCenter
@@ -46,7 +46,7 @@ ColumnLayout {
                     text:  index === root._activeIndex
                            ? String.fromCodePoint(0xf444)
                            : String.fromCodePoint(0xf4c3)
-                    color: index === root._activeIndex ? Style.textPrimary : Style.textFaint
+                    color: index === root._activeIndex ? Style.accentColor : Style.textFaint
                     font.family:    Style.fontNerd
                     font.pixelSize: Style.fontSizeBody
                 }

@@ -78,8 +78,9 @@ Item {
         var todayDay    = thisMonth ? now.getDate() : -1
         var byDate      = calendarProcess ? calendarProcess.eventsByDate : {}
         var tasksByDate = tasksProcess    ? tasksProcess.tasksByDate     : {}
-        var cells       = []
-        for (var i = 0; i < 42; i++) {
+        var numCells = Math.ceil((firstDay + totalDays) / 7) * 7
+        var cells    = []
+        for (var i = 0; i < numCells; i++) {
             var d = i - firstDay + 1
             if (d < 1 || d > totalDays) {
                 cells.push({ day: 0, isToday: false, hasContent: false, dateStr: "", events: [], tasks: [] })
@@ -138,8 +139,7 @@ Item {
             ColumnLayout {
                 id: glanceCol
                 anchors.fill: parent
-                anchors.leftMargin: 12; anchors.rightMargin: 16
-                anchors.topMargin: 12; anchors.bottomMargin: 12
+                anchors.margins: 12
                 spacing: 8
 
                 PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
@@ -207,89 +207,100 @@ Item {
                 }
 
                 // Day-of-week headers
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 6
-                    spacing: 0
-                    Repeater {
-                        model: ["M","T","W","T","F","S","S"]
-                        Text {
-                            text: modelData
-                            color: index >= 5 ? Style.accentColor : Style.textMuted
-                            font.pixelSize: Style.fontSizeSubtle
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.fillWidth: true
-                        }
-                    }
+                Item {
+              		Layout.fillWidth: true
+    				implicitHeight: headerGrid.implicitHeight
+    				Layout.topMargin: 6
+                	
+                		GridLayout {
+                			id: headerGrid
+                			// 1. Center it horizontally to match the month grid
+    						anchors.horizontalCenter: parent.horizontalCenter
+    				
+    						width: 220 // This must be the same as monthGrid
+    				
+    						columns: 7
+    						columnSpacing: 0
+    				
+                    		Repeater {
+                        		model: ["M","T","W","T","F","S","S"]
+                        		Text {
+                            		text: modelData
+                            		color: index >= 5 ? Style.accentColor : Style.textMuted
+                            		font.pixelSize: Style.fontSizeSubtle
+                            		horizontalAlignment: Text.AlignHCenter
+                            		Layout.fillWidth: true
+                        		}	
+                    		}
+                		}
                 }
 
-                // Month grid
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 7
-                    columnSpacing: 0
-                    rowSpacing: 4
-                    Layout.topMargin: 2
-                    Repeater {
-                        model: root._gridCells
-                        Item {
-                            id: cellItem
-                            property var cell: modelData  // capture before inner Repeaters shadow it
-                            Layout.fillWidth: true
-                            implicitHeight: Math.max(28, width)
-
-                            Rectangle {
-                                anchors.centerIn: parent; width: 22; height: 22; radius: Style.radMd
-                                color: cellItem.cell.isToday ? Style.accentColor : "transparent"
-                                visible: cellItem.cell.day > 0
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                text: cellItem.cell.day > 0 ? cellItem.cell.day : ""
-                                color: cellItem.cell.isToday ? Style.panelBgColor : Style.textSecondary
-                                font.pixelSize: Style.fontSizeSubtle
-                                font.weight: cellItem.cell.isToday ? Font.Bold : Font.Normal
-                            }
-                            Rectangle {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                width: 3; height: 3; radius: 1.5
-                                color: Style.accentColor
-                                visible: cellItem.cell.day > 0 && cellItem.cell.hasContent && !cellItem.cell.isToday
-                            }
-
-                            HoverHandler { id: cellHover }
-                            ToolTip {
-                                visible: cellHover.hovered && cellItem.cell.day > 0 && (cellItem.cell.events.length > 0 || cellItem.cell.tasks.length > 0)
-                                delay: 300
-                                contentItem: ColumnLayout {
-                                    spacing: 2
-                                    Repeater {
-                                        model: cellItem.cell.events.slice(0, 4)
-                                        Text { text: "• " + (modelData.summary || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
-                                    }
-                                    Repeater {
-                                        model: cellItem.cell.tasks.slice(0, 4)
-                                        Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
-                                    }
-                                }
-                                background: Rectangle {
-                                    color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.radMd
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Refresh button — bottom-right of month grid
+                // Month grid + refresh overlay
                 Item {
                     Layout.fillWidth: true
-                    implicitHeight: 14
+                    implicitHeight: monthGrid.implicitHeight
+
+                    GridLayout {
+                        id: monthGrid
+                        anchors.horizontalCenter: parent.horizontalCenter // Center horizontally
+                        
+        				width: 220 // Fits 7 columns comfortably (e.g., 7 columns * ~24px = 168px + spacing)
+        				
+                        columns: 7
+                        columnSpacing: 0
+                        rowSpacing: 2
+
+                        Repeater {
+                            model: root._gridCells
+                            Item {
+                                id: cellItem
+                                property var cell: modelData
+                                Layout.fillWidth: true
+                                implicitHeight: 22
+
+                                Rectangle {
+                                    anchors.centerIn: parent; width: 20; height: 20; radius: Style.radMd
+                                    color: cellItem.cell.isToday ? Style.accentColor : "transparent"
+                                    visible: cellItem.cell.day > 0
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: cellItem.cell.day > 0 ? cellItem.cell.day : ""
+                                    color: cellItem.cell.isToday    ? Style.panelBgColor
+                                         : cellItem.cell.hasContent ? Style.accentColor
+                                         :                            Style.textSecondary
+                                    font.pixelSize: Style.fontSizeSubtle
+                                    font.weight: cellItem.cell.isToday ? Font.Bold : Font.Normal
+                                }
+
+                                HoverHandler { id: cellHover }
+                                ToolTip {
+                                    visible: cellHover.hovered && cellItem.cell.day > 0 && (cellItem.cell.events.length > 0 || cellItem.cell.tasks.length > 0)
+                                    delay: 300
+                                    contentItem: ColumnLayout {
+                                        spacing: 2
+                                        Repeater {
+                                            model: cellItem.cell.events.slice(0, 4)
+                                            Text { text: "• " + (modelData.summary || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
+                                        }
+                                        Repeater {
+                                            model: cellItem.cell.tasks.slice(0, 4)
+                                            Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
+                                        }
+                                    }
+                                    background: Rectangle {
+                                        color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.radMd
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Text {
                         id: _refreshBtn
                         anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 2
                         text: ""
                         color: _refreshHover.hovered ? Style.textNormal : Style.textMuted
                         font.family: Style.fontNerd
@@ -335,6 +346,7 @@ Item {
                             }
                             ScrollingText {
                                 Layout.fillWidth: true
+                                Layout.rightMargin: 4
                                 text: modelData.summary || ""
                                 color: Style.textNormal
                                 font.pixelSize: Style.fontSizeBody
@@ -364,6 +376,7 @@ Item {
                             Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
                             ScrollingText {
                                 Layout.fillWidth: true
+                                Layout.rightMargin: 4
                                 text: modelData.title || ""
                                 color: Style.textNormal
                                 font.pixelSize: Style.fontSizeBody
