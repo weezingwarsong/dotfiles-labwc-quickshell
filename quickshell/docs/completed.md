@@ -4,6 +4,22 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## MediaPlayerPanel — Keyboard Navigation
+
+Panel-specific keybinds for MPRIS playback control without leaving the keyboard.
+
+- [x] `MediaPlayerPanel.qml` — added `focus: true` on root `Item` so it holds active focus when loaded (receives key events before the `PanelSurface` Loader)
+- [x] `Keys.onPressed` handler: P = play/pause, N = next, B = back, M = focus player window, Up/Down = volume ±5%
+- [x] All handled keys set `event.accepted = true` — consumed before PanelSurface's panel-navigation handlers
+- [x] Unknown keys and no-player state set `event.accepted = false` — fall through to Loader (ESC dismisses, Left/Right navigate panels)
+
+**Key decisions:**
+- Keys chosen to avoid conflict with PanelSurface's Left/Right (panel navigation) and Escape (dismiss)
+- `focus: true` on the panel root is the correct QML mechanism: key events travel upward from the active-focus item; panel handles what it knows, Loader handles the rest
+- M uses `ToplevelProcess.activate()` (same as `_focusPlayer()` does for the album art click) — no separate keybind logic needed
+
+---
+
 ## Visual Layer — Pill Polish + Notification Priority
 
 All pills receive visual treatment. Notification pill gets two-tier urgency.

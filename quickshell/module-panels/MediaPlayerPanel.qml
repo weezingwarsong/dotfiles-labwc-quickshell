@@ -4,11 +4,40 @@ import Quickshell.Services.Mpris
 
 Item {
     id: root
+    focus: true
 
     property var    mprisProcess:    null
     property var    toplevelProcess: null
     property string activePanel:     ""
     signal navigateRequested(int direction)
+
+    Keys.onPressed: (event) => {
+        if (!root._player) { event.accepted = false; return }
+        switch (event.key) {
+        case Qt.Key_P:
+            if (root._player.canTogglePlaying) root._player.togglePlaying()
+            event.accepted = true; break
+        case Qt.Key_N:
+            if (root._player.canGoNext) root._player.next()
+            event.accepted = true; break
+        case Qt.Key_B:
+            if (root._player.canGoPrevious) root._player.previous()
+            event.accepted = true; break
+        case Qt.Key_M:
+            root._focusPlayer()
+            event.accepted = true; break
+        case Qt.Key_Up:
+            root._player.volume = Math.min(1.0, root._player.volume + 0.05)
+            if (root._player.volume > 0) root._savedVolume = root._player.volume
+            event.accepted = true; break
+        case Qt.Key_Down:
+            root._player.volume = Math.max(0.0, root._player.volume - 0.05)
+            if (root._player.volume > 0) root._savedVolume = root._player.volume
+            event.accepted = true; break
+        default:
+            event.accepted = false
+        }
+    }
 
     function _focusPlayer() {
         if (!root._player || !root.toplevelProcess) return

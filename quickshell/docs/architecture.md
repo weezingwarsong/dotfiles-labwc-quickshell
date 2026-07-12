@@ -40,9 +40,11 @@ Panels are ordered in a navigation row matching their keybind positions. Left/ri
 | Keybind | Panel | Status |
 |---|---|---|
 | W-2 | Calendar | ✓ built |
-| W-3 | Media Player | 🔲 planned |
+| W-3 | Media Player | ✓ built |
 | W-4 | Settings | ✓ built |
-| W-5 | Wallpaper | ✓ built (testing + touch-up pending) |
+| W-5 | Wallpaper | ✓ built |
+| W-6 | Notifications | ✓ built |
+| W-7 | Control | ✓ built |
 | W-Tab | Window Switcher | ✓ built (excluded from nav row) |
 
 ---
@@ -94,9 +96,12 @@ Write a command string (one per line) to trigger actions. `FifoListener.qml` tai
 | `showTime` | Latches the pill on (W-1 toggle); second call dismisses |
 | `refreshCalendar` | Tells CalendarProcess to fetch immediately |
 | `toggleCalendar` | Opens / dismisses the Calendar panel |
-| `toggleWindowSwitcher` | Opens / dismisses the Window Switcher panel |
+| `toggleMediaPlayer` | Opens / dismisses the Media Player panel |
+| `toggleNotifications` | Opens / dismisses the Notification panel |
 | `toggleSettings` | Opens / dismisses the Settings panel |
 | `toggleWallpaper` | Opens / dismisses the Wallpaper panel |
+| `toggleControl` | Opens / dismisses the Control panel |
+| `toggleWindowSwitcher` | Opens / dismisses the Window Switcher panel |
 | `setTimer:N` | Set countdown to N seconds |
 | `startTimer` | Start or resume countdown |
 | `pauseTimer` | Pause countdown |
@@ -128,8 +133,11 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 | `WorkspaceProcess.qml` | WindowManager binding | `current`, `list`, `currentIndex`, signal `workspaceChanged` |
 | `ToplevelProcess.qml` | ToplevelManager binding | `windows` (ObjectModel), `focused` (activeToplevel) |
 | `MprisProcess.qml` | Mpris binding | `players` (ObjectModel), `activePlayer`, signal `playerUpdated` |
-| `WallpaperProcess.qml` | yinctl + find subprocesses | `sourceType`, `currentPath`, `currentColor`, `imageFiles`, `videoFiles`, slideshow control, `lastError` |
-| `SettingsProcess.qml` | QtCore.Settings | `googleConnected`, `locationMode`, `locationString`; setters; signal `googleDisconnected` |
+| `WallpaperProcess.qml` | find + ffmpeg subprocesses | `sourceType`, `currentPath`, `currentColor`, `imageFiles`, `videoFiles`, `thumbsReady`, slideshow control, `lastError` |
+| `SettingsProcess.qml` | QtCore.Settings | `googleConnected`, `googleEmail`, `locationMode`, `locationString`; setters; signal `googleDisconnected` |
+| `NotificationServer.qml` | D-Bus notification daemon | `notifications`, `countTotal`, `countCritical`; `clearAll()`; `getTimestamp(id)`; signal `newNotification` |
+| `AudioProcess.qml` | wpctl subprocess | `sinkVolume`, `sinkMuted`, `sinkName`, `sourceVolume`, `sourceMuted`, `sourceName`; set/mute methods |
+| `NetworkProcess.qml` | ip-route subprocess | `connected`, `localIp` |
 
 ### Singletons (root)
 
@@ -154,7 +162,8 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 | `SectionLabel.qml` | Small all-caps tracking label for panel sections. |
 | `StatusDot.qml` | 8px status indicator circle. Green = active, red = inactive. |
 | `TogglePair.qml` | Two adjacent exclusive-select buttons. |
-| `IconButton.qml` | Nerd Font glyph button (used by PanelNavBar). |
+| `IconButton.qml` | Nerd Font glyph button (used by PanelNavBar and media controls). |
+| `ScrollingText.qml` | Clipped text item that auto-scrolls when content overflows. Props: `text`, `color`, `maxWidth`, `pauseDuration`, `speed`, `font`. |
 
 ### Pills (`module-pills/`)
 
@@ -172,10 +181,12 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 | File | Keybind | Status |
 |---|---|---|
 | `CalendarPanel.qml` | W-2 | ✓ built |
-| `WindowSwitcherPanel.qml` | W-Tab | ✓ built |
+| `MediaPlayerPanel.qml` | W-3 | ✓ built |
 | `SettingsPanel.qml` | W-4 | ✓ built |
-| `WallpaperPanel.qml` | W-5 | ✓ built (testing + touch-up pending) |
-| `MediaPlayerPanel.qml` | W-3 | 🔲 planned |
+| `WallpaperPanel.qml` | W-5 | ✓ built |
+| `NotificationPanel.qml` | W-6 | ✓ built |
+| `ControlPanel.qml` | W-7 | ✓ built |
+| `WindowSwitcherPanel.qml` | W-Tab | ✓ built (excluded from nav row) |
 
 ---
 
@@ -206,14 +217,18 @@ dotfiles-labwc-quickshell/          ← repo root
 │   ├── docs/                       ← project documentation (you are here)
 │   ├── module-panels/
 │   │   ├── CalendarPanel.qml       ✓
-│   │   ├── MediaPlayerPanel.qml    🔲 (stub)
+│   │   ├── ControlPanel.qml        ✓
+│   │   ├── MediaPlayerPanel.qml    ✓
+│   │   ├── NotificationPanel.qml   ✓
 │   │   ├── SettingsPanel.qml       ✓
+│   │   ├── SysTrayBar.qml          ✓ (used by NotificationPanel)
 │   │   ├── TimerWidget.qml         ✓ (used by CalendarPanel)
-│   │   ├── WallpaperPanel.qml      ✓ (testing pending)
+│   │   ├── WallpaperPanel.qml      ✓
 │   │   ├── WindowSwitcherPanel.qml ✓
 │   │   └── qmldir
 │   ├── module-pills/
 │   │   ├── MprisPill.qml           ✓
+│   │   ├── NotificationPill.qml    ✓
 │   │   ├── ScreenrecPill.qml       🔲 (stub — registered, no implementation)
 │   │   ├── TimePill.qml            ✓
 │   │   ├── WindowPill.qml          ✓

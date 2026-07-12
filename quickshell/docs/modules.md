@@ -47,15 +47,21 @@ Operational details for the data-layer processes in `root-processes/`. The Modul
 
 ### MprisProcess
 
-Full `MprisPlayer` property and method reference — needed for MediaPlayerPanel:
+Full `MprisPlayer` property and method reference:
 
 | Member | Type | Notes |
 |---|---|---|
 | `playbackState` | `MprisPlaybackState` | `.Playing` / `.Paused` / `.Stopped` |
 | `trackTitle` | `string` | Current track name |
-| `trackArtist` | `string` | Current track artist |
+| `trackArtist` | `string` | Current track artist (comma-joined when multiple) |
 | `trackAlbum` | `string` | Current track album |
-| `isPlaying` | `bool` | Convenience alias for `playbackState === Playing` |
+| `trackArtUrl` | `string` | Album art URL (`file://` or `http://localhost/…`) |
+| `desktopEntry` | `string` | XDG desktop entry name; matches Wayland `app_id` for window focus |
+| `identity` | `string` | Human-readable player name (fallback when `desktopEntry` is empty) |
+| `volume` | `real` | Player volume 0.0–1.0; read/write (some players ignore writes) |
+| `canTogglePlaying` | `bool` | False for streams that don't support play/pause |
+| `canGoNext` | `bool` | False for radio/streams |
+| `canGoPrevious` | `bool` | False for radio/streams |
 | `togglePlaying()` | method | Play/pause toggle |
 | `next()` | method | Skip to next track |
 | `previous()` | method | Skip to previous track |
@@ -288,9 +294,7 @@ Two separate `Timer` objects: `_peekTimer` (7 000 ms, cleared by `_peeking = fal
 
 `WlrKeyboardFocus.Exclusive` is set by `PanelSurface` for all open panels. For normal panels (Calendar, Settings, Wallpaper) this serves two purposes: (1) enables click-outside dismiss detection, (2) allows keyboard arrow navigation and ESC to work without a click first. WindowSwitcher shares both of those, and additionally uses the exclusive focus to auto-route keyboard input into the filter `TextInput` on open.
 
-Click-outside dismiss should work for WindowSwitcher the same as other panels.
-
-> **Fix candidate:** Click-outside dismiss is currently disabled for WindowSwitcher in `PanelSurface` (`enabled: root.activePanel !== "windowSwitcher"`). It should be re-enabled — intended dismiss paths are Escape, Enter (activate window), direct row click, **and** click-outside.
+Click-outside dismiss works for WindowSwitcher the same as other panels.
 
 **App glyph map** (Nerd Font, matched on lowercased `appId`): terminal emulators, Firefox, Chromium-family, file managers, VS Code, Neovim, Discord, Steam, qBittorrent, media players (VLC/mpv), image viewers (imv), audio (pavucontrol), system monitor (btop), fallback for everything else.
 
@@ -307,10 +311,8 @@ Two tabs — `[ Services ] [ Appearance ]` — rendered as two `ColumnLayout` ch
 #### Services tab ✓
 
 **Google Account card:**
-- Connected: email (read from token file) · per-service last-fetch timestamps and error state (`CalendarProcess.lastError` / `TasksProcess.lastError`: `""` ok / `"auth"` / `"network"`) · `[Re-authenticate]` (calls `google-auth-notify.sh` → terminal + `gcal-fetch --auth`) · `[Disconnect]` (revoke + delete token + clear log + `settingsProcess.disconnect()` + `clearData()` on both processes)
+- Connected: email address (`SettingsProcess.googleEmail`, fetched via `gcal-fetch --email`) · per-service last-fetch timestamps and error state (`CalendarProcess.lastError` / `TasksProcess.lastError`: `""` ok / `"auth"` / `"network"`) · `[Re-authenticate]` (calls `google-auth-notify.sh` → terminal + `gcal-fetch --auth`) · `[Disconnect]` (revoke + delete token + clear log + `settingsProcess.disconnect()` + `clearData()` on both processes)
 - Not connected: `○ Not connected` · `[Connect]` (same flow as Re-authenticate)
-
-> **Fix candidate:** Email is not currently shown. The connected state shows the text "Connected" rather than the account email address. Intent: read email from the stored token file and display it here so the user knows which account is linked.
 
 **Weather Location card:**
 - `[ Auto ] [ Manual ]` toggle — `Auto` = IP geolocation via ipapi.co; `Manual` = city name or `lat,lon` passed to `weather-fetch --location`
@@ -473,13 +475,14 @@ Font: `Style.fontMono`, `Style.fontSizeBody`, `Style.textNormal`. HoverHandler t
 
 #### Volume button
 
-A `PanelButton` below the controls row, `Layout.fillWidth: true`.
+An `Item` (width 40, height `Style.buttonHeight`) right of the next button. Uses `HoverHandler` to toggle between two views:
 
-- **Label:** two states only — no glyphs.
-  - **Muted** (`_muted === true`): label `"M"`, color `Style.textMuted`.
-  - **Not muted**: label `Math.round(activePlayer.volume * 100) + "%"`, color `Style.textSecondary` (default button text).
-- **Click:** toggle mute. MPRIS has no native mute; simulate by storing the pre-mute volume in a local `property real _savedVolume` and toggling between `activePlayer.volume = 0` and restoring `_savedVolume`.
-- **Scroll:** `WheelHandler` on the button. `angleDelta.y > 0` → `activePlayer.volume = Math.min(1.0, activePlayer.volume + 0.05)`. `angleDelta.y < 0` → `activePlayer.volume = Math.max(0.0, activePlayer.volume - 0.05)`. Same pattern as TimerWidget's duration scroll.
+- **Not hovered:** Nerd Font volume glyph (`0xf028` / `0xf026` when muted) in `accentColor` / `textMuted`.
+- **Hovered:** a 4px tall progress bar — `surfaceMidColor` track, `accentColor` fill proportional to `volume`.
+
+**Click:** toggle mute. MPRIS has no native mute; simulate by storing the pre-mute volume in a local `property real _savedVolume` and toggling between `activePlayer.volume = 0` and restoring `_savedVolume`.
+
+**Scroll (`MouseArea.onWheel`):** `angleDelta.y > 0` → `+0.05`, `< 0` → `−0.05`, clamped 0.0–1.0.
 
 > **Fix candidate (deferred):** `MprisPlayer.volume` is read/write per the MPRIS spec but some players ignore writes (Spotify, browser-based players). If volume control proves unreliable in practice, the volume button will be removed and system volume will live in the Control Panel only.
 
@@ -506,7 +509,24 @@ No progress bar. No track duration. No elapsed time.
 
 #### Album art click — focus player window
 
-Clicking the album art (or music glyph placeholder) calls `wlrctl toplevel focus app_id:<desktopEntry>`, where `desktopEntry` is the standard MPRIS property on `MprisPlayer`. Raises and focuses the player window. A short-lived `Process` from `Quickshell.Io` handles the wlrctl call.
+Clicking the album art (or music glyph placeholder) calls `_focusPlayer()`, which iterates `toplevelProcess.windows` looking for a window whose `appId` matches `player.desktopEntry` (lowercased) or a guess derived from `player.identity`. On match it calls `window.activate()` — a native `ToplevelManager` call, no subprocess.
+
+---
+
+#### Keyboard navigation
+
+`MediaPlayerPanel` has `focus: true` so it holds active focus when loaded, and its `Keys.onPressed` fires before `PanelSurface`'s navigation handlers. Keys that the panel accepts (sets `event.accepted = true`) are consumed; keys it does not handle fall through to the Loader for ESC/arrow panel navigation.
+
+| Key | Action | Guard |
+|---|---|---|
+| `P` | Play/pause toggle | `canTogglePlaying` |
+| `N` | Next track | `canGoNext` |
+| `B` | Previous track | `canGoPrevious` |
+| `M` | Focus player window | — |
+| `Up` | Volume +5% | clamped at 1.0 |
+| `Down` | Volume −5% | clamped at 0.0 |
+
+All keys are no-ops when no active player exists (`_player === null`), and fall through to PanelSurface in that case.
 
 #### Built — wiring checklist
 
@@ -514,8 +534,8 @@ Clicking the album art (or music glyph placeholder) calls `wlrctl toplevel focus
 - [x] `FifoListener.qml` — `toggleMediaPlayerRequested` signal + `"toggleMediaPlayer"` dispatch
 - [x] `shell.qml` — `onToggleMediaPlayerRequested` → `panelController.toggle("mediaPlayer")`
 - [x] `PanelSurface.qml` — `"mediaPlayer"` Loader case + `mprisProcess` injection
-- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper"]`
-- [x] `module-panels/qmldir` — `MediaPlayerPanel 1.0` (pre-registered as stub)
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper", "notifications", "control"]`
+- [x] `module-panels/qmldir` — `MediaPlayerPanel 1.0`
 - [x] labwc `rc.xml` — W-3 → `toggleMediaPlayer`
 
 ---
@@ -597,7 +617,7 @@ A right-aligned `RowLayout` of 24×24 icon buttons from `SystemTray.items` (the 
 - [x] `FifoListener.qml` — `toggleNotificationsRequested` signal + `"toggleNotifications"` dispatch
 - [x] `shell.qml` — instantiate `NotificationServer`, `onToggleNotificationsRequested` → `panelController.toggle("notifications")`; inject `notificationServer` into `PanelSurface` and `NotificationPill`
 - [x] `PanelSurface.qml` — `"notifications"` Loader case + `notificationServer` injection
-- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "notifications", "settings", "wallpaper"]`
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper", "notifications", "control"]`
 - [x] `module-panels/qmldir` — register `NotificationPanel`, `SysTrayBar`
 - [x] `module-pills/qmldir` — register `NotificationPill`
 - [x] `PillController.qml` — `notificationPill` property added; priority 2 peek slot
@@ -662,7 +682,7 @@ Quick-access panel for audio, network status, and session actions. Desktop-orien
 - [x] `root-processes/qmldir` — register `AudioProcess`, `NetworkProcess`
 - [x] `module-panels/qmldir` — register `ControlPanel`
 - [x] `FifoListener.qml` — `toggleControl` signal + dispatch
-- [x] `PanelController.panelOrder` — `["calendar", "control", "mediaPlayer", "notifications", "settings", "wallpaper"]`
+- [x] `PanelController.panelOrder` — `["calendar", "mediaPlayer", "settings", "wallpaper", "notifications", "control"]`
 - [x] `PanelSurface.qml` — `"control"` Loader case + `audioProcess`/`networkProcess` injection
 - [x] `shell.qml` — `AudioProcess`/`NetworkProcess` instantiation + wiring
 - [x] labwc `rc.xml` — W-7 → `toggleControl`

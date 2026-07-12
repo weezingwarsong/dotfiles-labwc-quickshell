@@ -24,7 +24,7 @@ This line is always the **first child** of every panel's root `ColumnLayout`.
 PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
 ```
 
-**Used in:** CalendarPanel, SettingsPanel, WallpaperPanel (all non-switcher panels)
+**Used in:** CalendarPanel, MediaPlayerPanel, NotificationPanel, ControlPanel, SettingsPanel, WallpaperPanel (all non-switcher panels)
 
 ---
 
@@ -211,7 +211,41 @@ TogglePair {
 | `fontFamily` | `string` | Defaults to `Style.fontNerd` — covers both regular text and glyph codepoints |
 | `signal clicked()` | — | Emitted on tap |
 
-**Used in:** PanelNavBar ×2 (‹ ›)
+**Used in:** PanelNavBar ×2 (‹ ›), MediaPlayerPanel ×2 (prev/next track buttons)
+
+---
+
+## ScrollingText
+
+**Purpose:** Clipped `Item` that scrolls its text label left when content overflows the available width. Handles the pause-scroll-pause-snap animation loop internally.
+
+**Props:**
+
+| Prop | Type | Default | Notes |
+|---|---|---|---|
+| `text` | `string` | `""` | The text content |
+| `color` | `color` | `Style.textPrimary` | Text color |
+| `maxWidth` | `int` | `9999` | Caps `implicitWidth`; pills set this to `200` |
+| `pauseDuration` | `int` | `1500` | Ms to pause at each end before animating |
+| `speed` | `int` | `20` | Ms per pixel of overflow |
+| `font` | `font` | (alias) | Full font alias — set `font.family`, `font.pixelSize`, etc. |
+
+`implicitWidth` is `min(label.implicitWidth, maxWidth)`. When `implicitWidth ≤ parent.width` no animation runs — text is static and left-aligned. Animation restarts automatically on `text` change.
+
+**Animation:** `SequentialAnimation` — pause → scroll left to `-(overflow)` at `speed` ms/px → pause → snap back to 0 instantly. Runs only while the item is visible and overflowing.
+
+**Call site:**
+```qml
+ScrollingText {
+    text:     root._player ? root._player.trackArtist + " — " + root._player.trackTitle : ""
+    color:    Style.textNormal
+    maxWidth: 200
+    font.family:    Style.fontMono
+    font.pixelSize: Style.fontSizeBody
+}
+```
+
+**Used in:** MprisPill (track text), TimePill (calendar-imminent marquee), WindowPill (app id)
 
 ---
 
