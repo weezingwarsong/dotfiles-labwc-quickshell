@@ -389,9 +389,39 @@ Item {
                         }
                     }
 
+                    // Visualizer clock size stepper
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Vis. clock"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        PanelButton {
+                            label: "–"
+                            onClicked: if (Prefs.fontSizeVisClock > 40) Prefs.setFontSizeVisClock(Prefs.fontSizeVisClock - 4)
+                        }
+                        Text {
+                            text: Prefs.fontSizeVisClock
+                            color: Style.textNormal
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.minimumWidth: 32
+                        }
+                        PanelButton {
+                            label: "+"
+                            onClicked: if (Prefs.fontSizeVisClock < 200) Prefs.setFontSizeVisClock(Prefs.fontSizeVisClock + 4)
+                        }
+                    }
+
                     PanelDivider {}
 
-                    // Mono font input
+                    // Mono font picker
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -402,28 +432,14 @@ Item {
                             font.pixelSize: Style.fontSizeBody
                             Layout.minimumWidth: 80
                         }
-                        Rectangle {
+                        FontPicker {
                             Layout.fillWidth: true
-                            implicitHeight: 22
-                            radius: Style.radSm
-                            color: Style.surfaceMidColor
-                            border.width: Style.elementBorderWidth
-                            border.color: Style.borderSoftColor
-
-                            TextInput {
-                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 6; rightMargin: 6 }
-                                text: Prefs.fontMono
-                                color: Style.textNormal
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                selectByMouse: true
-                                clip: true
-                                onEditingFinished: Prefs.setFontMono(text)
-                            }
+                            value: Prefs.fontMono
+                            onCommitted: (f) => Prefs.setFontMono(f)
                         }
                     }
 
-                    // Glyph font input
+                    // Glyph font picker
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -434,24 +450,28 @@ Item {
                             font.pixelSize: Style.fontSizeBody
                             Layout.minimumWidth: 80
                         }
-                        Rectangle {
+                        FontPicker {
                             Layout.fillWidth: true
-                            implicitHeight: 22
-                            radius: Style.radSm
-                            color: Style.surfaceMidColor
-                            border.width: Style.elementBorderWidth
-                            border.color: Style.borderSoftColor
+                            value: Prefs.fontNerd
+                            onCommitted: (f) => Prefs.setFontNerd(f)
+                        }
+                    }
 
-                            TextInput {
-                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 6; rightMargin: 6 }
-                                text: Prefs.fontNerd
-                                color: Style.textNormal
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                selectByMouse: true
-                                clip: true
-                                onEditingFinished: Prefs.setFontNerd(text)
-                            }
+                    // Visualizer clock font picker
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Vis. clock"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        FontPicker {
+                            Layout.fillWidth: true
+                            value: Prefs.fontVisClock
+                            onCommitted: (f) => Prefs.setFontVisClock(f)
                         }
                     }
                 }
@@ -671,6 +691,8 @@ Item {
                 onClicked: {
                     Prefs.setFontMono("JetBrainsMono Nerd Font")
                     Prefs.setFontNerd("JetBrainsMono Nerd Font")
+                    Prefs.setFontVisClock("JetBrainsMono Nerd Font")
+                    Prefs.setFontSizeVisClock(100)
                     Prefs.setFontSizePill(13)
                     Prefs.setFontSizeBase(10)
                     Prefs.setRadiusScale(1.0)

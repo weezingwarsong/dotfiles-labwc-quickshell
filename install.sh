@@ -17,6 +17,7 @@ echo "Installing labwc-quickshell (Pillbox)..."
 
 link_dir labwc       labwc
 link_dir quickshell  quickshell
+link_dir pillbox     pillbox
 link_dir scripts     scripts
 link_dir mako        mako
 link_dir rofi        rofi

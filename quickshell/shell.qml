@@ -6,6 +6,7 @@ import "./root-processes"
 import "./module-pills"
 import "./module-panels"
 import "./module-reusable-elements"
+import "./module-visualizer"
 
 ShellRoot {
     id: root
@@ -29,7 +30,12 @@ ShellRoot {
         onStopwatchStartRequested:       timer.startStopwatch()
         onStopwatchStopRequested:        timer.stopStopwatch()
         onStopwatchResetRequested:       timer.resetStopwatch()
+        onToggleVisualizerRequested:     visualizerVisible = !visualizerVisible
     }
+
+    property bool visualizerVisible: true
+
+    CavaProcess { id: cava; active: visualizerVisible }
 
     SettingsProcess   { id: settings }
     ClockProcess      { id: clock }
@@ -88,6 +94,12 @@ ShellRoot {
             visible:      wallpaper.sourceType === "video"
             fillMode:     VideoOutput.PreserveAspectCrop
         }
+    }
+
+    VisualizerSurface {
+        clockProcess: clock
+        bars:         cava.bars
+        active:       visualizerVisible
     }
 
     TimePill {

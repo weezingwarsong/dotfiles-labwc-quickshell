@@ -13,3 +13,4 @@ WallpaperProcess 1.0 WallpaperProcess.qml
 NotificationServer 1.0 NotificationServer.qml
 AudioProcess 1.0 AudioProcess.qml
 NetworkProcess 1.0 NetworkProcess.qml
+CavaProcess 1.0 CavaProcess.qml

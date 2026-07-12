@@ -13,6 +13,8 @@ Item {
 
         property string fontMono:           "JetBrainsMono Nerd Font"
         property string fontNerd:           "JetBrainsMono Nerd Font"
+        property string fontVisClock:       "JetBrainsMono Nerd Font"
+        property int    fontSizeVisClock:   100
         property int    fontSizePill:       13
         property int    fontSizeBase:       10
         property real   radiusScale:        1.0
@@ -68,6 +70,8 @@ Item {
     // ── Public (read) ─────────────────────────────────────────────────────────
     readonly property string fontMono:           _store.fontMono
     readonly property string fontNerd:           _store.fontNerd
+    readonly property string fontVisClock:       _store.fontVisClock
+    readonly property int    fontSizeVisClock:   _store.fontSizeVisClock
     readonly property int    fontSizePill:       _store.fontSizePill
     readonly property int    fontSizeBase:       _store.fontSizeBase
     readonly property real   radiusScale:        _store.radiusScale
@@ -116,6 +120,8 @@ Item {
     // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
     function setFontNerd(v)           { _store.fontNerd           = v }
+    function setFontVisClock(v)       { _store.fontVisClock       = v }
+    function setFontSizeVisClock(v)   { _store.fontSizeVisClock   = v }
     function setFontSizePill(v)       { _store.fontSizePill       = v }
     function setFontSizeBase(v)       { _store.fontSizeBase       = v }
     function setRadiusScale(v)        { _store.radiusScale        = v }

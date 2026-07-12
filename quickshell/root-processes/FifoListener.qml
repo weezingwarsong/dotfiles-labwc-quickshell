@@ -20,6 +20,7 @@ Item {
     signal stopwatchStartRequested()
     signal stopwatchStopRequested()
     signal stopwatchResetRequested()
+    signal toggleVisualizerRequested()
 
     Process {
         id: fifoReader
@@ -54,6 +55,7 @@ Item {
                 else if (cmd === "startStopwatch")    root.stopwatchStartRequested()
                 else if (cmd === "stopStopwatch")     root.stopwatchStopRequested()
                 else if (cmd === "resetStopwatch")    root.stopwatchResetRequested()
+                else if (cmd === "toggleVisualizer")  root.toggleVisualizerRequested()
                 else if (cmd.startsWith("setTimer:")) {
                     var secs = parseInt(cmd.slice(9))
                     if (!isNaN(secs) && secs > 0) root.timerSet(secs)

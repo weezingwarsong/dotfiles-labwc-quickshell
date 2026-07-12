@@ -172,6 +172,10 @@
     <keybind key="W-7">
       <action name="Execute" command="sh -c 'echo toggleControl > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
+    <!-- W-8: toggle desktop visualizer overlay via Pillbox FIFO -->
+    <keybind key="W-8">
+      <action name="Execute" command="sh -c 'echo toggleVisualizer > ~/.local/share/pillbox/pillbox.fifo'" />
+    </keybind>
     <keybind key="W-space">
       <action name="ShowMenu" menu="root-menu" />
     </keybind>
