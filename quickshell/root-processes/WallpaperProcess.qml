@@ -133,6 +133,7 @@ Item {
 
     property string _extractPath: ""
     property string _stateDir:    ""
+    property string _themeDir:    ""
 
     function _maybeExtract(path) {
         if (!Prefs.extractColors || path === "") return
@@ -241,6 +242,11 @@ Item {
     }
 
     Process {
+        id: _mkdirThemeProc
+        command: ["mkdir", "-p", root._themeDir]
+    }
+
+    Process {
         id: matugenProc
         command: ["matugen", "image", "--source-color-index", "0", root._extractPath]
         onExited: function(code, signal) {
@@ -274,8 +280,10 @@ Item {
                        .toString().replace(/^file:\/\//, "")
         root._cacheDir = home + "/.cache/pillbox/thumbs"
         root._stateDir = home + "/.local/state/quickshell/generated"
+        root._themeDir = home + "/.local/share/themes/Pillbox/openbox-3"
         _mkdirProc.running = true
         _mkdirStateProc.running = true
+        _mkdirThemeProc.running = true
         console.log("[WallpaperProcess] started | sourceType:", root.sourceType,
             "| dir:", root.wallpaperDir, "| thumbCache:", root._cacheDir)
         if (root.wallpaperDir !== "")

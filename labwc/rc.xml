@@ -12,7 +12,7 @@
     <policy>automatic</policy>
   </placement>
   <theme>
-    <name>nord-custom</name>
+    <name>Pillbox</name>
     <icon>Papirus-Dark</icon>
     <titlebar>
       <layout>NDSLIMC</layout>
