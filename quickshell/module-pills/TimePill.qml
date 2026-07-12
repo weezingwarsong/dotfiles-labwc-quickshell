@@ -57,9 +57,7 @@ Item {
             id: vc
             height: parent.height
             readonly property bool _showScroll: root._calendarImminent && !root._timerActive
-            implicitWidth: _showScroll
-                ? Math.min(scrollText.implicitWidth, 200)
-                : simpleText.implicitWidth
+            implicitWidth: _showScroll ? _scrollLabel.implicitWidth : simpleText.implicitWidth
 
             Text {
                 id: simpleText
@@ -74,43 +72,16 @@ Item {
                 font.family: Style.fontMono
             }
 
-            Item {
-                id: scrollClip
+            ScrollingText {
+                id: _scrollLabel
                 visible: vc._showScroll
                 height: parent.height
-                width: vc.implicitWidth
-                clip: true
-
-                Text {
-                    id: scrollText
-                    height: parent.height
-                    verticalAlignment: Text.AlignVCenter
-                    text: root._calendarText
-                    color: Style.textPrimary
-                    font.pixelSize: Style.fontSizePill
-                    font.family: Style.fontMono
-
-                    onTextChanged: {
-                        x = 0
-                        scrollAnim.restart()
-                    }
-                }
-
-                SequentialAnimation {
-                    id: scrollAnim
-                    running: scrollClip.visible && scrollText.implicitWidth > scrollClip.width
-                    loops: Animation.Infinite
-                    PauseAnimation { duration: 1500 }
-                    NumberAnimation {
-                        target: scrollText
-                        property: "x"
-                        to: -(scrollText.implicitWidth - scrollClip.width)
-                        duration: Math.max(1, scrollText.implicitWidth - scrollClip.width) * 20
-                        easing.type: Easing.Linear
-                    }
-                    PauseAnimation { duration: 1500 }
-                    NumberAnimation { target: scrollText; property: "x"; to: 0; duration: 0 }
-                }
+                width: implicitWidth
+                text: root._calendarText
+                color: Style.textPrimary
+                font.pixelSize: Style.fontSizePill
+                font.family: Style.fontMono
+                maxWidth: 200
             }
         }
     }

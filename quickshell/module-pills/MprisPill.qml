@@ -55,49 +55,21 @@ Item {
                 font.pixelSize: Style.fontSizePill
             }
 
-            Item {
-                id: mprisScrollClip
+            ScrollingText {
                 height: parent.height
-                width: Math.min(mprisScrollText.implicitWidth, 200)
-                clip: true
-
-                Text {
-                    id: mprisScrollText
-                    height: parent.height
-                    verticalAlignment: Text.AlignVCenter
-                    text: {
-                        if (!root.mprisProcess || !root.mprisProcess.activePlayer) return ""
-                        var p = root.mprisProcess.activePlayer
-                        var a = p.trackArtist || ""
-                        var t = p.trackTitle  || ""
-                        if (a && t) return a + " — " + t
-                        return t || a
-                    }
-                    color: Style.textPrimary
-                    font.family: Style.fontMono
-                    font.pixelSize: Style.fontSizePill
-
-                    onTextChanged: {
-                        x = 0
-                        mprisScrollAnim.restart()
-                    }
+                width: implicitWidth
+                text: {
+                    if (!root.mprisProcess || !root.mprisProcess.activePlayer) return ""
+                    var p = root.mprisProcess.activePlayer
+                    var a = p.trackArtist || ""
+                    var t = p.trackTitle  || ""
+                    if (a && t) return a + " — " + t
+                    return t || a
                 }
-
-                SequentialAnimation {
-                    id: mprisScrollAnim
-                    running: mprisScrollText.implicitWidth > mprisScrollClip.width
-                    loops: Animation.Infinite
-                    PauseAnimation { duration: 1500 }
-                    NumberAnimation {
-                        target: mprisScrollText
-                        property: "x"
-                        to: -(mprisScrollText.implicitWidth - mprisScrollClip.width)
-                        duration: Math.max(1, mprisScrollText.implicitWidth - mprisScrollClip.width) * 20
-                        easing.type: Easing.Linear
-                    }
-                    PauseAnimation { duration: 1500 }
-                    NumberAnimation { target: mprisScrollText; property: "x"; to: 0; duration: 0 }
-                }
+                color: Style.textPrimary
+                font.family: Style.fontMono
+                font.pixelSize: Style.fontSizePill
+                maxWidth: 200
             }
         }
     }

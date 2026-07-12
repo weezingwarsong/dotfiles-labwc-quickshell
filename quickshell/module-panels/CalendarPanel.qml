@@ -138,7 +138,8 @@ Item {
             ColumnLayout {
                 id: glanceCol
                 anchors.fill: parent
-                anchors.margins: 12
+                anchors.leftMargin: 12; anchors.rightMargin: 16
+                anchors.topMargin: 12; anchors.bottomMargin: 12
                 spacing: 8
 
                 PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
@@ -235,10 +236,10 @@ Item {
                             id: cellItem
                             property var cell: modelData  // capture before inner Repeaters shadow it
                             Layout.fillWidth: true
-                            implicitHeight: 20
+                            implicitHeight: Math.max(28, width)
 
                             Rectangle {
-                                anchors.centerIn: parent; width: 16; height: 16; radius: Style.radMd
+                                anchors.centerIn: parent; width: 22; height: 22; radius: Style.radMd
                                 color: cellItem.cell.isToday ? Style.accentColor : "transparent"
                                 visible: cellItem.cell.day > 0
                             }
@@ -254,7 +255,7 @@ Item {
                                 anchors.bottom: parent.bottom
                                 width: 3; height: 3; radius: 1.5
                                 color: Style.accentColor
-                                visible: cellItem.cell.day > 0 && cellItem.cell.hasContent
+                                visible: cellItem.cell.day > 0 && cellItem.cell.hasContent && !cellItem.cell.isToday
                             }
 
                             HoverHandler { id: cellHover }
@@ -330,12 +331,13 @@ Item {
                             Text {
                                 text: root._eventTime(modelData.start, modelData.allDay)
                                 color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                Layout.preferredWidth: 38
+                                Layout.preferredWidth: 60
                             }
-                            Text {
-                                text: modelData.summary || ""
-                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
+                            ScrollingText {
                                 Layout.fillWidth: true
+                                text: modelData.summary || ""
+                                color: Style.textNormal
+                                font.pixelSize: Style.fontSizeBody
                             }
                         }
                     }
@@ -360,10 +362,11 @@ Item {
                             Layout.fillWidth: true
                             spacing: 6
                             Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
-                            Text {
-                                text: modelData.title || ""
-                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
+                            ScrollingText {
                                 Layout.fillWidth: true
+                                text: modelData.title || ""
+                                color: Style.textNormal
+                                font.pixelSize: Style.fontSizeBody
                             }
                         }
                     }
@@ -482,12 +485,15 @@ Item {
                                 Text {
                                     text: root._eventTime(modelData.start, modelData.allDay)
                                     color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                    Layout.preferredWidth: 38
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.preferredWidth: 90
                                 }
-                                Text {
-                                    text: modelData.summary || ""
-                                    color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
+                                ScrollingText {
                                     Layout.fillWidth: true
+                                    height: parent.height
+                                    text: modelData.summary || ""
+                                    color: Style.textNormal
+                                    font.pixelSize: Style.fontSizeBody
                                 }
                             }
                         }
@@ -524,10 +530,12 @@ Item {
                                 visible: !parent.isHeader
                                 anchors.fill: parent; spacing: 6
                                 Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
-                                Text {
-                                    text: modelData.title || ""
-                                    color: Style.textNormal; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
+                                ScrollingText {
                                     Layout.fillWidth: true
+                                    height: parent.height
+                                    text: modelData.title || ""
+                                    color: Style.textNormal
+                                    font.pixelSize: Style.fontSizeBody
                                 }
                             }
                         }
@@ -555,16 +563,19 @@ Item {
                             Text {
                                 text: root._dayLabel(modelData.date)
                                 color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                Layout.preferredWidth: 56
+                                Layout.preferredWidth: 70
                             }
                             Text {
                                 text: String.fromCharCode(parseInt(modelData.icon, 16))
                                 color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
+                                Layout.preferredWidth: 20; horizontalAlignment: Text.AlignHCenter
                             }
-                            Text {
-                                text: modelData.condition
-                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody; elide: Text.ElideRight
+                            ScrollingText {
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                text: modelData.condition
+                                color: Style.textMuted
+                                font.pixelSize: Style.fontSizeBody
                             }
                             Text {
                                 text: modelData.high + "° / " + modelData.low + "°"
