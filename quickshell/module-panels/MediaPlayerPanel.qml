@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Services.Mpris
 
 Item {
     id: root
@@ -119,16 +120,30 @@ Item {
                 onClicked: root._player.previous()
             }
 
-            // Marquee track info — click to play/pause
+            // Marquee track info — hover to reveal play/pause, click to toggle
             Item {
                 id:               _marqueeClip
                 Layout.fillWidth: true
                 height:           Style.buttonHeight
                 clip:             true
 
+                HoverHandler {
+                    id: _marqueeHover
+                    onHoveredChanged: if (!hovered) {
+                        _scrollAnim.stop()
+                        _marqueeText.x = 0
+                        Qt.callLater(function() {
+                            if (_marqueeText.implicitWidth > _marqueeClip.width)
+                                _scrollAnim.start()
+                        })
+                    }
+                }
+
+                // Track text — hidden while hovered
                 Text {
                     id:             _marqueeText
                     y:              Math.round((_marqueeClip.height - height) / 2)
+                    visible:        !_marqueeHover.hovered
                     color:          Style.textNormal
                     font.family:    Style.fontMono
                     font.pixelSize: Style.fontSizeBody
@@ -150,6 +165,21 @@ Item {
                     }
                 }
 
+                // Play/pause glyph — shown while hovered
+                Text {
+                    anchors.centerIn: parent
+                    visible:          _marqueeHover.hovered && !!root._player
+                    text: {
+                        if (!root._player) return ""
+                        return root._player.playbackState === MprisPlaybackState.Playing
+                               ? String.fromCodePoint(0xf04b)
+                               : String.fromCodePoint(0xf04c)
+                    }
+                    color:          Style.textNormal
+                    font.family:    Style.fontNerd
+                    font.pixelSize: Style.fontSizeHeading
+                }
+
                 MouseArea {
                     anchors.fill: parent
                     enabled:      !!root._player && root._player.canTogglePlaying
@@ -164,31 +194,50 @@ Item {
                 enabled:  !!root._player && root._player.canGoNext
                 onClicked: root._player.next()
             }
-        }
 
-        // ── Volume ────────────────────────────────────────────────────────────
-        Item {
-            Layout.fillWidth: true
-            height:           Style.buttonHeight
-            visible:          !!root._player
+            // ── Volume button ─────────────────────────────────────────────────
+            Item {
+                id:     _volBtn
+                width:  40
+                height: Style.buttonHeight
 
-            Rectangle {
-                anchors.fill: parent
-                radius:       Style.radSm
-                color:        Style.surfaceMidColor
+                HoverHandler { id: _volHover }
 
+                // Glyph (not hovered)
                 Text {
                     anchors.centerIn: parent
-                    text:  root._muted
-                           ? "M"
-                           : Math.round((root._player ? root._player.volume : 0) * 100) + "%"
-                    color: root._muted ? Style.textMuted : Style.textSecondary
-                    font.family:    Style.fontMono
-                    font.pixelSize: Style.fontSizeBody
+                    visible:          !_volHover.hovered
+                    text:             root._muted
+                                      ? String.fromCodePoint(0xf026)   // nf-fa-volume-off
+                                      : String.fromCodePoint(0xf028)   // nf-fa-volume-up
+                    color:            root._muted ? Style.textMuted : Style.accentColor
+                    font.family:      Style.fontNerd
+                    font.pixelSize:   Style.fontSizeBody
+                }
+
+                // Volume bar (hovered)
+                Item {
+                    anchors.centerIn: parent
+                    width:            parent.width - 8
+                    height:           4
+                    visible:          _volHover.hovered
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius:       2
+                        color:        Style.surfaceMidColor
+                    }
+                    Rectangle {
+                        width:  parent.width * Math.max(0, Math.min(1, root._player ? root._player.volume : 0))
+                        height: parent.height
+                        radius: 2
+                        color:  root._muted ? Style.textMuted : Style.accentColor
+                    }
                 }
 
                 MouseArea {
                     anchors.fill: parent
+                    cursorShape:  Qt.PointingHandCursor
                     onClicked: {
                         if (!root._player) return
                         if (root._muted) {

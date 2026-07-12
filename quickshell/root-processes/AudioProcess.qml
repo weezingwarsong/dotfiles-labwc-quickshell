@@ -17,8 +17,14 @@ Item {
     property real   sourceVolume: 0
     property bool   sourceMuted:  false
 
-    function setSinkVolume(delta)   { _sinkCmd(_pct(delta)) }
-    function setSourceVolume(delta) { _sourceCmd(_pct(delta)) }
+    function setSinkVolume(delta) {
+        var clamped = Math.min(1.0, Math.max(0.0, sinkVolume + delta))
+        _sinkCmd(Math.round(clamped * 100) + "%")
+    }
+    function setSourceVolume(delta) {
+        var clamped = Math.min(1.0, Math.max(0.0, sourceVolume + delta))
+        _sourceCmd(Math.round(clamped * 100) + "%")
+    }
     function toggleSinkMute()       { _sinkCmd(null) }
     function toggleSourceMute()     { _sourceCmd(null) }
 
@@ -27,9 +33,6 @@ Item {
         if (!_sourcePoll.running) _sourcePoll.running = true
     }
 
-    function _pct(d) {
-        return d > 0 ? (Math.round(d * 100) + "%+") : (Math.round(-d * 100) + "%-")
-    }
     function _sinkCmd(volArg) {
         if (_sinkOp.running) return
         _sinkOp.command = volArg !== null
