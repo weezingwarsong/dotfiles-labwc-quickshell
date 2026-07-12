@@ -671,15 +671,7 @@ Item {
                     PanelButton {
                         label: Prefs.extractColors ? "On" : "Off"
                         variant: Prefs.extractColors ? "accent" : "default"
-                        onClicked: {
-                            if (Prefs.extractColors) {
-                                Prefs.setExtractColors(false)
-                                Prefs.clearColorOverrides()
-                                Prefs.clearMat3Overrides()
-                            } else {
-                                Prefs.setExtractColors(true)
-                            }
-                        }
+                        onClicked: Prefs.setExtractColors(!Prefs.extractColors)
                     }
                 }
             }
@@ -701,8 +693,6 @@ Item {
                     Prefs.setElementBorderWidth(1)
                     Prefs.setBorderColorMode("subtle")
                     Prefs.setExtractColors(false)
-                    Prefs.clearColorOverrides()
-                    Prefs.clearMat3Overrides()
                 }
             }
         }

@@ -132,6 +132,7 @@ Item {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     property string _extractPath: ""
+    property string _stateDir:    ""
 
     function _maybeExtract(path) {
         if (!Prefs.extractColors || path === "") return
@@ -231,55 +232,32 @@ Item {
         }
     }
 
-    // matugen extracts a 16-color base16 palette from the wallpaper image.
-    // base00–base0f map 1:1 to color0–color15 in Style.qml.
+    // matugen generates colors.json via ~/.config/matugen/config.toml templates.
+    // Colors.qml watches that file live and updates Style.qml bindings automatically.
     // For videos, _extractPath points to the cached thumbnail JPEG.
     Process {
-        id: matugenProc
-        command: ["matugen", "image", "--json", "hex", "--dry-run",
-                  "--source-color-index", "0", root._extractPath]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    var data = JSON.parse(text)
-                    var b16  = data.base16
-                    var keys = ["base00","base01","base02","base03",
-                                "base04","base05","base06","base07",
-                                "base08","base09","base0a","base0b",
-                                "base0c","base0d","base0e","base0f"]
-                    for (var i = 0; i < 16; i++)
-                        Prefs["setColor" + i + "Override"](b16[keys[i]].dark.color)
+        id: _mkdirStateProc
+        command: ["mkdir", "-p", root._stateDir]
+    }
 
-                    if (data.colors) {
-                        var mat3Map = {
-                            "primary":                "setMat3PrimaryOverride",
-                            "primary_container":      "setMat3PrimaryContainerOverride",
-                            "background":             "setMat3BackgroundOverride",
-                            "on_background":          "setMat3OnBackgroundOverride",
-                            "surface_container_low":  "setMat3SurfaceContainerLowOverride",
-                            "surface_container_high": "setMat3SurfaceContainerHighOverride",
-                            "on_surface":             "setMat3OnSurfaceOverride",
-                            "on_surface_variant":     "setMat3OnSurfaceVariantOverride",
-                            "outline":                "setMat3OutlineOverride",
-                            "outline_variant":        "setMat3OutlineVariantOverride",
-                            "error":                  "setMat3ErrorOverride",
-                            "error_container":        "setMat3ErrorContainerOverride"
-                        }
-                        var roles = Object.keys(mat3Map)
-                        for (var j = 0; j < roles.length; j++) {
-                            var entry = data.colors[roles[j]]
-                            if (entry && entry.dark) Prefs[mat3Map[roles[j]]](entry.dark.color)
-                        }
-                    }
-                    console.log("[WallpaperProcess] palette extracted from", root._extractPath)
-                } catch (e) {
-                    console.log("[WallpaperProcess] matugen parse error:", e)
-                }
-            }
-        }
+    Process {
+        id: matugenProc
+        command: ["matugen", "image", "--source-color-index", "0", root._extractPath]
         onExited: function(code, signal) {
             if (code !== 0)
                 console.log("[WallpaperProcess] matugen exited", code, "— is matugen installed?")
+            else {
+                console.log("[WallpaperProcess] palette extracted from", root._extractPath)
+                _readColorsProc.running = true
+            }
+        }
+    }
+
+    Process {
+        id: _readColorsProc
+        command: ["cat", root._stateDir + "/colors.json"]
+        stdout: StdioCollector {
+            onStreamFinished: Colors.apply(text)
         }
     }
 
@@ -293,8 +271,11 @@ Item {
 
     Component.onCompleted: {
         var home = StandardPaths.writableLocation(StandardPaths.HomeLocation)
-        root._cacheDir = home.toString().replace(/^file:\/\//, "") + "/.cache/pillbox/thumbs"
+                       .toString().replace(/^file:\/\//, "")
+        root._cacheDir = home + "/.cache/pillbox/thumbs"
+        root._stateDir = home + "/.local/state/quickshell/generated"
         _mkdirProc.running = true
+        _mkdirStateProc.running = true
         console.log("[WallpaperProcess] started | sourceType:", root.sourceType,
             "| dir:", root.wallpaperDir, "| thumbCache:", root._cacheDir)
         if (root.wallpaperDir !== "")

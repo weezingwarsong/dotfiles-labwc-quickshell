@@ -4,3 +4,4 @@ module Quickshell
 
 singleton Style 1.0 Style.qml
 singleton Prefs 1.0 Prefs.qml
+singleton Colors 1.0 Colors.qml

@@ -1,4 +1,5 @@
 singleton Prefs 1.0 ../Prefs.qml
+singleton Colors 1.0 ../Colors.qml
 FifoListener 1.0 FifoListener.qml
 ClockProcess 1.0 ClockProcess.qml
 CalendarProcess 1.0 CalendarProcess.qml

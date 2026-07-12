@@ -18,6 +18,8 @@ echo "Installing labwc-quickshell (Pillbox)..."
 link_dir labwc       labwc
 link_dir quickshell  quickshell
 link_dir pillbox     pillbox
+link_dir kitty       kitty
+link_dir matugen     matugen
 link_dir scripts     scripts
 link_dir mako        mako
 link_dir rofi        rofi
@@ -40,6 +42,10 @@ echo "  linked google-auth-notify → ~/.local/bin"
 
 ln -snf "$DOTFILES/helper/weather/weather_fetch.py" "$HOME/.local/bin/weather-fetch"
 echo "  linked weather-fetch → ~/.local/bin"
+
+ln -snf "$DOTFILES/helper/kitty/kitty-theme.sh" "$HOME/.local/bin/kitty-theme"
+chmod +x "$DOTFILES/helper/kitty/kitty-theme.sh"
+echo "  linked kitty-theme → ~/.local/bin"
 
 
 # Ensure ~/.local/bin is in labwc/environment PATH so quickshell can find gcal-fetch.
