@@ -109,7 +109,7 @@ FocusScope {
     Rectangle {
         anchors.fill: parent
         color: Style.panelBgColor
-        radius: Style.radLg
+        radius: Style.panelRadius
         border.width: Style.elementBorderWidth
         border.color: Style.panelBorderColor
         clip: true
@@ -135,7 +135,7 @@ FocusScope {
                     width: parent.width
                     height: 26
                     color: Style.surfaceMidColor
-                    radius: Style.radSm
+                    radius: Style.panelElementRadius
                     border.width: Style.elementBorderWidth
                     border.color: Style.borderSoftColor
 

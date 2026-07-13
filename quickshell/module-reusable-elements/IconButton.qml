@@ -9,7 +9,7 @@ Rectangle {
 
     implicitWidth:  Style.buttonHeight
     implicitHeight: Style.buttonHeight
-    radius:         Style.radSm
+    radius:         Style.panelElementRadius
     border.width:   Style.elementBorderWidth
     border.color:   Style.borderSoftColor
     color:          _hover.hovered ? Style.surfaceLowColor : Style.transparent

@@ -121,7 +121,7 @@ Item {
     // ── Root visual container ─────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        radius: Style.radLg
+        radius: Style.panelRadius
         color: Style.panelBgColor
         border.color: Style.panelBorderColor
         border.width: 1
@@ -259,7 +259,7 @@ Item {
                                 implicitHeight: 22
 
                                 Rectangle {
-                                    anchors.centerIn: parent; width: 20; height: 20; radius: Style.radMd
+                                    anchors.centerIn: parent; width: 20; height: 20; radius: Style.panelElementRadius
                                     color: cellItem.cell.isToday ? Style.accentColor : "transparent"
                                     visible: cellItem.cell.day > 0
                                 }
@@ -289,7 +289,7 @@ Item {
                                         }
                                     }
                                     background: Rectangle {
-                                        color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.radMd
+                                        color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.panelElementRadius
                                     }
                                 }
                             }

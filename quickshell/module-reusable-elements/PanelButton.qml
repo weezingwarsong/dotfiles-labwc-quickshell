@@ -7,25 +7,26 @@ Rectangle {
     property string label:   ""
     property string icon:    ""
     property string tooltip: ""
-    property string variant: "default"  // "default" | "accent" | "critical"
+    property string variant: "default"  // "default" | "accent" | "critical" | "text"
 
     signal clicked()
 
-    implicitWidth:  _content.implicitWidth + 20
-    implicitHeight: Style.buttonHeight
-    radius:         Style.radSm
-    border.width:   Style.elementBorderWidth
+    implicitWidth:  Math.min(Math.max(_content.implicitWidth + Style.panelElementHpadding, 24), 300)
+    implicitHeight: Math.max(Style.buttonHeight, _content.implicitHeight + Style.panelElementVpadding)
+    radius:         Style.panelElementRadius
+    border.width:   variant === "default" ? Style.elementBorderWidth : 0
     border.color:   Style.borderSoftColor
 
     color: {
-        if (variant === "accent")   return _hover.hovered ? Style.accentBgHover   : Style.accentBgColor
-        if (variant === "critical") return _hover.hovered ? Style.criticalBgColor : Style.transparent
-        return _hover.hovered ? Style.surfaceLowColor : Style.transparent
+        if (variant === "accent")   return _hover.hovered ? Style.accentBgHover     : Style.accentBgColor
+        if (variant === "critical") return _hover.hovered ? Style.criticalHoverColor : Style.transparent
+        return _hover.hovered ? Style.surfaceHoverColor : Style.transparent
     }
 
     property color _textColor: {
-        if (variant === "accent")   return Style.textMuted
+        if (variant === "accent")   return Style.textOnAccent
         if (variant === "critical") return Style.textCritical
+        if (variant === "text")     return Style.textAccent
         return Style.textSecondary
     }
 

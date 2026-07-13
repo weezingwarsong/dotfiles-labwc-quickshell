@@ -15,14 +15,14 @@ PanelWindow {
     color: "transparent"
 
     implicitWidth: (contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40
-    implicitHeight: 24
+    implicitHeight: Style.fontSizePill + Style.pillPaddingV
 
     visible: shouldShow
     mask: Region {}
 
     Rectangle {
         anchors.fill: parent
-        radius: Style.radLg
+        radius: Style.pillRadius
         color: (activePill && activePill.bgColor) ? activePill.bgColor : Style.pillBgColor
         border.color: Style.borderFaintColor
         border.width: Style.pillBorderWidth

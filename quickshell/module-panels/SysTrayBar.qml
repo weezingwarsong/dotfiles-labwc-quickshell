@@ -30,7 +30,7 @@ Item {
 
                 width:  24
                 height: 24
-                radius: Style.radSm
+                radius: Style.panelElementRadius
                 color:  _hov.hovered ? Style.surfaceMidColor : "transparent"
 
                 IconImage {

@@ -24,7 +24,7 @@ Item {
 
     Rectangle {
         anchors.fill:  parent
-        radius:        Style.radLg
+        radius:        Style.panelRadius
         color:         Style.panelBgColor
         border.color:  Style.panelBorderColor
         border.width:  1
@@ -106,7 +106,7 @@ Item {
                     Layout.fillWidth: true
                     implicitHeight:   _cardRow.implicitHeight + 16
 
-                    radius:       Style.radMd
+                    radius:       Style.panelElementRadius
                     border.width: Style.elementBorderWidth
                     border.color: Style.borderFaintColor
 
@@ -158,7 +158,7 @@ Item {
                             Layout.preferredWidth:  56
                             Layout.preferredHeight: 56
                             Layout.alignment:       Qt.AlignTop
-                            radius:                 Style.radSm
+                            radius:                 Style.panelElementRadius
                             color:                  Style.surfaceLowColor
                             clip:                   true
 
@@ -208,7 +208,7 @@ Item {
                                 Rectangle {
                                     width:  Style.buttonHeight - 4
                                     height: Style.buttonHeight - 4
-                                    radius: Style.radSm
+                                    radius: Style.panelElementRadius
                                     color:  _xHover.hovered ? Style.surfaceLowColor : Style.transparent
 
                                     Text {

@@ -87,7 +87,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 20; radius: Style.radSm
+                height: 20; radius: Style.panelElementRadius
                 color: modeHover.containsMouse ? Style.surfaceLowColor : "transparent"
                 border.color: Style.borderFaintColor; border.width: 1
                 Text {
@@ -107,7 +107,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 20; radius: Style.radSm
+                height: 20; radius: Style.panelElementRadius
                 color: startHover.containsMouse ? Style.accentBgHover : Style.accentBgColor
                 border.color: Style.accentColor; border.width: 1
                 Text {
@@ -139,7 +139,7 @@ Item {
             Rectangle {
                 id: durationBtn
                 Layout.fillWidth: true
-                height: 20; radius: Style.radSm
+                height: 20; radius: Style.panelElementRadius
                 visible: !root.timerProcess || root.timerProcess.mode !== "stopwatch"
                 color: durationHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
                 border.color: root._inputExpanded ? Style.accentColor : Style.borderSoftColor
@@ -166,7 +166,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 20; radius: Style.radSm
+                height: 20; radius: Style.panelElementRadius
                 color: resetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
                 border.color: Style.borderSoftColor; border.width: 1
                 Text { anchors.centerIn: parent; text: "Reset"; color: Style.textSecondary; font.pixelSize: Style.fontSizeBody }
@@ -184,7 +184,7 @@ Item {
         // Expandable duration input (countdown mode only)
         Rectangle {
             Layout.fillWidth: true
-            height: 28; radius: Style.radSm
+            height: 28; radius: Style.panelElementRadius
             visible: root._inputExpanded && (!root.timerProcess || root.timerProcess.mode !== "stopwatch")
             color: Style.surfaceLowColor
             border.color: Style.accentColor; border.width: 1

@@ -15,7 +15,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius:       Style.radLg
+        radius:       Style.panelRadius
         color:        Style.panelBgColor
         border.color: Style.panelBorderColor
         border.width: 1
@@ -42,27 +42,29 @@ Item {
                 SectionLabel { text: "Audio" }
 
                 // Source (mic)
-                VolumeButton {
+                ScrollChip {
                     Layout.fillWidth: true
-                    volume: root.audioProcess ? root.audioProcess.sourceVolume : 0
+                    variant: "bar"
+                    value:  root.audioProcess ? root.audioProcess.sourceVolume : 0
                     muted:  root.audioProcess ? root.audioProcess.sourceMuted  : false
-                    name:   root.audioProcess ? root.audioProcess.sourceName   : "—"
+                    label:  root.audioProcess ? root.audioProcess.sourceName   : "—"
                     glyph:  "🎤"
-                    onMuteToggled:  if (root.audioProcess) root.audioProcess.toggleSourceMute()
-                    onScrolled:     (d) => { if (root.audioProcess) root.audioProcess.setSourceVolume(d) }
-                    onRightClicked: _pavuProc.running = true
+                    onScrolled:      (d) => { if (root.audioProcess) root.audioProcess.setSourceVolume(d * 0.05) }
+                    onClicked:       if (root.audioProcess) root.audioProcess.toggleSourceMute()
+                    onRightClicked:  _pavuProc.running = true
                 }
 
                 // Sink (headphone)
-                VolumeButton {
+                ScrollChip {
                     Layout.fillWidth: true
-                    volume: root.audioProcess ? root.audioProcess.sinkVolume : 0
+                    variant: "bar"
+                    value:  root.audioProcess ? root.audioProcess.sinkVolume : 0
                     muted:  root.audioProcess ? root.audioProcess.sinkMuted  : false
-                    name:   root.audioProcess ? root.audioProcess.sinkName   : "—"
+                    label:  root.audioProcess ? root.audioProcess.sinkName   : "—"
                     glyph:  "🎧"
-                    onMuteToggled:  if (root.audioProcess) root.audioProcess.toggleSinkMute()
-                    onScrolled:     (d) => { if (root.audioProcess) root.audioProcess.setSinkVolume(d) }
-                    onRightClicked: _pavuProc.running = true
+                    onScrolled:      (d) => { if (root.audioProcess) root.audioProcess.setSinkVolume(d * 0.05) }
+                    onClicked:       if (root.audioProcess) root.audioProcess.toggleSinkMute()
+                    onRightClicked:  _pavuProc.running = true
                 }
             }
 
@@ -82,7 +84,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     height: Style.buttonHeight
-                    radius: Style.radSm
+                    radius: Style.panelElementRadius
                     color:  _netHover.hovered ? Style.surfaceLowColor : Style.surfaceMidColor
                     border.width: Style.elementBorderWidth
                     border.color: Style.borderSoftColor
@@ -122,7 +124,7 @@ Item {
         Rectangle {
             Layout.fillWidth:    true
             Layout.preferredHeight: 120
-            radius: Style.radSm
+            radius: Style.panelElementRadius
             color:  Style.surfaceLowColor
             border.width: Style.elementBorderWidth
             border.color: Style.borderFaintColor
@@ -235,85 +237,4 @@ Item {
     Process { id: _rebootProc;   command: ["systemctl", "reboot"] }
     Process { id: _shutdownProc; command: ["systemctl", "poweroff"] }
 
-    // ── Volume button (inline component) ─────────────────────────────────────
-    component VolumeButton: Rectangle {
-        id: _vb
-
-        property real   volume: 0
-        property bool   muted:  false
-        property string name:   "—"
-        property string glyph:  ""
-        signal muteToggled()
-        signal scrolled(real delta)
-        signal rightClicked()
-
-        height:       Style.buttonHeight
-        radius:       Style.radSm
-        color:        _vbMouse.containsMouse ? Style.surfaceLowColor : Style.surfaceMidColor
-        border.width: Style.elementBorderWidth
-        border.color: _vb.muted ? Style.accentColor : Style.borderSoftColor
-
-        HoverHandler { id: _vbHover }
-
-        // Label row (not hovered)
-        Row {
-            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8; rightMargin: 8 }
-            spacing: 6
-            visible: !_vbHover.hovered
-
-            Text {
-                text:           _vb.glyph
-                font.pixelSize: Style.fontSizeBody
-                color:          _vb.muted ? Style.textMuted : Style.textSecondary
-                anchors.verticalCenter: parent.verticalCenter
-                visible:        _vb.glyph !== ""
-            }
-
-            ScrollingText {
-                width:          parent.width - (_vb.glyph !== "" ? 20 : 0)
-                anchors.verticalCenter: parent.verticalCenter
-                text:           _vb.muted ? "MUTED" : (_vb.name || "—")
-                color:          _vb.muted ? Style.textMuted : Style.textSecondary
-                font.family:    Style.fontMono
-                font.pixelSize: Style.fontSizeBody
-                pauseDuration:  1000
-            }
-        }
-
-        // Volume bar (hovered)
-        Item {
-            anchors.centerIn: parent
-            width:            parent.width - 16
-            height:           4
-            visible:          _vbHover.hovered
-
-            Rectangle {
-                anchors.fill: parent
-                radius:       2
-                color:        Style.surfaceLowColor
-            }
-            Rectangle {
-                width:  parent.width * Math.max(0, Math.min(1, _vb.volume))
-                height: parent.height
-                radius: 2
-                color:  _vb.muted ? Style.textMuted : Style.accentColor
-            }
-        }
-
-        MouseArea {
-            id:              _vbMouse
-            anchors.fill:    parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            cursorShape:     Qt.PointingHandCursor
-            hoverEnabled:    true
-            onClicked: (mouse) => {
-                if (mouse.button === Qt.RightButton) { _vb.rightClicked(); return }
-                _vb.muteToggled()
-            }
-            onWheel: (wheel) => {
-                var delta = wheel.angleDelta.y > 0 ? 0.05 : -0.05
-                _vb.scrolled(delta)
-            }
-        }
-    }
 }

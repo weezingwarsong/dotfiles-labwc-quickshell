@@ -13,7 +13,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius:       Style.radLg
+        radius:       Style.panelRadius
         color:        Style.panelBgColor
         border.color: Style.panelBorderColor
         border.width: 1
@@ -106,7 +106,7 @@ Item {
                         required property var modelData
                         width:  Math.floor((root.width - 24 - 5 * root._spacing) / 6)
                         height: width
-                        radius: Style.radSm
+                        radius: Style.panelElementRadius
                         color:  modelData.hex
 
                         readonly property bool _active:
@@ -158,7 +158,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     height: Style.buttonHeight
-                    radius: Style.radSm
+                    radius: Style.panelElementRadius
                     color:  Style.surfaceMidColor
                     border.width: Style.elementBorderWidth
                     border.color: Style.borderSoftColor
@@ -396,7 +396,7 @@ Item {
                 id: _imgBg
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 height: root._imgH
-                radius: Style.radSm
+                radius: Style.panelElementRadius
                 color:  Style.surfaceMidColor
                 border.width: _active ? 2 : 1
                 border.color: _active ? Style.accentColor : Style.borderFaintColor
@@ -469,7 +469,7 @@ Item {
                 id: _vidBg
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 height: root._imgH
-                radius: Style.radSm
+                radius: Style.panelElementRadius
                 color:  Style.surfaceMidColor
                 border.width: _active ? 2 : 1
                 border.color: _active ? Style.accentColor : Style.borderFaintColor

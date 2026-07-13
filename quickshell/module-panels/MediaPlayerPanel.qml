@@ -63,7 +63,7 @@ Item {
 
     Rectangle {
         anchors.fill:  parent
-        radius:        Style.radLg
+        radius:        Style.panelRadius
         color:         Style.panelBgColor
         border.color:  Style.panelBorderColor
         border.width:  1
@@ -112,7 +112,7 @@ Item {
 
             Rectangle {
                 anchors.fill: parent
-                radius:       Style.radMd
+                radius:       Style.panelElementRadius
                 color:        Style.surfaceLowColor
                 clip:         true
 

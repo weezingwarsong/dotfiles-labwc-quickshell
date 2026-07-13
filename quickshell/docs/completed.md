@@ -4,6 +4,54 @@ Reverse-chronological. Each entry describes what was built and key decisions mad
 
 ---
 
+## Visual Overhaul — Token System, Component Library & PanelCard
+
+Full pass to establish a composable, token-driven component system. Every element now traces color, spacing, and sizing back to MD3 roles via `Style.qml` — no raw `mat3*` references in components.
+
+### Pill height dynamic
+- [x] `PillWindow.qml`: `implicitHeight` changed from hardcoded `24` to `Style.fontSizePill + Style.pillPaddingV`
+- [x] `Prefs.qml`: added `pillPaddingV` (default 20, range 4–50), public read, `setPillPaddingV()` setter
+- [x] `Style.qml`: `pillPaddingV` token proxied from Prefs; font size cap raised 18 → 24
+
+### Radius system (replaced `radiusScale`)
+- [x] `Prefs.qml`: removed `radiusScale`; added `pillRadius` (default 10), `panelRadius` (default 10), `panelElementRadius` (default 4) — each with setter
+- [x] `Style.qml`: `pillRadius`, `panelRadius`, `panelElementRadius` tokens replacing `radSm/Md/Lg`
+- [x] Settings panel: "Corner rounding" section with three `ScrollChip` rows (Pill 0–50, Panel 0–30, Elements 0–12)
+- [x] All panels migrated: `radLg` → `panelRadius` (outer surfaces), `radSm/Md` → `panelElementRadius` (inner elements)
+- [x] Files touched: `SettingsPanel`, `ControlPanel`, `WallpaperPanel`, `NotificationPanel`, `WindowSwitcherPanel`, `CalendarPanel`, `MediaPlayerPanel`, `TimerWidget`, `SysTrayBar`, `TogglePair`, `FontPicker`, `IconButton`
+
+### PanelButton MD3 compliance
+- [x] `Style.qml`: added `textOnAccent` (`mat3OnPrimaryContainer`), `surfaceHoverColor`, `criticalHoverColor`, `accentBgHover` (proper MD3 8% state layers)
+- [x] `PanelButton.qml`: hover states use semi-transparent state layers; accent/critical variants lose border; `textOnAccent` for accent text; `"text"` variant added (transparent bg, `textAccent` color, `surfaceHoverColor` hover)
+- [x] `implicitWidth`: `Math.min(Math.max(content + panelElementHpadding, 24), 300)`
+- [x] `implicitHeight`: `Math.max(buttonHeight, content + panelElementVpadding)`
+
+### Style.qml new layout tokens
+- [x] `buttonHeight: 24`, `panelElementHpadding: 20`, `panelElementVpadding: 8`, `panelMargin: 12`
+- [x] `panelCardHpadding: 12`, `panelCardVpadding: 12` (for PanelCard internal padding)
+
+### ScrollChip reusable element
+- [x] `module-reusable-elements/ScrollChip.qml` (NEW) — two variants: `"value"` (content-driven width, scroll-driven numeric adjustment, `SizeVerCursor`) and `"bar"` (full-height fill with 0.6 opacity, label visible through fill, per-corner radius on fill)
+- [x] Registered in both `module-reusable-elements/qmldir` and `module-panels/qmldir`
+- [x] Signals: `scrolled(delta)`, `clicked()`, `rightClicked()`. WheelHandler with `acceptedDevices` + `event.accepted = true`
+- [x] `SettingsPanel` "Padding" + "Corner rounding" sections use `ScrollChip variant="value"`
+- [x] `ControlPanel` audio source/sink bars replaced with `ScrollChip variant="bar"` (left-click mute toggle, right-click opens pavucontrol-qt, scroll ±5%)
+
+### PanelCard redesign
+- [x] Removed `Layout.fillWidth: true` from inside the component — callers set it at callsite
+- [x] Replaced fragile `childrenRect.y + childrenRect.height + padding` / `y: parent.padding` caller pattern with `default property alias content: _inner.data` — inner `Item` handles padding via anchors, callers drop children directly without any `y:` offsets
+- [x] `padding: 12` split into `hpadding: Style.panelCardHpadding` and `vpadding: Style.panelCardVpadding`
+- [x] `implicitHeight: _inner.y + _inner.height + vpadding` (clean, explicit)
+- [x] `SettingsPanel.qml`: all 7 PanelCard callsites updated — added `Layout.fillWidth: true` per instance; inner layouts changed from `y: parent.padding; anchors { margins: parent.padding }` to `anchors.left/right: parent.left/right`
+
+**Key decisions:**
+- `default property alias` with inner `Item` (not `ColumnLayout`) chosen for flexibility — callers choose their own layout type; width is always available from PanelSurface's fixed `Screen.width * 0.15`
+- `default property alias` was previously removed due to a Qt 6.11 crash. Tested on Qt 6.11.1 — multiple open/close cycles, no crash. Appears to have been fixed or was a different alias pattern. Retained with this note.
+- Three semantic radius prefs give independent user control over pill shape, panel shape, and element shape — much more expressive than the old 0/0.5/1.0 `radiusScale` scale
+- `pillPaddingV` is pill-only; `panelElementHpadding/Vpadding` and `panelCardHpadding/Vpadding` are panel-only — these concerns must not be mixed
+
+---
+
 ## MediaPlayerPanel — Keyboard Navigation
 
 Panel-specific keybinds for MPRIS playback control without leaving the keyboard.
@@ -443,7 +491,7 @@ Data layer + Services UI, wired end-to-end.
 Six visual components + PanelNavBar built and registered. Full specs in [components.md](components.md).
 
 - [x] `PanelButton` — 3 variants (default / accent / critical), content-driven width, HoverHandler.
-- [x] `PanelCard` — raised section container. `default property alias` removed due to Qt 6.11 crash; callers provide their own ColumnLayout.
+- [x] `PanelCard` — raised section container. Uses `default property alias content: _inner.data` (inner `Item` with anchor-based padding). See "Visual Overhaul" entry for redesign notes.
 - [x] `PanelDivider` — 1px horizontal rule.
 - [x] `SectionLabel` — all-caps tracking label.
 - [x] `StatusDot` — 8×8 status circle, green/red.

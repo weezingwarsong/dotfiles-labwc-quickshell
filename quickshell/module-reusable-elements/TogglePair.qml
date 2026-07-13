@@ -17,7 +17,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         color:        Style.transparent
-        radius:       Style.radSm
+        radius:       Style.panelElementRadius
         border.width: Style.elementBorderWidth
         border.color: Style.borderSoftColor
 
@@ -28,8 +28,8 @@ Item {
             width:            parent.width / 2 - 1
             height:           parent.height - 2
             color:            Style.accentBgColor
-            topLeftRadius:    Style.radSm
-            bottomLeftRadius: Style.radSm
+            topLeftRadius:    Style.panelElementRadius
+            bottomLeftRadius: Style.panelElementRadius
         }
 
         // Right selection highlight
@@ -40,8 +40,8 @@ Item {
             width:             parent.width / 2 - 1
             height:            parent.height - 2
             color:             Style.accentBgColor
-            topRightRadius:    Style.radSm
-            bottomRightRadius: Style.radSm
+            topRightRadius:    Style.panelElementRadius
+            bottomRightRadius: Style.panelElementRadius
         }
 
         // Centre divider

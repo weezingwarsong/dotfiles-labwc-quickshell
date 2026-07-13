@@ -15,4 +15,5 @@ PanelCard 1.0 PanelCard.qml
 PanelNavBar 1.0 PanelNavBar.qml
 TogglePair 1.0 TogglePair.qml
 ScrollingText 1.0 ScrollingText.qml
+ScrollChip 1.0 ScrollChip.qml
 FontPicker 1.0 FontPicker.qml

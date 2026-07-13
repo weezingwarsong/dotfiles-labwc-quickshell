@@ -68,11 +68,13 @@ QtObject {
     // ── Accent ───────────────────────────────────────────────────────────────
     readonly property color accentColor:    style.mat3Primary
     readonly property color accentBgColor:  style.mat3PrimaryContainer
-    readonly property color accentBgHover:  Qt.lighter(style.mat3PrimaryContainer, 1.3)
+    readonly property color accentBgHover:  Qt.tint(style.mat3PrimaryContainer, Qt.rgba(style.mat3OnPrimaryContainer.r, style.mat3OnPrimaryContainer.g, style.mat3OnPrimaryContainer.b, 0.08))
 
     // ── States ───────────────────────────────────────────────────────────────
-    readonly property color criticalBgColor: style.mat3ErrorContainer
-    readonly property color successBgColor:  style.mat3TertiaryContainer
+    readonly property color criticalBgColor:   style.mat3ErrorContainer
+    readonly property color successBgColor:    style.mat3TertiaryContainer
+    readonly property color surfaceHoverColor: Qt.rgba(style.mat3Primary.r, style.mat3Primary.g, style.mat3Primary.b, 0.08)
+    readonly property color criticalHoverColor: Qt.rgba(style.mat3Error.r, style.mat3Error.g, style.mat3Error.b, 0.08)
 
     // ── Text ─────────────────────────────────────────────────────────────────
     readonly property color textPrimary:   style.mat3OnBackground
@@ -81,12 +83,17 @@ QtObject {
     readonly property color textMuted:     style.mat3Outline
     readonly property color textFaint:     style.mat3OutlineVariant
     readonly property color textAccent:    style.mat3Primary
+    readonly property color textOnAccent:  style.mat3OnPrimaryContainer
     readonly property color textCritical:  style.mat3Error
     readonly property color textSuccess:   style.mat3Tertiary
 
     // ── Layout constants ─────────────────────────────────────────────────────
-    readonly property int buttonHeight: 22
-    readonly property int panelMargin:  12
+    readonly property int buttonHeight:        24
+    readonly property int panelElementHpadding: 20
+    readonly property int panelElementVpadding: 8
+    readonly property int panelMargin:          12
+    readonly property int panelCardHpadding:    12
+    readonly property int panelCardVpadding:    12
 
     // =========================================================================
     // ─── Prefs-derived (user-adjustable) ─────────────────────────────────────
@@ -98,13 +105,14 @@ QtObject {
     readonly property int fontSizeBody:    Prefs.fontSizeBase
     readonly property int fontSizeSubtle:  Prefs.fontSizeBase - 1
 
-    // ── Radius (scale-driven) ────────────────────────────────────────────────
-    readonly property real radSm: Math.round(4  * Prefs.radiusScale)
-    readonly property real radMd: Math.round(6  * Prefs.radiusScale)
-    readonly property real radLg: Math.round(10 * Prefs.radiusScale)
+    // ── Radius ───────────────────────────────────────────────────────────────
+    readonly property int pillRadius:         Prefs.pillRadius
+    readonly property int panelRadius:        Prefs.panelRadius
+    readonly property int panelElementRadius: Prefs.panelElementRadius
 
     // ── Border widths ────────────────────────────────────────────────────────
     readonly property int pillBorderWidth:    Prefs.pillBorderWidth
+    readonly property int pillPaddingV:       Prefs.pillPaddingV
     readonly property int borderWidth:        Prefs.borderWidth
     readonly property int elementBorderWidth: Prefs.elementBorderWidth
 }

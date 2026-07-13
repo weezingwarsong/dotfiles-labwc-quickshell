@@ -17,7 +17,7 @@ Item {
     // Input field
     Rectangle {
         anchors.fill: parent
-        radius: Style.radSm
+        radius: Style.panelElementRadius
         color: Style.surfaceMidColor
         border.width: Style.elementBorderWidth
         border.color: _field.activeFocus ? Style.accentColor : Style.borderSoftColor
@@ -56,7 +56,7 @@ Item {
 
         background: Rectangle {
             color:        Style.surfaceLowColor
-            radius:       Style.radSm
+            radius:       Style.panelElementRadius
             border.color: Style.borderFaintColor
             border.width: 1
         }
@@ -82,7 +82,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     color:  _ma.containsMouse ? Style.accentBgColor : "transparent"
-                    radius: Style.radSm
+                    radius: Style.panelElementRadius
                 }
 
                 Text {

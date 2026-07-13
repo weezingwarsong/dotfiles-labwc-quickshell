@@ -79,7 +79,7 @@ New panel in `module-panels/`:
 
 Several known issues are tracked in the docs as **fix candidates** and intentionally deferred. Do not fix them without being asked. Key ones:
 
-- Pill dimension tokens (`pillHeight: 24`, `pillPaddingH: 20`, etc.) are hardcoded; should be Style tokens
+- ~~Pill dimension tokens (`pillHeight: 24`, `pillPaddingH: 20`, etc.) are hardcoded; should be Style tokens~~ **Fixed** — `pillPaddingV` added to Prefs/Style; pill height is now `Style.fontSizePill + Style.pillPaddingV`; font size cap raised to 24
 - ~~`textMuted` should be `color3`, currently `color4` (same as `textSecondary`)~~ **Fixed** — mat3 pipeline: `textMuted` now maps to `mat3Outline`, which is genuinely dimmer than `textSecondary` (`mat3OnSurfaceVariant`)
 - ~~`borderAccentColor` is redundant with `accentColor` — both `color10`; remove one~~ **Fixed** — `borderAccentColor` removed from Style; callsites use `accentColor` directly
 - ~~`textWeekend` and `dotIndicator` are single-use CalendarPanel tokens; should move inline~~ **Fixed** — both removed from Style; CalendarPanel uses `accentColor` inline

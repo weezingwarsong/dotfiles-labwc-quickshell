@@ -18,16 +18,8 @@ Item {
     // ── Local state ───────────────────────────────────────────────────────────
     property string _locationDraft: settingsProcess ? settingsProcess.locationString : ""
     property bool   _revoking:      false
-    property string _tab:           "services"  // "services" | "appearance"
+    property string _tab:           "appearance"  // "appearance" | "services"
 
-    // ── Appearance draft state (live — writes directly to Prefs) ─────────────
-    // radiusScale maps: 0 = none, 1 = subtle, 2 = default
-    readonly property int _radiusChoice: {
-        var s = Prefs.radiusScale
-        if (s <= 0.0)  return 0
-        if (s <= 0.5)  return 1
-        return 2
-    }
     // borderWidth maps: 0 = off, 1 = thin, 2 = thick
     // (values already align — no translation needed)
 
@@ -96,7 +88,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Style.radLg
+        radius: Style.panelRadius
         color: Style.panelBgColor
         border.color: Style.panelBorderColor
         border.width: Style.borderWidth
@@ -113,10 +105,10 @@ Item {
         // ── Tab bar ───────────────────────────────────────────────────────────
 
         TogglePair {
-            labelA: "Services"
-            labelB: "Appearance"
-            selected: root._tab === "appearance" ? 1 : 0
-            onToggled: (i) => root._tab = (i === 0 ? "services" : "appearance")
+            labelA: "Appearance"
+            labelB: "Services"
+            selected: root._tab === "services" ? 1 : 0
+            onToggled: (i) => root._tab = (i === 0 ? "appearance" : "services")
         }
 
         // ── Services tab ──────────────────────────────────────────────────────
@@ -136,9 +128,10 @@ Item {
             }
 
             PanelCard {
+                Layout.fillWidth: true
                 ColumnLayout {
-                    y: parent.padding
-                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     spacing: 8
 
                     RowLayout {
@@ -247,9 +240,10 @@ Item {
             }
 
             PanelCard {
+                Layout.fillWidth: true
                 ColumnLayout {
-                    y: parent.padding
-                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     spacing: 8
 
                     TogglePair {
@@ -270,7 +264,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: 22
-                            radius: Style.radSm
+                            radius: Style.panelElementRadius
                             color: Style.surfaceMidColor
 
                             TextInput {
@@ -324,9 +318,10 @@ Item {
             }
 
             PanelCard {
+                Layout.fillWidth: true
                 ColumnLayout {
-                    y: parent.padding
-                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     spacing: 8
 
                     // Pill text size stepper
@@ -355,7 +350,7 @@ Item {
                         }
                         PanelButton {
                             label: "+"
-                            onClicked: if (Prefs.fontSizePill < 18) Prefs.setFontSizePill(Prefs.fontSizePill + 1)
+                            onClicked: if (Prefs.fontSizePill < 24) Prefs.setFontSizePill(Prefs.fontSizePill + 1)
                         }
                     }
 
@@ -477,6 +472,44 @@ Item {
                 }
             }
 
+            // Padding
+            Text {
+                text: "Padding"
+                color: Style.textPrimary
+                font.family: Style.fontMono
+                font.pixelSize: Style.fontSizeHeading
+                font.bold: true
+            }
+
+            PanelCard {
+                Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    spacing: 8
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Pill"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.pillPaddingV + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.pillPaddingV + delta
+                                if (next >= 4 && next <= 50) Prefs.setPillPaddingV(next)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Corner rounding
             Text {
                 text: "Corner rounding"
@@ -487,27 +520,74 @@ Item {
             }
 
             PanelCard {
-                RowLayout {
-                    y: parent.padding
-                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
-                    spacing: 6
-                    PanelButton {
-                        label: "None"
-                        variant: root._radiusChoice === 0 ? "accent" : "default"
+                Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    spacing: 8
+
+                    RowLayout {
                         Layout.fillWidth: true
-                        onClicked: Prefs.setRadiusScale(0.0)
+                        spacing: 6
+                        Text {
+                            text: "Pill"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.pillRadius + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.pillRadius + delta
+                                if (next >= 0 && next <= 50) Prefs.setPillRadius(next)
+                            }
+                        }
                     }
-                    PanelButton {
-                        label: "Subtle"
-                        variant: root._radiusChoice === 1 ? "accent" : "default"
+
+                    PanelDivider {}
+
+                    RowLayout {
                         Layout.fillWidth: true
-                        onClicked: Prefs.setRadiusScale(0.5)
+                        spacing: 6
+                        Text {
+                            text: "Panel"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.panelRadius + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.panelRadius + delta
+                                if (next >= 0 && next <= 30) Prefs.setPanelRadius(next)
+                            }
+                        }
                     }
-                    PanelButton {
-                        label: "Default"
-                        variant: root._radiusChoice === 2 ? "accent" : "default"
+
+                    PanelDivider {}
+
+                    RowLayout {
                         Layout.fillWidth: true
-                        onClicked: Prefs.setRadiusScale(1.0)
+                        spacing: 6
+                        Text {
+                            text: "Elements"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.panelElementRadius + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.panelElementRadius + delta
+                                if (next >= 0 && next <= 12) Prefs.setPanelElementRadius(next)
+                            }
+                        }
                     }
                 }
             }
@@ -522,9 +602,10 @@ Item {
             }
 
             PanelCard {
+                Layout.fillWidth: true
                 ColumnLayout {
-                    y: parent.padding
-                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     spacing: 8
 
                     // Pill border
@@ -657,9 +738,10 @@ Item {
             }
 
             PanelCard {
+                Layout.fillWidth: true
                 RowLayout {
-                    y: parent.padding
-                    anchors { left: parent.left; right: parent.right; margins: parent.padding }
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     spacing: 6
                     Text {
                         text: "Extract colors from wallpaper"
@@ -687,8 +769,11 @@ Item {
                     Prefs.setFontSizeVisClock(100)
                     Prefs.setFontSizePill(13)
                     Prefs.setFontSizeBase(10)
-                    Prefs.setRadiusScale(1.0)
+                    Prefs.setPillRadius(10)
+                    Prefs.setPanelRadius(10)
+                    Prefs.setPanelElementRadius(4)
                     Prefs.setPillBorderWidth(1)
+                    Prefs.setPillPaddingV(20)
                     Prefs.setBorderWidth(1)
                     Prefs.setElementBorderWidth(1)
                     Prefs.setBorderColorMode("subtle")
