@@ -324,7 +324,6 @@ Item {
                     anchors.right: parent.right
                     spacing: 8
 
-                    // Pill text size stepper
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -336,25 +335,17 @@ Item {
                             Layout.minimumWidth: 80
                         }
                         Item { Layout.fillWidth: true }
-                        PanelButton {
-                            label: "–"
-                            onClicked: if (Prefs.fontSizePill > 10) Prefs.setFontSizePill(Prefs.fontSizePill - 1)
-                        }
-                        Text {
-                            text: Prefs.fontSizePill
-                            color: Style.textNormal
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.minimumWidth: 24
-                        }
-                        PanelButton {
-                            label: "+"
-                            onClicked: if (Prefs.fontSizePill < 24) Prefs.setFontSizePill(Prefs.fontSizePill + 1)
+                        ScrollChip {
+                            text: Prefs.fontSizePill + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.fontSizePill + delta
+                                if (next >= 10 && next <= 24) Prefs.setFontSizePill(next)
+                            }
                         }
                     }
 
-                    // Panel text size stepper
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -366,25 +357,17 @@ Item {
                             Layout.minimumWidth: 80
                         }
                         Item { Layout.fillWidth: true }
-                        PanelButton {
-                            label: "–"
-                            onClicked: if (Prefs.fontSizeBase > 8) Prefs.setFontSizeBase(Prefs.fontSizeBase - 1)
-                        }
-                        Text {
-                            text: Prefs.fontSizeBase
-                            color: Style.textNormal
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.minimumWidth: 24
-                        }
-                        PanelButton {
-                            label: "+"
-                            onClicked: if (Prefs.fontSizeBase < 14) Prefs.setFontSizeBase(Prefs.fontSizeBase + 1)
+                        ScrollChip {
+                            text: Prefs.fontSizeBase + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.fontSizeBase + delta
+                                if (next >= 8 && next <= 18) Prefs.setFontSizeBase(next)
+                            }
                         }
                     }
 
-                    // Visualizer clock size stepper
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -396,27 +379,17 @@ Item {
                             Layout.minimumWidth: 80
                         }
                         Item { Layout.fillWidth: true }
-                        PanelButton {
-                            label: "–"
-                            onClicked: if (Prefs.fontSizeVisClock > 40) Prefs.setFontSizeVisClock(Prefs.fontSizeVisClock - 4)
-                        }
-                        Text {
-                            text: Prefs.fontSizeVisClock
-                            color: Style.textNormal
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.minimumWidth: 32
-                        }
-                        PanelButton {
-                            label: "+"
-                            onClicked: if (Prefs.fontSizeVisClock < 200) Prefs.setFontSizeVisClock(Prefs.fontSizeVisClock + 4)
+                        ScrollChip {
+                            text: Prefs.fontSizeVisClock + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.fontSizeVisClock + delta * 4
+                                if (next >= 40 && next <= 200) Prefs.setFontSizeVisClock(next)
+                            }
                         }
                     }
 
                     PanelDivider {}
 
-                    // Mono font picker
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -434,7 +407,8 @@ Item {
                         }
                     }
 
-                    // Glyph font picker
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -452,7 +426,8 @@ Item {
                         }
                     }
 
-                    // Visualizer clock font picker
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
