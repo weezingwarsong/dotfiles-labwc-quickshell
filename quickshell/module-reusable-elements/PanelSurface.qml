@@ -115,9 +115,10 @@ PanelWindow {
                 }
                 item.activePanel = Qt.binding(function() { return root.activePanel })
                 if (root.activePanel === "settings") {
-                    item.settingsProcess = Qt.binding(function() { return root.settingsProcess })
-                    item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
-                    item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
+                    item.settingsProcess  = Qt.binding(function() { return root.settingsProcess  })
+                    item.calendarProcess  = Qt.binding(function() { return root.calendarProcess  })
+                    item.tasksProcess     = Qt.binding(function() { return root.tasksProcess     })
+                    item.wallpaperProcess = Qt.binding(function() { return root.wallpaperProcess })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }

@@ -9,6 +9,7 @@ FocusScope {
     property var    settingsProcess:  null
     property var    calendarProcess:  null
     property var    tasksProcess:     null
+    property var    wallpaperProcess: null
     property string activePanel:      ""
 
     signal navigateRequested(int direction)
@@ -26,6 +27,7 @@ FocusScope {
     property bool _cornerCollapsed:     false
     property bool _bordersCollapsed:    false
     property bool _themeCollapsed:      false
+    property bool _wallpaperCollapsed:  false
 
     // ── Filter ────────────────────────────────────────────────────────────────
     property string _filter: ""
@@ -35,6 +37,7 @@ FocusScope {
     readonly property var _tagCorner:     ["pill","panel","elements","radius","round","corner","rounding"]
     readonly property var _tagBorders:    ["pill","panel","elements","border","color","subtle","vibrant","thickness","width"]
     readonly property var _tagTheme:      ["extract","colors","wallpaper","theme","palette"]
+    readonly property var _tagWallpaper:  ["wallpaper","directory","scan","path","image","video","folder","pictures"]
 
     function _matches(name, tags) {
         if (_filter === "") return true
@@ -46,11 +49,12 @@ FocusScope {
         return false
     }
 
-    readonly property bool _typoVisible:   _matches("Typography",      _tagTypography)
-    readonly property bool _paddingVisible: _matches("Padding",        _tagPadding)
-    readonly property bool _cornerVisible:  _matches("Corner rounding", _tagCorner)
-    readonly property bool _bordersVisible: _matches("Borders",         _tagBorders)
-    readonly property bool _themeVisible:   _matches("Theme",           _tagTheme)
+    readonly property bool _typoVisible:     _matches("Typography",      _tagTypography)
+    readonly property bool _paddingVisible:  _matches("Padding",        _tagPadding)
+    readonly property bool _cornerVisible:   _matches("Corner rounding", _tagCorner)
+    readonly property bool _bordersVisible:  _matches("Borders",         _tagBorders)
+    readonly property bool _themeVisible:    _matches("Theme",           _tagTheme)
+    readonly property bool _wallpaperVisible: _matches("Wallpaper",      _tagWallpaper)
 
     // ── Height ────────────────────────────────────────────────────────────────
     implicitHeight: _pinnedCol.implicitHeight + 12 +
@@ -620,6 +624,75 @@ FocusScope {
                                     labelA: "On"; labelB: "Off"; variant: "yesno"
                                     selected: Prefs.extractColors ? 0 : 1
                                     onToggled: (i) => Prefs.setExtractColors(i === 0)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Wallpaper ─────────────────────────────────────────────────────
+            PanelCard {
+                Layout.fillWidth: true
+                visible: _wallpaperVisible
+                ColumnLayout {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Wallpaper"; tooltip: "Directory scanned for images and videos"
+                        collapsed: _wallpaperCollapsed
+                        onToggled: _wallpaperCollapsed = !_wallpaperCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        Layout.preferredHeight: (_filter !== "" || !_wallpaperCollapsed) ? _wallpaperRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _wallpaperRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: Style.buttonHeight
+                                    radius: Style.panelElementRadius
+                                    color:  Style.surfaceMidColor
+                                    border.width: Style.elementBorderWidth
+                                    border.color: Style.borderSoftColor
+
+                                    TextInput {
+                                        id: _wallpaperDirInput
+                                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 6 }
+                                        text:           root.wallpaperProcess ? root.wallpaperProcess.wallpaperDir : ""
+                                        color:          Style.textSecondary
+                                        font.family:    Style.fontMono
+                                        font.pixelSize: Style.fontSizeBody
+                                        clip:           true
+                                        selectByMouse:  true
+                                        onAccepted: if (root.wallpaperProcess) root.wallpaperProcess.scanDirectory(text)
+
+                                        Text {
+                                            anchors.fill:   parent
+                                            text:           "~/Pictures/wallpapers"
+                                            color:          Style.textFaint
+                                            font.family:    Style.fontMono
+                                            font.pixelSize: Style.fontSizeBody
+                                            visible:        _wallpaperDirInput.text === ""
+                                        }
+                                    }
+                                }
+
+                                PanelButton {
+                                    label: "Scan"
+                                    onClicked: if (root.wallpaperProcess) root.wallpaperProcess.scanDirectory(_wallpaperDirInput.text)
                                 }
                             }
                         }

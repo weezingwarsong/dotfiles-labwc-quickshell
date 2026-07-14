@@ -64,35 +64,85 @@ ShellRoot {
         anchors.bottom: true
         color: "transparent"
 
-        Rectangle {
-            anchors.fill: parent
-            visible: wallpaper.sourceType === "color"
-            color:   wallpaper.currentColor
+        // Freeze the current wallpaper into _transOverlay, then let new content
+        // load underneath. Ready signals (Image.Ready / PlayingState / immediate
+        // for color) start the fade-out, revealing the new wallpaper beneath.
+        function _beginTransition() {
+            _wallFade.stop()
+            if (!_transOverlay.live) _transOverlay.live = true
+            _transOverlay.live    = false
+            _transOverlay.opacity = 1
         }
 
-        AnimatedImage {
+        Item {
+            id: _wallContent
             anchors.fill: parent
-            visible:      wallpaper.sourceType === "image"
-            source:       wallpaper.sourceType === "image" ? "file://" + wallpaper.currentPath : ""
-            fillMode:     Image.PreserveAspectCrop
-            asynchronous: true
-            cache:        false
+
+            Rectangle {
+                anchors.fill: parent
+                visible: wallpaper.sourceType === "color"
+                color:   wallpaper.currentColor
+            }
+
+            AnimatedImage {
+                anchors.fill: parent
+                visible:      wallpaper.sourceType === "image"
+                source:       wallpaper.sourceType === "image" ? "file://" + wallpaper.currentPath : ""
+                fillMode:     Image.PreserveAspectCrop
+                asynchronous: true
+                cache:        false
+                onStatusChanged: {
+                    if (status === Image.Ready && _transOverlay.opacity > 0)
+                        _wallFade.start()
+                }
+            }
+
+            MediaPlayer {
+                id:          _vidPlayer
+                source:      wallpaper.sourceType === "video" ? ("file://" + wallpaper.currentPath) : ""
+                loops:       MediaPlayer.Infinite
+                videoOutput: _videoOutput
+                audioOutput: AudioOutput { volume: 0 }
+                onSourceChanged: if (source !== "") play()
+                onPlaybackStateChanged: {
+                    if (playbackState === MediaPlayer.PlayingState && _transOverlay.opacity > 0)
+                        _wallFade.start()
+                }
+            }
+
+            VideoOutput {
+                id:           _videoOutput
+                anchors.fill: parent
+                visible:      wallpaper.sourceType === "video"
+                fillMode:     VideoOutput.PreserveAspectCrop
+            }
         }
 
-        MediaPlayer {
-            id:          _vidPlayer
-            source:      wallpaper.sourceType === "video" ? ("file://" + wallpaper.currentPath) : ""
-            loops:       MediaPlayer.Infinite
-            videoOutput: _videoOutput
-            audioOutput: AudioOutput { volume: 0 }
-            onSourceChanged: if (source !== "") play()
+        // Frozen snapshot of the previous wallpaper state, sits on top (z:10)
+        // and fades out once the new content is ready underneath.
+        ShaderEffectSource {
+            id: _transOverlay
+            sourceItem: _wallContent
+            anchors.fill: parent
+            live:    true
+            z:       10
+            opacity: 0
+
+            NumberAnimation on opacity {
+                id: _wallFade
+                to: 0; duration: 500; easing.type: Easing.OutCubic
+                onFinished: _transOverlay.live = true
+            }
         }
 
-        VideoOutput {
-            id:           _videoOutput
-            anchors.fill: parent
-            visible:      wallpaper.sourceType === "video"
-            fillMode:     VideoOutput.PreserveAspectCrop
+        Connections {
+            target: wallpaper
+            function onSourceTypeChanged()  { wallpaperWindow._beginTransition() }
+            function onCurrentPathChanged() { wallpaperWindow._beginTransition() }
+            function onCurrentColorChanged() {
+                wallpaperWindow._beginTransition()
+                _wallFade.start()
+            }
         }
     }
 
