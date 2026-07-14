@@ -28,8 +28,6 @@ FocusScope {
     property bool _themeCollapsed:      false
 
     // ── Filter ────────────────────────────────────────────────────────────────
-    // _filter is driven by _filterInput.text — the TextInput below is the
-    // actual key sink; FocusScope delegates activeFocus to it automatically.
     property string _filter: ""
 
     readonly property var _tagTypography: ["pill text","panel text","vis clock","font size","mono font","glyph font","typography","font"]
@@ -48,7 +46,6 @@ FocusScope {
         return false
     }
 
-    // Visibility shortcuts for appearance sections
     readonly property bool _typoVisible:   _matches("Typography",      _tagTypography)
     readonly property bool _paddingVisible: _matches("Padding",        _tagPadding)
     readonly property bool _cornerVisible:  _matches("Corner rounding", _tagCorner)
@@ -61,11 +58,6 @@ FocusScope {
         24
 
     // ── Filter input (invisible key sink) ────────────────────────────────────
-    // forceActiveFocus() on Component.onCompleted (via Qt.callLater) is the
-    // pattern that actually works — same as WindowSwitcherPanel. The Loader's
-    // focus:true and FocusScope alone are not enough; the specific TextInput
-    // must explicitly claim activeFocus after the scene is ready.
-    // Left/Right are never consumed so they propagate to PanelSurface for nav.
     TextInput {
         id: _filterInput
         width: 0; height: 0
@@ -83,7 +75,6 @@ FocusScope {
         Keys.onTabPressed:    (e) => e.accepted = false
         Keys.onEscapePressed: (e) => {
             if (text !== "") { text = ""; e.accepted = true }
-            // empty filter → don't consume, let Loader/PanelSurface dismiss
         }
 
         onTextChanged: {
@@ -472,17 +463,7 @@ FocusScope {
                     anchors.right: parent.right
                     spacing: 8
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Pill text"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Pill text"
                         ScrollChip {
                             text: Prefs.fontSizePill + "px"
                             onScrolled: (delta) => {
@@ -494,17 +475,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Panel text"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Panel text"
                         ScrollChip {
                             text: Prefs.fontSizeBase + "px"
                             onScrolled: (delta) => {
@@ -516,17 +487,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Vis. clock"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Vis. clock"
                         ScrollChip {
                             text: Prefs.fontSizeVisClock + "px"
                             onScrolled: (delta) => {
@@ -538,16 +499,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Mono font"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
+                    RowLabel { label: "Mono font"; fill: true
                         FontPicker {
                             Layout.fillWidth: true
                             value: Prefs.fontMono
@@ -557,16 +509,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Glyph font"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
+                    RowLabel { label: "Glyph font"; fill: true
                         FontPicker {
                             Layout.fillWidth: true
                             value: Prefs.fontNerd
@@ -576,16 +519,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Vis. clock"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
+                    RowLabel { label: "Vis. clock"; fill: true
                         FontPicker {
                             Layout.fillWidth: true
                             value: Prefs.fontVisClock
@@ -612,17 +546,7 @@ FocusScope {
                     anchors.right: parent.right
                     spacing: 8
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Pill"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Pill"
                         ScrollChip {
                             text: Prefs.pillPaddingV + "px"
                             onScrolled: (delta) => {
@@ -634,17 +558,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Panel"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Panel"
                         ScrollChip {
                             text: Prefs.panelCardPadding + "px"
                             onScrolled: (delta) => {
@@ -656,17 +570,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Elements"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Elements"
                         ScrollChip {
                             text: Prefs.panelElementPadding + "px"
                             onScrolled: (delta) => {
@@ -695,17 +599,7 @@ FocusScope {
                     anchors.right: parent.right
                     spacing: 8
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Pill"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Pill"
                         ScrollChip {
                             text: Prefs.pillRadius + "px"
                             onScrolled: (delta) => {
@@ -717,17 +611,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Panel"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Panel"
                         ScrollChip {
                             text: Prefs.panelRadius + "px"
                             onScrolled: (delta) => {
@@ -739,17 +623,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Elements"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Elements"
                         ScrollChip {
                             text: Prefs.panelElementRadius + "px"
                             onScrolled: (delta) => {
@@ -778,17 +652,7 @@ FocusScope {
                     anchors.right: parent.right
                     spacing: 8
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Pill"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Pill"
                         ScrollChip {
                             text: Prefs.pillBorderWidth + "px"
                             onScrolled: (delta) => {
@@ -800,17 +664,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Panel"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Panel"
                         ScrollChip {
                             text: Prefs.borderWidth + "px"
                             onScrolled: (delta) => {
@@ -822,17 +676,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Elements"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Elements"
                         ScrollChip {
                             text: Prefs.elementBorderWidth + "px"
                             onScrolled: (delta) => {
@@ -844,17 +688,7 @@ FocusScope {
 
                     PanelDivider {}
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                            text: "Color"
-                            color: Style.textSecondary
-                            font.family: Style.fontMono
-                            font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 80
-                        }
-                        Item { Layout.fillWidth: true }
+                    RowLabel { label: "Color"
                         TogglePair {
                             labelA:   "Subtle"
                             labelB:   "Vibrant"
@@ -877,23 +711,17 @@ FocusScope {
             PanelCard {
                 Layout.fillWidth: true
                 visible: _themeVisible && (_filter !== "" || !_themeCollapsed)
-                RowLayout {
+                ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    spacing: 6
-                    Text {
-                        text: "Extract colors from wallpaper"
-                        color: Style.textSecondary
-                        font.family: Style.fontMono
-                        font.pixelSize: Style.fontSizeBody
-                        Layout.fillWidth: true
-                    }
-                    TogglePair {
-                        labelA:   "On"
-                        labelB:   "Off"
-                        variant:  "yesno"
-                        selected: Prefs.extractColors ? 0 : 1
-                        onToggled: (i) => Prefs.setExtractColors(i === 0)
+                    RowLabel { label: "Extract colors"
+                        TogglePair {
+                            labelA:   "On"
+                            labelB:   "Off"
+                            variant:  "yesno"
+                            selected: Prefs.extractColors ? 0 : 1
+                            onToggled: (i) => Prefs.setExtractColors(i === 0)
+                        }
                     }
                 }
             }
