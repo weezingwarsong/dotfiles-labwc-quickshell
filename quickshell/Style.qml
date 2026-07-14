@@ -89,11 +89,11 @@ QtObject {
 
     // ── Layout constants ─────────────────────────────────────────────────────
     readonly property int buttonHeight:        24
-    readonly property int panelElementHpadding: 20
+    readonly property int panelElementHpadding: Prefs.panelElementPadding
     readonly property int panelElementVpadding: 8
     readonly property int panelMargin:          12
-    readonly property int panelCardHpadding:    12
-    readonly property int panelCardVpadding:    12
+    readonly property int panelCardHpadding:    Prefs.panelCardPadding
+    readonly property int panelCardVpadding:    Prefs.panelCardPadding
 
     // =========================================================================
     // ─── Prefs-derived (user-adjustable) ─────────────────────────────────────

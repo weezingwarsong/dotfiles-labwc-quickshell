@@ -507,6 +507,50 @@ Item {
                             }
                         }
                     }
+
+                    PanelDivider {}
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Panel"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.panelCardPadding + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.panelCardPadding + delta
+                                if (next >= 4 && next <= 32) Prefs.setPanelCardPadding(next)
+                            }
+                        }
+                    }
+
+                    PanelDivider {}
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            text: "Elements"
+                            color: Style.textSecondary
+                            font.family: Style.fontMono
+                            font.pixelSize: Style.fontSizeBody
+                            Layout.minimumWidth: 80
+                        }
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.panelElementPadding + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.panelElementPadding + delta
+                                if (next >= 8 && next <= 40) Prefs.setPanelElementPadding(next)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -774,6 +818,8 @@ Item {
                     Prefs.setPanelElementRadius(4)
                     Prefs.setPillBorderWidth(1)
                     Prefs.setPillPaddingV(20)
+                    Prefs.setPanelCardPadding(12)
+                    Prefs.setPanelElementPadding(20)
                     Prefs.setBorderWidth(1)
                     Prefs.setElementBorderWidth(1)
                     Prefs.setBorderColorMode("subtle")

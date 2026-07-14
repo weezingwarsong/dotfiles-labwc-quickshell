@@ -21,7 +21,9 @@ Item {
         property int    panelRadius:         10
         property int    panelElementRadius:  4
         property int    pillBorderWidth:    1
-        property int    pillPaddingV:       20
+        property int    pillPaddingV:        20
+        property int    panelCardPadding:   12
+        property int    panelElementPadding: 20
         property int    borderWidth:        1
         property int    elementBorderWidth: 1
         property string borderColorMode:   "subtle"   // "subtle" | "vibrant"
@@ -48,7 +50,9 @@ Item {
     readonly property int    panelRadius:        _store.panelRadius
     readonly property int    panelElementRadius: _store.panelElementRadius
     readonly property int    pillBorderWidth:    _store.pillBorderWidth
-    readonly property int    pillPaddingV:       _store.pillPaddingV
+    readonly property int    pillPaddingV:        _store.pillPaddingV
+    readonly property int    panelCardPadding:   _store.panelCardPadding
+    readonly property int    panelElementPadding: _store.panelElementPadding
     readonly property int    borderWidth:        _store.borderWidth
     readonly property int    elementBorderWidth: _store.elementBorderWidth
     readonly property string borderColorMode:    _store.borderColorMode
@@ -72,7 +76,9 @@ Item {
     function setPanelRadius(v)        { _store.panelRadius        = v }
     function setPanelElementRadius(v) { _store.panelElementRadius = v }
     function setPillBorderWidth(v)    { _store.pillBorderWidth    = v }
-    function setPillPaddingV(v)       { _store.pillPaddingV       = v }
+    function setPillPaddingV(v)        { _store.pillPaddingV        = v }
+    function setPanelCardPadding(v)   { _store.panelCardPadding   = v }
+    function setPanelElementPadding(v) { _store.panelElementPadding = v }
     function setBorderWidth(v)        { _store.borderWidth        = v }
     function setElementBorderWidth(v) { _store.elementBorderWidth = v }
     function setBorderColorMode(v)    { _store.borderColorMode    = v }
