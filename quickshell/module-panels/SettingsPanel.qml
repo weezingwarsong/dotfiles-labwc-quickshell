@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
 
-Item {
+FocusScope {
     id: root
 
     // ── Injected processes ────────────────────────────────────────────────────
@@ -26,6 +26,8 @@ Item {
     property bool _themeCollapsed:      false
 
     // ── Filter ────────────────────────────────────────────────────────────────
+    // _filter is driven by _filterInput.text — the TextInput below is the
+    // actual key sink; FocusScope delegates activeFocus to it automatically.
     property string _filter: ""
 
     readonly property var _tagTypography: ["pill text","panel text","vis clock","font size","mono font","glyph font","typography","font"]
@@ -52,38 +54,39 @@ Item {
     readonly property bool _themeVisible:   _matches("Theme",           _tagTheme)
 
     // ── Height ────────────────────────────────────────────────────────────────
-    // Reports full content height so PanelSurface can cap. Flickable scrolls
-    // within whatever height PanelSurface actually assigns.
     implicitHeight: _pinnedCol.implicitHeight + 12 +
         (_tab === "services" ? _servicesLayout.implicitHeight : _appearanceLayout.implicitHeight) +
         24
 
-    // ── Key handler (type-to-filter) ──────────────────────────────────────────
-    // Left/Right are never consumed — they propagate to PanelSurface for nav.
-    Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_Escape) {
-            if (_filter !== "") {
-                _filter = ""
-                _flickable.contentY = 0
-                event.accepted = true
-            }
-            return
+    // ── Filter input (invisible key sink) ────────────────────────────────────
+    // forceActiveFocus() on Component.onCompleted (via Qt.callLater) is the
+    // pattern that actually works — same as WindowSwitcherPanel. The Loader's
+    // focus:true and FocusScope alone are not enough; the specific TextInput
+    // must explicitly claim activeFocus after the scene is ready.
+    // Left/Right are never consumed so they propagate to PanelSurface for nav.
+    TextInput {
+        id: _filterInput
+        width: 0; height: 0
+        focus: true
+        color: "transparent"
+        selectionColor: "transparent"
+
+        Component.onCompleted: Qt.callLater(function() { _filterInput.forceActiveFocus() })
+
+        Keys.onLeftPressed:  (e) => e.accepted = false
+        Keys.onRightPressed: (e) => e.accepted = false
+        Keys.onUpPressed:    (e) => e.accepted = false
+        Keys.onDownPressed:  (e) => e.accepted = false
+        Keys.onReturnPressed: (e) => e.accepted = false
+        Keys.onTabPressed:    (e) => e.accepted = false
+        Keys.onEscapePressed: (e) => {
+            if (text !== "") { text = ""; e.accepted = true }
+            // empty filter → don't consume, let Loader/PanelSurface dismiss
         }
-        if (event.key === Qt.Key_Backspace) {
-            if (_filter !== "") {
-                _filter = _filter.slice(0, -1)
-                _flickable.contentY = 0
-                event.accepted = true
-            }
-            return
-        }
-        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right ||
-            event.key === Qt.Key_Up   || event.key === Qt.Key_Down  ||
-            event.key === Qt.Key_Tab  || event.key === Qt.Key_Return) return
-        if (event.text.length > 0) {
-            _filter += event.text
+
+        onTextChanged: {
+            _filter = text
             _flickable.contentY = 0
-            event.accepted = true
         }
     }
 
@@ -174,7 +177,7 @@ Item {
             selected: root._tab === "services" ? 1 : 0
             onToggled: (i) => {
                 root._tab = (i === 0 ? "appearance" : "services")
-                root._filter = ""
+                _filterInput.text = ""
                 _flickable.contentY = 0
             }
         }
@@ -205,7 +208,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
-                    text: _filter
+                    text: _filterInput.text
                     color: Style.textNormal
                     font.family: Style.fontMono
                     font.pixelSize: Style.fontSizeBody
