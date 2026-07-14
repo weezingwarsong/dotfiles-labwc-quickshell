@@ -13,17 +13,81 @@ Item {
 
     signal navigateRequested(int direction)
 
-    implicitHeight: _col.implicitHeight + 24
-
     // ── Local state ───────────────────────────────────────────────────────────
     property string _locationDraft: settingsProcess ? settingsProcess.locationString : ""
     property bool   _revoking:      false
-    property string _tab:           "appearance"  // "appearance" | "services"
+    property string _tab:           "appearance"
 
-    // borderWidth maps: 0 = off, 1 = thin, 2 = thick
-    // (values already align — no translation needed)
+    // ── Collapse state (appearance tab) ───────────────────────────────────────
+    property bool _typographyCollapsed: false
+    property bool _paddingCollapsed:    false
+    property bool _cornerCollapsed:     false
+    property bool _bordersCollapsed:    false
+    property bool _themeCollapsed:      false
 
-    // ── Revoke process ────────────────────────────────────────────────────────
+    // ── Filter ────────────────────────────────────────────────────────────────
+    property string _filter: ""
+
+    readonly property var _tagTypography: ["pill text","panel text","vis clock","font size","mono font","glyph font","typography","font"]
+    readonly property var _tagPadding:    ["pill","panel","elements","padding","spacing","margin"]
+    readonly property var _tagCorner:     ["pill","panel","elements","radius","round","corner","rounding"]
+    readonly property var _tagBorders:    ["pill","panel","elements","border","color","subtle","vibrant","thickness","width"]
+    readonly property var _tagTheme:      ["extract","colors","wallpaper","theme","palette"]
+
+    function _matches(name, tags) {
+        if (_filter === "") return true
+        var q = _filter.toLowerCase()
+        if (name.toLowerCase().indexOf(q) >= 0) return true
+        for (var i = 0; i < tags.length; i++) {
+            if (tags[i].toLowerCase().indexOf(q) >= 0) return true
+        }
+        return false
+    }
+
+    // Visibility shortcuts for appearance sections
+    readonly property bool _typoVisible:   _matches("Typography",      _tagTypography)
+    readonly property bool _paddingVisible: _matches("Padding",        _tagPadding)
+    readonly property bool _cornerVisible:  _matches("Corner rounding", _tagCorner)
+    readonly property bool _bordersVisible: _matches("Borders",         _tagBorders)
+    readonly property bool _themeVisible:   _matches("Theme",           _tagTheme)
+
+    // ── Height ────────────────────────────────────────────────────────────────
+    // Reports full content height so PanelSurface can cap. Flickable scrolls
+    // within whatever height PanelSurface actually assigns.
+    implicitHeight: _pinnedCol.implicitHeight + 12 +
+        (_tab === "services" ? _servicesLayout.implicitHeight : _appearanceLayout.implicitHeight) +
+        24
+
+    // ── Key handler (type-to-filter) ──────────────────────────────────────────
+    // Left/Right are never consumed — they propagate to PanelSurface for nav.
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            if (_filter !== "") {
+                _filter = ""
+                _flickable.contentY = 0
+                event.accepted = true
+            }
+            return
+        }
+        if (event.key === Qt.Key_Backspace) {
+            if (_filter !== "") {
+                _filter = _filter.slice(0, -1)
+                _flickable.contentY = 0
+                event.accepted = true
+            }
+            return
+        }
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right ||
+            event.key === Qt.Key_Up   || event.key === Qt.Key_Down  ||
+            event.key === Qt.Key_Tab  || event.key === Qt.Key_Return) return
+        if (event.text.length > 0) {
+            _filter += event.text
+            _flickable.contentY = 0
+            event.accepted = true
+        }
+    }
+
+    // ── Processes ─────────────────────────────────────────────────────────────
     Process {
         id: revokeProcess
         command: ["gcal-fetch", "--revoke"]
@@ -49,7 +113,6 @@ Item {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
     function _calendarStatus() {
         if (!settingsProcess || !settingsProcess.googleConnected) return ""
         if (!calendarProcess) return ""
@@ -84,8 +147,7 @@ Item {
         return Style.textSecondary
     }
 
-    // ── Layout ────────────────────────────────────────────────────────────────
-
+    // ── Background ────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
         radius: Style.panelRadius
@@ -95,30 +157,112 @@ Item {
         clip: true
     }
 
+    // ── Pinned header ─────────────────────────────────────────────────────────
     ColumnLayout {
-        id: _col
+        id: _pinnedCol
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
         spacing: 12
 
-        PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
-
-        // ── Tab bar ───────────────────────────────────────────────────────────
+        PanelNavBar {
+            activePanel: root.activePanel
+            onNavigateRequested: (dir) => root.navigateRequested(dir)
+        }
 
         TogglePair {
             labelA: "Appearance"
             labelB: "Services"
             selected: root._tab === "services" ? 1 : 0
-            onToggled: (i) => root._tab = (i === 0 ? "appearance" : "services")
+            onToggled: (i) => {
+                root._tab = (i === 0 ? "appearance" : "services")
+                root._filter = ""
+                _flickable.contentY = 0
+            }
+        }
+
+        // Filter bar — appears when _filter is non-empty
+        Rectangle {
+            visible: _filter !== ""
+            Layout.fillWidth: true
+            implicitHeight: Style.buttonHeight
+            radius: Style.panelElementRadius
+            color: Style.surfaceMidColor
+            border.width: Style.elementBorderWidth
+            border.color: Style.borderSoftColor
+
+            Row {
+                anchors {
+                    left: parent.left; right: parent.right
+                    verticalCenter: parent.verticalCenter
+                    leftMargin: 8; rightMargin: 8
+                }
+                spacing: 4
+
+                Text {
+                    text: "⌕"
+                    color: Style.textMuted
+                    font.family: Style.fontMono
+                    font.pixelSize: Style.fontSizeBody
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: _filter
+                    color: Style.textNormal
+                    font.family: Style.fontMono
+                    font.pixelSize: Style.fontSizeBody
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: "│"
+                    color: Style.accentColor
+                    font.family: Style.fontMono
+                    font.pixelSize: Style.fontSizeBody
+                    anchors.verticalCenter: parent.verticalCenter
+                    SequentialAnimation on opacity {
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0; duration: 500 }
+                        NumberAnimation { to: 1; duration: 500 }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Scrollable content ────────────────────────────────────────────────────
+    Flickable {
+        id: _flickable
+        anchors {
+            left: parent.left;   leftMargin:   12
+            right: parent.right; rightMargin:  12
+            top: _pinnedCol.bottom; topMargin: 12
+            bottom: parent.bottom;  bottomMargin: 12
+        }
+        contentWidth: width
+        contentHeight: _tab === "services"
+            ? _servicesLayout.implicitHeight
+            : _appearanceLayout.implicitHeight
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: (event) => {
+                var delta = event.angleDelta.y * 0.5
+                _flickable.contentY = Math.max(0, Math.min(
+                    Math.max(0, _flickable.contentHeight - _flickable.height),
+                    _flickable.contentY - delta
+                ))
+                event.accepted = true
+            }
         }
 
         // ── Services tab ──────────────────────────────────────────────────────
-
         ColumnLayout {
-            visible: root._tab === "services"
-            Layout.fillWidth: true
+            id: _servicesLayout
+            visible: _tab === "services"
+            width: parent.width
             spacing: 12
 
-            // Google Account
             Text {
                 text: "Google Account"
                 color: Style.textPrimary
@@ -230,7 +374,6 @@ Item {
 
             PanelDivider {}
 
-            // Weather Location
             Text {
                 text: "Weather Location"
                 color: Style.textPrimary
@@ -302,23 +445,24 @@ Item {
         }
 
         // ── Appearance tab ────────────────────────────────────────────────────
-
         ColumnLayout {
-            visible: root._tab === "appearance"
-            Layout.fillWidth: true
-            spacing: 12
+            id: _appearanceLayout
+            visible: _tab === "appearance"
+            width: parent.width
+            spacing: 8
 
-            // Typography
-            Text {
+            // ── Typography ────────────────────────────────────────────────────
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Typography"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Font sizes and families"
+                collapsed: _typographyCollapsed
+                visible: _typoVisible
+                onToggled: _typographyCollapsed = !_typographyCollapsed
             }
-
             PanelCard {
                 Layout.fillWidth: true
+                visible: _typoVisible && (_filter !== "" || !_typographyCollapsed)
                 ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -447,17 +591,18 @@ Item {
                 }
             }
 
-            // Padding
-            Text {
+            // ── Padding ───────────────────────────────────────────────────────
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Padding"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Spacing inside cards and elements"
+                collapsed: _paddingCollapsed
+                visible: _paddingVisible
+                onToggled: _paddingCollapsed = !_paddingCollapsed
             }
-
             PanelCard {
                 Layout.fillWidth: true
+                visible: _paddingVisible && (_filter !== "" || !_paddingCollapsed)
                 ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -529,17 +674,18 @@ Item {
                 }
             }
 
-            // Corner rounding
-            Text {
+            // ── Corner rounding ───────────────────────────────────────────────
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Corner rounding"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Border radius for pill, panels, and elements"
+                collapsed: _cornerCollapsed
+                visible: _cornerVisible
+                onToggled: _cornerCollapsed = !_cornerCollapsed
             }
-
             PanelCard {
                 Layout.fillWidth: true
+                visible: _cornerVisible && (_filter !== "" || !_cornerCollapsed)
                 ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -611,17 +757,18 @@ Item {
                 }
             }
 
-            // Borders
-            Text {
+            // ── Borders ───────────────────────────────────────────────────────
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Borders"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Border thickness and color"
+                collapsed: _bordersCollapsed
+                visible: _bordersVisible
+                onToggled: _bordersCollapsed = !_bordersCollapsed
             }
-
             PanelCard {
                 Layout.fillWidth: true
+                visible: _bordersVisible && (_filter !== "" || !_bordersCollapsed)
                 ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -718,17 +865,18 @@ Item {
                 }
             }
 
-            // Theme
-            Text {
+            // ── Theme ─────────────────────────────────────────────────────────
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Theme"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Wallpaper color extraction"
+                collapsed: _themeCollapsed
+                visible: _themeVisible
+                onToggled: _themeCollapsed = !_themeCollapsed
             }
-
             PanelCard {
                 Layout.fillWidth: true
+                visible: _themeVisible && (_filter !== "" || !_themeCollapsed)
                 RowLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -748,7 +896,7 @@ Item {
                 }
             }
 
-            // Reset
+            // ── Reset ─────────────────────────────────────────────────────────
             PanelButton {
                 label: "Reset to defaults"
                 variant: "critical"
@@ -773,8 +921,6 @@ Item {
                 }
             }
         }
-
-        Item { implicitHeight: 0 }
     }
 
     function _applyLocation() {

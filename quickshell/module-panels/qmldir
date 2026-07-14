@@ -12,6 +12,7 @@ TogglePair 1.0 ../module-reusable-elements/TogglePair.qml
 ScrollingText 1.0 ../module-reusable-elements/ScrollingText.qml
 ScrollChip 1.0 ../module-reusable-elements/ScrollChip.qml
 FontPicker 1.0 ../module-reusable-elements/FontPicker.qml
+SectionHeader 1.0 ../module-reusable-elements/SectionHeader.qml
 CalendarPanel 1.0 CalendarPanel.qml
 MediaPlayerPanel 1.0 MediaPlayerPanel.qml
 SettingsPanel 1.0 SettingsPanel.qml
