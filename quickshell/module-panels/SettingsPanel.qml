@@ -652,7 +652,6 @@ Item {
                     anchors.right: parent.right
                     spacing: 8
 
-                    // Pill border
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -661,29 +660,20 @@ Item {
                             color: Style.textSecondary
                             font.family: Style.fontMono
                             font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 72
+                            Layout.minimumWidth: 80
                         }
-                        PanelButton {
-                            label: "Off"
-                            variant: Prefs.pillBorderWidth === 0 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setPillBorderWidth(0)
-                        }
-                        PanelButton {
-                            label: "Thin"
-                            variant: Prefs.pillBorderWidth === 1 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setPillBorderWidth(1)
-                        }
-                        PanelButton {
-                            label: "Thick"
-                            variant: Prefs.pillBorderWidth === 2 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setPillBorderWidth(2)
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.pillBorderWidth + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.pillBorderWidth + delta
+                                if (next >= 0 && next <= 4) Prefs.setPillBorderWidth(next)
+                            }
                         }
                     }
 
-                    // Panel border
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -692,29 +682,20 @@ Item {
                             color: Style.textSecondary
                             font.family: Style.fontMono
                             font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 72
+                            Layout.minimumWidth: 80
                         }
-                        PanelButton {
-                            label: "Off"
-                            variant: Prefs.borderWidth === 0 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setBorderWidth(0)
-                        }
-                        PanelButton {
-                            label: "Thin"
-                            variant: Prefs.borderWidth === 1 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setBorderWidth(1)
-                        }
-                        PanelButton {
-                            label: "Thick"
-                            variant: Prefs.borderWidth === 2 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setBorderWidth(2)
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.borderWidth + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.borderWidth + delta
+                                if (next >= 0 && next <= 4) Prefs.setBorderWidth(next)
+                            }
                         }
                     }
 
-                    // Element border
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -723,29 +704,20 @@ Item {
                             color: Style.textSecondary
                             font.family: Style.fontMono
                             font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 72
+                            Layout.minimumWidth: 80
                         }
-                        PanelButton {
-                            label: "Off"
-                            variant: Prefs.elementBorderWidth === 0 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setElementBorderWidth(0)
-                        }
-                        PanelButton {
-                            label: "Thin"
-                            variant: Prefs.elementBorderWidth === 1 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setElementBorderWidth(1)
-                        }
-                        PanelButton {
-                            label: "Thick"
-                            variant: Prefs.elementBorderWidth === 2 ? "accent" : "default"
-                            Layout.fillWidth: true
-                            onClicked: Prefs.setElementBorderWidth(2)
+                        Item { Layout.fillWidth: true }
+                        ScrollChip {
+                            text: Prefs.elementBorderWidth + "px"
+                            onScrolled: (delta) => {
+                                var next = Prefs.elementBorderWidth + delta
+                                if (next >= 0 && next <= 4) Prefs.setElementBorderWidth(next)
+                            }
                         }
                     }
 
-                    // Border color
+                    PanelDivider {}
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -754,18 +726,17 @@ Item {
                             color: Style.textSecondary
                             font.family: Style.fontMono
                             font.pixelSize: Style.fontSizeBody
-                            Layout.minimumWidth: 72
+                            Layout.minimumWidth: 80
                         }
+                        Item { Layout.fillWidth: true }
                         PanelButton {
                             label: "Subtle"
                             variant: Prefs.borderColorMode === "subtle" ? "accent" : "default"
-                            Layout.fillWidth: true
                             onClicked: Prefs.setBorderColorMode("subtle")
                         }
                         PanelButton {
                             label: "Vibrant"
                             variant: Prefs.borderColorMode === "vibrant" ? "accent" : "default"
-                            Layout.fillWidth: true
                             onClicked: Prefs.setBorderColorMode("vibrant")
                         }
                     }
