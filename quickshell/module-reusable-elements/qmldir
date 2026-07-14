@@ -18,3 +18,4 @@ ScrollingText 1.0 ScrollingText.qml
 ScrollChip 1.0 ScrollChip.qml
 FontPicker 1.0 FontPicker.qml
 SectionHeader 1.0 SectionHeader.qml
+PanelTabBar 1.0 PanelTabBar.qml

@@ -18,7 +18,9 @@ FocusScope {
     property bool   _revoking:      false
     property string _tab:           "appearance"
 
-    // ── Collapse state (appearance tab) ───────────────────────────────────────
+    // ── Collapse state ────────────────────────────────────────────────────────
+    property bool _googleCollapsed:     false
+    property bool _weatherCollapsed:    false
     property bool _typographyCollapsed: false
     property bool _paddingCollapsed:    false
     property bool _cornerCollapsed:     false
@@ -171,9 +173,8 @@ FocusScope {
             onNavigateRequested: (dir) => root.navigateRequested(dir)
         }
 
-        TogglePair {
-            labelA: "Appearance"
-            labelB: "Services"
+        PanelTabBar {
+            labels:   ["Appearance", "Services"]
             selected: root._tab === "services" ? 1 : 0
             onToggled: (i) => {
                 root._tab = (i === 0 ? "appearance" : "services")
@@ -264,18 +265,19 @@ FocusScope {
             id: _servicesLayout
             visible: _tab === "services"
             width: parent.width
-            spacing: 12
+            spacing: 8
 
-            Text {
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Google Account"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Calendar and Tasks integration"
+                collapsed: _googleCollapsed
+                onToggled: _googleCollapsed = !_googleCollapsed
             }
 
             PanelCard {
                 Layout.fillWidth: true
+                visible: !_googleCollapsed
                 ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -375,18 +377,17 @@ FocusScope {
                 }
             }
 
-            PanelDivider {}
-
-            Text {
+            SectionHeader {
+                Layout.fillWidth: true
                 text: "Weather Location"
-                color: Style.textPrimary
-                font.family: Style.fontMono
-                font.pixelSize: Style.fontSizeHeading
-                font.bold: true
+                tooltip: "Location used for weather data"
+                collapsed: _weatherCollapsed
+                onToggled: _weatherCollapsed = !_weatherCollapsed
             }
 
             PanelCard {
                 Layout.fillWidth: true
+                visible: !_weatherCollapsed
                 ColumnLayout {
                     anchors.left: parent.left
                     anchors.right: parent.right
