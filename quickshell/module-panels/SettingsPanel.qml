@@ -855,15 +855,11 @@ FocusScope {
                             Layout.minimumWidth: 80
                         }
                         Item { Layout.fillWidth: true }
-                        PanelButton {
-                            label: "Subtle"
-                            variant: Prefs.borderColorMode === "subtle" ? "accent" : "default"
-                            onClicked: Prefs.setBorderColorMode("subtle")
-                        }
-                        PanelButton {
-                            label: "Vibrant"
-                            variant: Prefs.borderColorMode === "vibrant" ? "accent" : "default"
-                            onClicked: Prefs.setBorderColorMode("vibrant")
+                        TogglePair {
+                            labelA:   "Subtle"
+                            labelB:   "Vibrant"
+                            selected: Prefs.borderColorMode === "vibrant" ? 1 : 0
+                            onToggled: (i) => Prefs.setBorderColorMode(i === 0 ? "subtle" : "vibrant")
                         }
                     }
                 }
@@ -892,10 +888,12 @@ FocusScope {
                         font.pixelSize: Style.fontSizeBody
                         Layout.fillWidth: true
                     }
-                    PanelButton {
-                        label: Prefs.extractColors ? "On" : "Off"
-                        variant: Prefs.extractColors ? "accent" : "default"
-                        onClicked: Prefs.setExtractColors(!Prefs.extractColors)
+                    TogglePair {
+                        labelA:   "On"
+                        labelB:   "Off"
+                        variant:  "yesno"
+                        selected: Prefs.extractColors ? 0 : 1
+                        onToggled: (i) => Prefs.setExtractColors(i === 0)
                     }
                 }
             }

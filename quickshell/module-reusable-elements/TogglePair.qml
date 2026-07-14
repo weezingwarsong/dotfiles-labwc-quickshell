@@ -1,102 +1,104 @@
 import QtQuick
 import QtQuick.Layouts
 
+// Single-button toggle that shows the current state at rest.
+// On hover the current label slides left, revealing the alternative —
+// previewing what a click will do. On click: flash feedback, state switches.
+//
+// variant "normal"  — both labels have equal visual weight
+// variant "yesno"   — labelA is the "positive" state (accent bg, stronger text)
 Item {
     id: root
 
     property string labelA:  ""
     property string labelB:  ""
     property int    selected: 0
+    property string variant: "normal"
 
     signal toggled(int index)
 
+    // Width: max of the two label widths + padding, capped at 250px
+    implicitWidth:  Math.min(
+        Math.max(_mA.implicitWidth, _mB.implicitWidth) + Style.panelElementHpadding,
+        250
+    )
     implicitHeight: Style.buttonHeight
-    Layout.fillWidth: true
 
-    // Outer border + selection highlights
+    clip: true
+
+    // ── Background ────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        color:        Style.transparent
         radius:       Style.panelElementRadius
         border.width: Style.elementBorderWidth
-        border.color: Style.borderSoftColor
-
-        // Left selection highlight (per-corner radius — Qt 6.7+)
-        Rectangle {
-            visible:          root.selected === 0
-            x: 1; y: 1
-            width:            parent.width / 2 - 1
-            height:           parent.height - 2
-            color:            Style.accentBgColor
-            topLeftRadius:    Style.panelElementRadius
-            bottomLeftRadius: Style.panelElementRadius
-        }
-
-        // Right selection highlight
-        Rectangle {
-            visible:           root.selected === 1
-            x:                 parent.width / 2
-            y:                 1
-            width:             parent.width / 2 - 1
-            height:            parent.height - 2
-            color:             Style.accentBgColor
-            topRightRadius:    Style.panelElementRadius
-            bottomRightRadius: Style.panelElementRadius
-        }
-
-        // Centre divider
-        Rectangle {
-            x:      parent.width / 2 - Math.floor(Style.elementBorderWidth / 2)
-            y:      1
-            width:  Style.elementBorderWidth
-            height: parent.height - 2
-            color:  Style.borderSoftColor
-        }
+        border.color: Style.borderFaintColor
+        color: (variant === "yesno" && selected === 0)
+               ? Style.accentBgColor : Style.surfaceLowColor
+        Behavior on color { ColorAnimation { duration: 150 } }
     }
 
-    // Labels
-    Row {
-        anchors.fill: parent
+    // ── Hidden measurers (drive implicitWidth without affecting layout) ────────
+    Text { id: _mA; visible: false; text: labelA; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
+    Text { id: _mB; visible: false; text: labelB; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
 
-        Text {
-            width:               parent.width / 2
-            height:              parent.height
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment:   Text.AlignVCenter
-            text:                root.labelA
-            font.family:         Style.fontMono
-            font.pixelSize:      Style.fontSizeBody
-            color:               root.selected === 0 ? Style.textMuted : Style.textSecondary
-        }
+    // ── Label A ───────────────────────────────────────────────────────────────
+    // active (selected=0): shows at x=0, slides out left on hover
+    // inactive (selected=1): waits at x=width, slides in on hover as preview
+    Text {
+        anchors.verticalCenter: parent.verticalCenter
+        width:               parent.width
+        horizontalAlignment: Text.AlignHCenter
+        elide:               Text.ElideRight
+        text:                labelA
+        font.family:         Style.fontMono
+        font.pixelSize:      Style.fontSizeBody
+        color: (variant === "yesno")
+               ? (selected === 0 ? Style.textOnAccent : Style.textAccent)
+               : (selected === 0 ? Style.textNormal   : Style.textSecondary)
 
-        Text {
-            width:               parent.width / 2
-            height:              parent.height
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment:   Text.AlignVCenter
-            text:                root.labelB
-            font.family:         Style.fontMono
-            font.pixelSize:      Style.fontSizeBody
-            color:               root.selected === 1 ? Style.textMuted : Style.textSecondary
-        }
+        x: selected === 0
+           ? (_hover.hovered ? -parent.width : 0)
+           : (_hover.hovered ?  0 : parent.width)
+        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.InOutCubic } }
     }
 
-    // Click zones
-    Row {
+    // ── Label B ───────────────────────────────────────────────────────────────
+    Text {
+        anchors.verticalCenter: parent.verticalCenter
+        width:               parent.width
+        horizontalAlignment: Text.AlignHCenter
+        elide:               Text.ElideRight
+        text:                labelB
+        font.family:         Style.fontMono
+        font.pixelSize:      Style.fontSizeBody
+        color: selected === 1 ? Style.textNormal : Style.textSecondary
+
+        x: selected === 1
+           ? (_hover.hovered ? -parent.width : 0)
+           : (_hover.hovered ?  0 : parent.width)
+        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.InOutCubic } }
+    }
+
+    // ── Click flash ───────────────────────────────────────────────────────────
+    Rectangle {
+        id:     _flash
         anchors.fill: parent
+        radius: Style.panelElementRadius
+        color:  Style.accentColor
+        opacity: 0
+    }
+    NumberAnimation {
+        id: _flashOut; target: _flash; property: "opacity"
+        to: 0; duration: 350; easing.type: Easing.OutCubic
+    }
 
-        Item {
-            width:  parent.width / 2
-            height: parent.height
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
-            TapHandler   { onTapped: if (root.selected !== 0) root.toggled(0) }
-        }
-
-        Item {
-            width:  parent.width / 2
-            height: parent.height
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
-            TapHandler   { onTapped: if (root.selected !== 1) root.toggled(1) }
+    // ── Interaction ───────────────────────────────────────────────────────────
+    HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
+    TapHandler {
+        onTapped: {
+            _flash.opacity = 0.22
+            _flashOut.start()
+            root.toggled(root.selected === 0 ? 1 : 0)
         }
     }
 }
