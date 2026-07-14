@@ -174,7 +174,6 @@ FocusScope {
             }
         }
 
-        // Filter bar — appears when _filter is non-empty
         Rectangle {
             visible: _filter !== ""
             Layout.fillWidth: true
@@ -191,32 +190,11 @@ FocusScope {
                     leftMargin: 8; rightMargin: 8
                 }
                 spacing: 4
-
+                Text { text: "⌕"; color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: _filterInput.text; color: Style.textNormal; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter }
                 Text {
-                    text: "⌕"
-                    color: Style.textMuted
-                    font.family: Style.fontMono
-                    font.pixelSize: Style.fontSizeBody
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    text: _filterInput.text
-                    color: Style.textNormal
-                    font.family: Style.fontMono
-                    font.pixelSize: Style.fontSizeBody
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    text: "│"
-                    color: Style.accentColor
-                    font.family: Style.fontMono
-                    font.pixelSize: Style.fontSizeBody
-                    anchors.verticalCenter: parent.verticalCenter
-                    SequentialAnimation on opacity {
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 0; duration: 500 }
-                        NumberAnimation { to: 1; duration: 500 }
-                    }
+                    text: "│"; color: Style.accentColor; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter
+                    SequentialAnimation on opacity { loops: Animation.Infinite; NumberAnimation { to: 0; duration: 500 }; NumberAnimation { to: 1; duration: 500 } }
                 }
             }
         }
@@ -258,109 +236,84 @@ FocusScope {
             width: parent.width
             spacing: 8
 
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Google Account"
-                tooltip: "Calendar and Tasks integration"
-                collapsed: _googleCollapsed
-                onToggled: _googleCollapsed = !_googleCollapsed
-            }
-
+            // Google Account card
             PanelCard {
                 Layout.fillWidth: true
-                visible: !_googleCollapsed
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 8
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
 
-                    RowLayout {
-                        spacing: 6
-                        StatusDot { active: settingsProcess && settingsProcess.googleConnected }
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Google Account"
+                        tooltip: "Calendar and Tasks integration"
+                        collapsed: _googleCollapsed
+                        onToggled: _googleCollapsed = !_googleCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        clip: true
+                        height: !_googleCollapsed ? _googleRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
                         ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: (settingsProcess && settingsProcess.googleConnected)
-                                    ? "Connected" : "Not connected"
-                                color: Style.textNormal
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                            }
-                            Text {
-                                visible: settingsProcess
-                                    && settingsProcess.googleConnected
-                                    && settingsProcess.googleEmail !== ""
-                                text: settingsProcess ? settingsProcess.googleEmail : ""
-                                color: Style.textMuted
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeSubtle
-                            }
-                        }
-                    }
-
-                    ColumnLayout {
-                        visible: settingsProcess && settingsProcess.googleConnected
-                        Layout.fillWidth: true
-                        spacing: 4
-
-                        RowLayout {
+                            id: _googleRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
                             spacing: 8
-                            Text {
-                                text: "Calendar"
-                                color: Style.textSecondary
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                Layout.minimumWidth: 60
-                            }
-                            Text {
-                                text: root._calendarStatus()
-                                color: root._calendarStatusColor()
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                            }
-                        }
 
-                        RowLayout {
-                            spacing: 8
-                            Text {
-                                text: "Tasks"
-                                color: Style.textSecondary
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                Layout.minimumWidth: 60
+                            RowLayout {
+                                spacing: 6
+                                StatusDot { active: settingsProcess && settingsProcess.googleConnected }
+                                ColumnLayout {
+                                    spacing: 1
+                                    Text {
+                                        text: (settingsProcess && settingsProcess.googleConnected) ? "Connected" : "Not connected"
+                                        color: Style.textNormal; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody
+                                    }
+                                    Text {
+                                        visible: settingsProcess && settingsProcess.googleConnected && settingsProcess.googleEmail !== ""
+                                        text: settingsProcess ? settingsProcess.googleEmail : ""
+                                        color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeSubtle
+                                    }
+                                }
                             }
-                            Text {
-                                text: root._tasksStatus()
-                                color: root._tasksStatusColor()
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
+
+                            ColumnLayout {
+                                visible: settingsProcess && settingsProcess.googleConnected
+                                Layout.fillWidth: true
+                                spacing: 4
+
+                                RowLayout {
+                                    spacing: 8
+                                    Text { text: "Calendar"; color: Style.textSecondary; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; Layout.minimumWidth: 60 }
+                                    Text { text: root._calendarStatus(); color: root._calendarStatusColor(); font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
+                                }
+                                RowLayout {
+                                    spacing: 8
+                                    Text { text: "Tasks"; color: Style.textSecondary; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; Layout.minimumWidth: 60 }
+                                    Text { text: root._tasksStatus(); color: root._tasksStatusColor(); font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
+                                }
                             }
-                        }
-                    }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
 
-                        PanelButton {
-                            label: (settingsProcess && settingsProcess.googleConnected)
-                                ? "Re-authenticate" : "Connect"
-                            variant: "accent"
-                            onClicked: {
-                                if (settingsProcess && !settingsProcess.googleConnected)
-                                    settingsProcess.reconnect()
-                                authNotifyProcess.running = true
-                            }
-                        }
-
-                        PanelButton {
-                            visible: settingsProcess && settingsProcess.googleConnected
-                            label: root._revoking ? "Disconnecting…" : "Disconnect"
-                            variant: root._revoking ? "default" : "critical"
-                            onClicked: {
-                                if (!root._revoking) {
-                                    root._revoking = true
-                                    revokeProcess.running = true
+                                PanelButton {
+                                    label: (settingsProcess && settingsProcess.googleConnected) ? "Re-authenticate" : "Connect"
+                                    variant: "accent"
+                                    onClicked: {
+                                        if (settingsProcess && !settingsProcess.googleConnected)
+                                            settingsProcess.reconnect()
+                                        authNotifyProcess.running = true
+                                    }
+                                }
+                                PanelButton {
+                                    visible: settingsProcess && settingsProcess.googleConnected
+                                    label: root._revoking ? "Disconnecting…" : "Disconnect"
+                                    variant: root._revoking ? "default" : "critical"
+                                    onClicked: { if (!root._revoking) { root._revoking = true; revokeProcess.running = true } }
                                 }
                             }
                         }
@@ -368,71 +321,75 @@ FocusScope {
                 }
             }
 
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Weather Location"
-                tooltip: "Location used for weather data"
-                collapsed: _weatherCollapsed
-                onToggled: _weatherCollapsed = !_weatherCollapsed
-            }
-
+            // Weather Location card
             PanelCard {
                 Layout.fillWidth: true
-                visible: !_weatherCollapsed
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 8
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
 
-                    TogglePair {
-                        labelA: "Auto"
-                        labelB: "Manual"
-                        selected: settingsProcess && settingsProcess.locationMode === "manual" ? 1 : 0
-                        onToggled: (index) => {
-                            if (settingsProcess)
-                                settingsProcess.setLocationMode(index === 0 ? "auto" : "manual")
-                        }
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Weather Location"
+                        tooltip: "Location used for weather data"
+                        collapsed: _weatherCollapsed
+                        onToggled: _weatherCollapsed = !_weatherCollapsed
                     }
 
-                    RowLayout {
-                        visible: settingsProcess && settingsProcess.locationMode === "manual"
+                    Item {
                         Layout.fillWidth: true
-                        spacing: 6
+                        clip: true
+                        height: !_weatherCollapsed ? _weatherRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 22
-                            radius: Style.panelElementRadius
-                            color: Style.surfaceMidColor
+                        ColumnLayout {
+                            id: _weatherRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
 
-                            TextInput {
-                                id: _locationInput
-                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8; rightMargin: 8 }
-                                text: root._locationDraft
-                                color: Style.textNormal
-                                font.family: Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                selectByMouse: true
-                                clip: true
+                            TogglePair {
+                                labelA: "Auto"
+                                labelB: "Manual"
+                                selected: settingsProcess && settingsProcess.locationMode === "manual" ? 1 : 0
+                                onToggled: (index) => {
+                                    if (settingsProcess)
+                                        settingsProcess.setLocationMode(index === 0 ? "auto" : "manual")
+                                }
+                            }
 
-                                Text {
-                                    visible: !parent.text && !parent.activeFocus
-                                    anchors.fill: parent
-                                    text: "City name or lat,lon"
-                                    color: Style.textMuted
-                                    font.family: Style.fontMono
-                                    font.pixelSize: Style.fontSizeBody
-                                    verticalAlignment: Text.AlignVCenter
+                            RowLayout {
+                                visible: settingsProcess && settingsProcess.locationMode === "manual"
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 22
+                                    radius: Style.panelElementRadius
+                                    color: Style.surfaceMidColor
+
+                                    TextInput {
+                                        id: _locationInput
+                                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8; rightMargin: 8 }
+                                        text: root._locationDraft
+                                        color: Style.textNormal; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody
+                                        selectByMouse: true; clip: true
+
+                                        Text {
+                                            visible: !parent.text && !parent.activeFocus
+                                            anchors.fill: parent
+                                            text: "City name or lat,lon"
+                                            color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+
+                                        onTextChanged: root._locationDraft = text
+                                        onAccepted: _applyLocation()
+                                    }
                                 }
 
-                                onTextChanged: root._locationDraft = text
-                                onAccepted: _applyLocation()
+                                PanelButton { label: "Apply"; onClicked: _applyLocation() }
                             }
-                        }
-
-                        PanelButton {
-                            label: "Apply"
-                            onClicked: _applyLocation()
                         }
                     }
                 }
@@ -447,135 +404,93 @@ FocusScope {
             spacing: 8
 
             // ── Typography ────────────────────────────────────────────────────
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Typography"
-                tooltip: "Font sizes and families"
-                collapsed: _typographyCollapsed
-                visible: _typoVisible
-                onToggled: _typographyCollapsed = !_typographyCollapsed
-            }
             PanelCard {
                 Layout.fillWidth: true
-                visible: _typoVisible && (_filter !== "" || !_typographyCollapsed)
+                visible: _typoVisible
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 8
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
 
-                    RowLabel { label: "Pill text"
-                        ScrollChip {
-                            text: Prefs.fontSizePill + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.fontSizePill + delta
-                                if (next >= 10 && next <= 24) Prefs.setFontSizePill(next)
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Typography"; tooltip: "Font sizes and families"
+                        collapsed: _typographyCollapsed
+                        onToggled: _typographyCollapsed = !_typographyCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        height: (_filter !== "" || !_typographyCollapsed) ? _typoRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _typoRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLabel { label: "Pill text"
+                                ScrollChip { text: Prefs.fontSizePill + "px"; onScrolled: (delta) => { var next = Prefs.fontSizePill + delta; if (next >= 10 && next <= 24) Prefs.setFontSizePill(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Panel text"
-                        ScrollChip {
-                            text: Prefs.fontSizeBase + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.fontSizeBase + delta
-                                if (next >= 8 && next <= 18) Prefs.setFontSizeBase(next)
+                            PanelDivider {}
+                            RowLabel { label: "Panel text"
+                                ScrollChip { text: Prefs.fontSizeBase + "px"; onScrolled: (delta) => { var next = Prefs.fontSizeBase + delta; if (next >= 8 && next <= 18) Prefs.setFontSizeBase(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Vis. clock"
-                        ScrollChip {
-                            text: Prefs.fontSizeVisClock + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.fontSizeVisClock + delta * 4
-                                if (next >= 40 && next <= 200) Prefs.setFontSizeVisClock(next)
+                            PanelDivider {}
+                            RowLabel { label: "Vis. clock"
+                                ScrollChip { text: Prefs.fontSizeVisClock + "px"; onScrolled: (delta) => { var next = Prefs.fontSizeVisClock + delta * 4; if (next >= 40 && next <= 200) Prefs.setFontSizeVisClock(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Mono font"; fill: true
-                        FontPicker {
-                            Layout.fillWidth: true
-                            value: Prefs.fontMono
-                            onCommitted: (f) => Prefs.setFontMono(f)
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Glyph font"; fill: true
-                        FontPicker {
-                            Layout.fillWidth: true
-                            value: Prefs.fontNerd
-                            onCommitted: (f) => Prefs.setFontNerd(f)
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Vis. clock"; fill: true
-                        FontPicker {
-                            Layout.fillWidth: true
-                            value: Prefs.fontVisClock
-                            onCommitted: (f) => Prefs.setFontVisClock(f)
+                            PanelDivider {}
+                            RowLabel { label: "Mono font"; fill: true
+                                FontPicker { Layout.fillWidth: true; value: Prefs.fontMono; onCommitted: (f) => Prefs.setFontMono(f) }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Glyph font"; fill: true
+                                FontPicker { Layout.fillWidth: true; value: Prefs.fontNerd; onCommitted: (f) => Prefs.setFontNerd(f) }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Vis. clock"; fill: true
+                                FontPicker { Layout.fillWidth: true; value: Prefs.fontVisClock; onCommitted: (f) => Prefs.setFontVisClock(f) }
+                            }
                         }
                     }
                 }
             }
 
             // ── Padding ───────────────────────────────────────────────────────
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Padding"
-                tooltip: "Spacing inside cards and elements"
-                collapsed: _paddingCollapsed
-                visible: _paddingVisible
-                onToggled: _paddingCollapsed = !_paddingCollapsed
-            }
             PanelCard {
                 Layout.fillWidth: true
-                visible: _paddingVisible && (_filter !== "" || !_paddingCollapsed)
+                visible: _paddingVisible
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 8
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
 
-                    RowLabel { label: "Pill"
-                        ScrollChip {
-                            text: Prefs.pillPaddingV + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.pillPaddingV + delta
-                                if (next >= 4 && next <= 50) Prefs.setPillPaddingV(next)
-                            }
-                        }
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Padding"; tooltip: "Spacing inside cards and elements"
+                        collapsed: _paddingCollapsed
+                        onToggled: _paddingCollapsed = !_paddingCollapsed
                     }
 
-                    PanelDivider {}
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        height: (_filter !== "" || !_paddingCollapsed) ? _paddingRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                    RowLabel { label: "Panel"
-                        ScrollChip {
-                            text: Prefs.panelCardPadding + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.panelCardPadding + delta
-                                if (next >= 4 && next <= 32) Prefs.setPanelCardPadding(next)
+                        ColumnLayout {
+                            id: _paddingRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLabel { label: "Pill"
+                                ScrollChip { text: Prefs.pillPaddingV + "px"; onScrolled: (delta) => { var next = Prefs.pillPaddingV + delta; if (next >= 4 && next <= 50) Prefs.setPillPaddingV(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Elements"
-                        ScrollChip {
-                            text: Prefs.panelElementPadding + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.panelElementPadding + delta
-                                if (next >= 8 && next <= 40) Prefs.setPanelElementPadding(next)
+                            PanelDivider {}
+                            RowLabel { label: "Panel"
+                                ScrollChip { text: Prefs.panelCardPadding + "px"; onScrolled: (delta) => { var next = Prefs.panelCardPadding + delta; if (next >= 4 && next <= 32) Prefs.setPanelCardPadding(next) } }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Elements"
+                                ScrollChip { text: Prefs.panelElementPadding + "px"; onScrolled: (delta) => { var next = Prefs.panelElementPadding + delta; if (next >= 8 && next <= 40) Prefs.setPanelElementPadding(next) } }
                             }
                         }
                     }
@@ -583,52 +498,40 @@ FocusScope {
             }
 
             // ── Corner rounding ───────────────────────────────────────────────
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Corner rounding"
-                tooltip: "Border radius for pill, panels, and elements"
-                collapsed: _cornerCollapsed
-                visible: _cornerVisible
-                onToggled: _cornerCollapsed = !_cornerCollapsed
-            }
             PanelCard {
                 Layout.fillWidth: true
-                visible: _cornerVisible && (_filter !== "" || !_cornerCollapsed)
+                visible: _cornerVisible
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 8
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
 
-                    RowLabel { label: "Pill"
-                        ScrollChip {
-                            text: Prefs.pillRadius + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.pillRadius + delta
-                                if (next >= 0 && next <= 50) Prefs.setPillRadius(next)
-                            }
-                        }
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Corner rounding"; tooltip: "Border radius for pill, panels, and elements"
+                        collapsed: _cornerCollapsed
+                        onToggled: _cornerCollapsed = !_cornerCollapsed
                     }
 
-                    PanelDivider {}
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        height: (_filter !== "" || !_cornerCollapsed) ? _cornerRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                    RowLabel { label: "Panel"
-                        ScrollChip {
-                            text: Prefs.panelRadius + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.panelRadius + delta
-                                if (next >= 0 && next <= 30) Prefs.setPanelRadius(next)
+                        ColumnLayout {
+                            id: _cornerRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLabel { label: "Pill"
+                                ScrollChip { text: Prefs.pillRadius + "px"; onScrolled: (delta) => { var next = Prefs.pillRadius + delta; if (next >= 0 && next <= 50) Prefs.setPillRadius(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Elements"
-                        ScrollChip {
-                            text: Prefs.panelElementRadius + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.panelElementRadius + delta
-                                if (next >= 0 && next <= 12) Prefs.setPanelElementRadius(next)
+                            PanelDivider {}
+                            RowLabel { label: "Panel"
+                                ScrollChip { text: Prefs.panelRadius + "px"; onScrolled: (delta) => { var next = Prefs.panelRadius + delta; if (next >= 0 && next <= 30) Prefs.setPanelRadius(next) } }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Elements"
+                                ScrollChip { text: Prefs.panelElementRadius + "px"; onScrolled: (delta) => { var next = Prefs.panelElementRadius + delta; if (next >= 0 && next <= 12) Prefs.setPanelElementRadius(next) } }
                             }
                         }
                     }
@@ -636,91 +539,85 @@ FocusScope {
             }
 
             // ── Borders ───────────────────────────────────────────────────────
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Borders"
-                tooltip: "Border thickness and color"
-                collapsed: _bordersCollapsed
-                visible: _bordersVisible
-                onToggled: _bordersCollapsed = !_bordersCollapsed
-            }
             PanelCard {
                 Layout.fillWidth: true
-                visible: _bordersVisible && (_filter !== "" || !_bordersCollapsed)
+                visible: _bordersVisible
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 8
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
 
-                    RowLabel { label: "Pill"
-                        ScrollChip {
-                            text: Prefs.pillBorderWidth + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.pillBorderWidth + delta
-                                if (next >= 0 && next <= 4) Prefs.setPillBorderWidth(next)
-                            }
-                        }
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Borders"; tooltip: "Border thickness and color"
+                        collapsed: _bordersCollapsed
+                        onToggled: _bordersCollapsed = !_bordersCollapsed
                     }
 
-                    PanelDivider {}
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        height: (_filter !== "" || !_bordersCollapsed) ? _bordersRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                    RowLabel { label: "Panel"
-                        ScrollChip {
-                            text: Prefs.borderWidth + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.borderWidth + delta
-                                if (next >= 0 && next <= 4) Prefs.setBorderWidth(next)
+                        ColumnLayout {
+                            id: _bordersRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLabel { label: "Pill"
+                                ScrollChip { text: Prefs.pillBorderWidth + "px"; onScrolled: (delta) => { var next = Prefs.pillBorderWidth + delta; if (next >= 0 && next <= 4) Prefs.setPillBorderWidth(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Elements"
-                        ScrollChip {
-                            text: Prefs.elementBorderWidth + "px"
-                            onScrolled: (delta) => {
-                                var next = Prefs.elementBorderWidth + delta
-                                if (next >= 0 && next <= 4) Prefs.setElementBorderWidth(next)
+                            PanelDivider {}
+                            RowLabel { label: "Panel"
+                                ScrollChip { text: Prefs.borderWidth + "px"; onScrolled: (delta) => { var next = Prefs.borderWidth + delta; if (next >= 0 && next <= 4) Prefs.setBorderWidth(next) } }
                             }
-                        }
-                    }
-
-                    PanelDivider {}
-
-                    RowLabel { label: "Color"
-                        TogglePair {
-                            labelA:   "Subtle"
-                            labelB:   "Vibrant"
-                            selected: Prefs.borderColorMode === "vibrant" ? 1 : 0
-                            onToggled: (i) => Prefs.setBorderColorMode(i === 0 ? "subtle" : "vibrant")
+                            PanelDivider {}
+                            RowLabel { label: "Elements"
+                                ScrollChip { text: Prefs.elementBorderWidth + "px"; onScrolled: (delta) => { var next = Prefs.elementBorderWidth + delta; if (next >= 0 && next <= 4) Prefs.setElementBorderWidth(next) } }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Color"
+                                TogglePair {
+                                    labelA: "Subtle"; labelB: "Vibrant"
+                                    selected: Prefs.borderColorMode === "vibrant" ? 1 : 0
+                                    onToggled: (i) => Prefs.setBorderColorMode(i === 0 ? "subtle" : "vibrant")
+                                }
+                            }
                         }
                     }
                 }
             }
 
             // ── Theme ─────────────────────────────────────────────────────────
-            SectionHeader {
-                Layout.fillWidth: true
-                text: "Theme"
-                tooltip: "Wallpaper color extraction"
-                collapsed: _themeCollapsed
-                visible: _themeVisible
-                onToggled: _themeCollapsed = !_themeCollapsed
-            }
             PanelCard {
                 Layout.fillWidth: true
-                visible: _themeVisible && (_filter !== "" || !_themeCollapsed)
+                visible: _themeVisible
                 ColumnLayout {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    RowLabel { label: "Extract colors"
-                        TogglePair {
-                            labelA:   "On"
-                            labelB:   "Off"
-                            variant:  "yesno"
-                            selected: Prefs.extractColors ? 0 : 1
-                            onToggled: (i) => Prefs.setExtractColors(i === 0)
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Theme"; tooltip: "Wallpaper color extraction"
+                        collapsed: _themeCollapsed
+                        onToggled: _themeCollapsed = !_themeCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        height: (_filter !== "" || !_themeCollapsed) ? _themeRows.implicitHeight + 8 : 0
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _themeRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+
+                            RowLabel { label: "Extract colors"
+                                TogglePair {
+                                    labelA: "On"; labelB: "Off"; variant: "yesno"
+                                    selected: Prefs.extractColors ? 0 : 1
+                                    onToggled: (i) => Prefs.setExtractColors(i === 0)
+                                }
+                            }
                         }
                     }
                 }
