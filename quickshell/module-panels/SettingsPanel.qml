@@ -194,7 +194,11 @@ FocusScope {
                 Text { text: _filterInput.text; color: Style.textNormal; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     text: "│"; color: Style.accentColor; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter
-                    SequentialAnimation on opacity { loops: Animation.Infinite; NumberAnimation { to: 0; duration: 500 }; NumberAnimation { to: 1; duration: 500 } }
+                    SequentialAnimation on opacity {
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0; duration: 500 }
+                        NumberAnimation { to: 1; duration: 500 }
+                    }
                 }
             }
         }
@@ -254,8 +258,8 @@ FocusScope {
                     Item {
                         Layout.fillWidth: true
                         clip: true
-                        height: !_googleCollapsed ? _googleRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: !_googleCollapsed ? _googleRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _googleRows
@@ -339,8 +343,8 @@ FocusScope {
                     Item {
                         Layout.fillWidth: true
                         clip: true
-                        height: !_weatherCollapsed ? _weatherRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: !_weatherCollapsed ? _weatherRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _weatherRows
@@ -420,8 +424,8 @@ FocusScope {
 
                     Item {
                         Layout.fillWidth: true; clip: true
-                        height: (_filter !== "" || !_typographyCollapsed) ? _typoRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: (_filter !== "" || !_typographyCollapsed) ? _typoRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _typoRows
@@ -473,8 +477,8 @@ FocusScope {
 
                     Item {
                         Layout.fillWidth: true; clip: true
-                        height: (_filter !== "" || !_paddingCollapsed) ? _paddingRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: (_filter !== "" || !_paddingCollapsed) ? _paddingRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _paddingRows
@@ -514,8 +518,8 @@ FocusScope {
 
                     Item {
                         Layout.fillWidth: true; clip: true
-                        height: (_filter !== "" || !_cornerCollapsed) ? _cornerRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: (_filter !== "" || !_cornerCollapsed) ? _cornerRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _cornerRows
@@ -555,8 +559,8 @@ FocusScope {
 
                     Item {
                         Layout.fillWidth: true; clip: true
-                        height: (_filter !== "" || !_bordersCollapsed) ? _bordersRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: (_filter !== "" || !_bordersCollapsed) ? _bordersRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _bordersRows
@@ -604,8 +608,8 @@ FocusScope {
 
                     Item {
                         Layout.fillWidth: true; clip: true
-                        height: (_filter !== "" || !_themeCollapsed) ? _themeRows.implicitHeight + 8 : 0
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Layout.preferredHeight: (_filter !== "" || !_themeCollapsed) ? _themeRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                         ColumnLayout {
                             id: _themeRows

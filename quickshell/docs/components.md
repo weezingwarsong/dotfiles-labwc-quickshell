@@ -1,275 +1,204 @@
 # Reusable Visual Components
 
-Visual UI building blocks in `module-reusable-elements/` shared across all panels.
-
+Building blocks in `module-reusable-elements/` shared across panels and pills.
 All tokens come from `Style.qml`; user-adjustable values flow through `Prefs.qml`.
-See [style-system.md](style-system.md) for the full token system.
 
 ---
 
 ## PanelNavBar
 
-**Purpose:** Standard first row for all panels (except WindowSwitcher). Two arrow buttons — `‹` (prev) and `›` (next) — right-aligned. Clicking navigates through `panelOrder` via `PanelSurface → PanelController.navigate()`.
+Standard ‹ › navigation row. Always the **first child** of every panel's root layout. Wire `activePanel` so the nav bar knows which panel is open.
 
-This line is always the **first child** of every panel's root `ColumnLayout`.
-
-**Signal:**
-
-| Signal | Notes |
-|---|---|
-| `navigateRequested(int direction)` | `-1` = prev, `+1` = next. Caller forwards to `root.navigateRequested`. |
-
-**Call site:**
 ```qml
-PanelNavBar { onNavigateRequested: (dir) => root.navigateRequested(dir) }
+PanelNavBar {
+    activePanel: root.activePanel
+    onNavigateRequested: (dir) => root.navigateRequested(dir)
+}
 ```
-
-**Used in:** CalendarPanel, MediaPlayerPanel, NotificationPanel, ControlPanel, SettingsPanel, WallpaperPanel (all non-switcher panels)
-
----
-
-## PanelButton
-
-**Purpose:** Labelled action button with optional Nerd Font glyph prefix, hover state, and three visual variants.
-
-**Props:**
-
-| Prop | Type | Default | Notes |
-|---|---|---|---|
-| `label` | `string` | `""` | Button text. Optional — defaults to empty string. |
-| `icon` | `string` | `""` | Optional Nerd Font glyph rendered before label. Hidden when empty. |
-| `variant` | `string` | `"default"` | `"default"` · `"accent"` · `"critical"` |
-| `signal clicked()` | — | — | Emitted via `TapHandler` on tap |
-
-Width is content-driven (`label` + `icon` widths + 20px horizontal padding). `HoverHandler` drives hover state; `TapHandler` handles clicks.
-
-**Variant colours:**
-
-| Variant | Bg (rest) | Bg (hover) | Text |
-|---|---|---|---|
-| `default` | transparent | `Style.surfaceLowColor` | `Style.textSecondary` |
-| `accent` | `Style.accentBgColor` | `Style.accentBgHover` | `Style.textMuted` |
-| `critical` | transparent | `Style.criticalBgColor` | `Style.textCritical` |
-
-**Tokens:** `Style.buttonHeight`, `Style.fontMono`, `Style.fontSizeBody`, `Style.radSm`, `Style.borderSoftColor`, `Prefs.elementBorderWidth`
-
-**Call site:**
-```qml
-PanelButton { label: "More ↓"; onClicked: root.showMore() }
-PanelButton { label: "Re-authenticate"; variant: "accent"; onClicked: root.startAuth() }
-PanelButton { label: "Disconnect"; variant: "critical"; onClicked: root.disconnect() }
-```
-
-**Used in:** CalendarPanel ×3, SettingsPanel ×3, Appearance tab ×many, WallpaperPanel ×4 (Scan, –, +, Apply)
 
 ---
 
 ## PanelCard
 
-**Purpose:** Raised section container. Groups related settings or content into a visually distinct block.
+Raised content container. Place a `ColumnLayout` with `anchors.left/right` inside for multi-row content. The card sizes itself to its children.
 
-**Props:**
-
-| Prop | Type | Default | Notes |
-|---|---|---|---|
-| `padding` | `int` | `12` | Inner margin on all sides |
-
-**Visual:** `surfaceLowColor` background, `radLg` corners, `borderFaintColor` border.
-
-**Important:** `PanelCard` is visual chrome only — it provides the styled Rectangle and sizes itself to `childrenRect`. Callers place their own `ColumnLayout` inside, positioned at `y: parent.padding` with left/right anchors. This avoids a Qt 6.11 crash where `default property alias` to a sub-item's `data` property causes `bad_function_call` during binding finalization.
-
-**Call site:**
 ```qml
 PanelCard {
+    Layout.fillWidth: true
     ColumnLayout {
-        y: parent.padding
-        anchors { left: parent.left; right: parent.right; margins: parent.padding }
+        anchors.left: parent.left; anchors.right: parent.right
         spacing: 8
-        StatusDot { active: settingsProcess.googleConnected }
-        PanelButton { label: "Disconnect"; variant: "critical"; onClicked: … }
+        // rows ...
     }
 }
 ```
 
-**Used in:** SettingsPanel ×2 (Google Account, Weather Location), Appearance tab ×3 (Typography, Corner rounding, Borders)
+---
+
+## PanelButton
+
+Labelled action button. `variant` controls appearance; `icon` is an optional Nerd Font glyph prefix.
+
+```qml
+PanelButton { label: "Connect";    variant: "accent";    onClicked: … }
+PanelButton { label: "Disconnect"; variant: "critical";  onClicked: … }
+PanelButton { label: "More";       icon: ""; onClicked: … }
+```
 
 ---
 
 ## PanelDivider
 
-**Purpose:** Full-width 1px horizontal rule between sections in a panel.
+Full-width 1 px horizontal rule. Drop between rows inside a card.
 
-**Props:** none
-
-**Tokens:** `Style.panelDividerColor`
-
-**Call site:**
 ```qml
 PanelDivider {}
 ```
 
-**Used in:** CalendarPanel ×2, SettingsPanel ×1, WallpaperPanel ×1
+---
+
+## PanelTabBar
+
+MD3 secondary tabs with an animated sliding accent underline. Pass a string array as `labels`; parent owns `selected`.
+
+```qml
+PanelTabBar {
+    labels:   ["Appearance", "Services"]
+    selected: root._tab === "services" ? 1 : 0
+    onToggled: (i) => root._tab = (i === 0 ? "appearance" : "services")
+}
+```
+
+---
+
+## SectionHeader
+
+Collapsible section heading with a chevron (▸ / ▾). Parent owns `collapsed`; toggle it in `onToggled`.
+
+```qml
+SectionHeader {
+    Layout.fillWidth: true
+    text:      "Typography"
+    tooltip:   "Font sizes and families"
+    collapsed: _typographyCollapsed
+    onToggled: _typographyCollapsed = !_typographyCollapsed
+}
+```
 
 ---
 
 ## SectionLabel
 
-**Purpose:** Small all-caps tracking label that introduces a panel section (EVENTS TODAY, DIRECTORY, etc.).
+Small all-caps tracking label for named sub-sections.
 
-**Props:**
-
-| Prop | Type | Required | Notes |
-|---|---|---|---|
-| `text` | `string` | yes | Component uppercases via `Font.AllUppercase` |
-
-**Tokens:** `Style.fontMono`, `Style.fontSizeSubtle`, `Style.textMuted`
-
-Root element is a plain `Text` — no wrapping Rectangle. Also applies `font.letterSpacing: 1` (hardcoded, not a Style token).
-
-**Call site:**
 ```qml
 SectionLabel { text: "Events Today" }
-SectionLabel { text: "Directory" }
 ```
-
-**Used in:** CalendarPanel ×4, SettingsPanel ×2, WallpaperPanel ×4
 
 ---
 
-## StatusDot
+## RowLabel
 
-**Purpose:** Small filled circle indicating a binary connected/active state.
+Label on the left, right-side control slot. `fill: false` (default) inserts a spacer to push the control to the right edge. `fill: true` omits the spacer so a `Layout.fillWidth` child can stretch.
 
-**Props:**
-
-| Prop | Type | Required | Notes |
-|---|---|---|---|
-| `active` | `bool` | yes | `true` → success color; `false` → critical color |
-
-**Visual:** 8×8px, `radius: 4` (hardcoded). `Style.textSuccess` when active, `Style.textCritical` when not.
-
-**Call site:**
 ```qml
-StatusDot { active: settingsProcess.googleConnected }
-```
+// Right-aligned control
+RowLabel { label: "Pill"
+    ScrollChip { text: Prefs.pillRadius + "px"; onScrolled: … }
+}
 
-**Used in:** SettingsPanel ×1 (Google account status)
+// Fill control
+RowLabel { label: "Mono font"; fill: true
+    FontPicker { Layout.fillWidth: true; value: Prefs.fontMono; onCommitted: … }
+}
+```
 
 ---
 
 ## TogglePair
 
-**Purpose:** Two adjacent buttons where exactly one is always selected — an exclusive pair toggle.
+Single-button toggle. Shows the current state at rest; on hover the label slides left revealing the alternative as a preview. Click flashes and switches.
 
-**Props:**
+`variant: "normal"` — equal weight for both options.
+`variant: "yesno"` — `labelA` is the positive state (accent background); use for On/Off, Active/Stopped.
 
-| Prop | Type | Required | Notes |
-|---|---|---|---|
-| `labelA` | `string` | yes | Left button label |
-| `labelB` | `string` | yes | Right button label |
-| `selected` | `int` | yes | `0` = A active, `1` = B active. Parent owns and updates this. |
-| `signal toggled(int index)` | — | — | Emitted on click with tapped index. Parent updates `selected`. |
-
-`Layout.fillWidth: true` is set on the root item — no need to repeat it at call sites.
-
-Corner treatment: one outer `Rectangle` with `radius: radSm` provides the full border. Two inner selection highlight `Rectangle`s use per-corner radius (`topLeftRadius`/`bottomLeftRadius` for A, `topRightRadius`/`bottomRightRadius` for B) so the active side has rounded outer corners and a square inner edge. A centre divider `Rectangle` renders the split line. Requires Qt 6.7+.
-
-`toggled(index)` only fires when the tapped side differs from the current `selected` value — tapping the already-active side is a no-op.
-
-**State colours:**
-
-| State | Bg | Text |
-|---|---|---|
-| Selected | `Style.accentBgColor` | `Style.textMuted` |
-| Unselected | transparent | `Style.textSecondary` |
-
-**Tokens:** `Style.buttonHeight`, `Style.fontMono`, `Style.fontSizeBody`, `Style.radSm`, `Style.borderSoftColor`, `Prefs.elementBorderWidth`
-
-**Call site:**
 ```qml
 TogglePair {
-    labelA: "Auto"
-    labelB: "Manual"
+    labelA: "Auto"; labelB: "Manual"
     selected: settingsProcess.locationMode === "manual" ? 1 : 0
     onToggled: (i) => settingsProcess.setLocationMode(i === 0 ? "auto" : "manual")
 }
+
+TogglePair {
+    labelA: "On"; labelB: "Off"; variant: "yesno"
+    selected: Prefs.extractColors ? 0 : 1
+    onToggled: (i) => Prefs.setExtractColors(i === 0)
+}
 ```
 
-**Used in:** SettingsPanel ×2 (location mode, tab bar), Appearance tab (tab bar), WallpaperPanel ×2 (Color/Media tab bar, Single/Slideshow)
+---
+
+## ScrollChip
+
+Scroll-wheel-adjustable value display. Show the current value; scroll up/down to increment or decrement. Clamp in `onScrolled`.
+
+```qml
+ScrollChip {
+    text: Prefs.pillRadius + "px"
+    onScrolled: (delta) => {
+        var next = Prefs.pillRadius + delta
+        if (next >= 0 && next <= 50) Prefs.setPillRadius(next)
+    }
+}
+```
+
+---
+
+## FontPicker
+
+Type-ahead font-family selector. Displays current value in an editable field; typing filters a dropdown list. Commit on Enter or list selection.
+
+```qml
+FontPicker {
+    Layout.fillWidth: true
+    value:       Prefs.fontMono
+    onCommitted: (f) => Prefs.setFontMono(f)
+}
+```
+
+---
+
+## StatusDot
+
+8 px filled circle for binary status. `textSuccess` when `active: true`, `textCritical` when false.
+
+```qml
+StatusDot { active: settingsProcess.googleConnected }
+```
 
 ---
 
 ## IconButton
 
-**Purpose:** Compact Nerd Font glyph button. Used internally by `PanelNavBar` for the ‹ and › navigation arrows.
+Compact glyph or text button. Used internally by `PanelNavBar`; also usable directly for media controls.
 
-**Props:**
-
-| Prop | Type | Notes |
-|---|---|---|
-| `label` | `string` | The glyph or text to display |
-| `fontFamily` | `string` | Defaults to `Style.fontNerd` — covers both regular text and glyph codepoints |
-| `signal clicked()` | — | Emitted on tap |
-
-**Used in:** PanelNavBar ×2 (‹ ›), MediaPlayerPanel ×2 (prev/next track buttons)
+```qml
+IconButton { label: ""; onClicked: player.previous() }
+IconButton { label: ""; onClicked: player.next()     }
+```
 
 ---
 
 ## ScrollingText
 
-**Purpose:** Clipped `Item` that scrolls its text label left when content overflows the available width. Handles the pause-scroll-pause-snap animation loop internally.
+Clipped text that auto-scrolls when content overflows `maxWidth`. Handles pause → scroll → pause → snap internally.
 
-**Props:**
-
-| Prop | Type | Default | Notes |
-|---|---|---|---|
-| `text` | `string` | `""` | The text content |
-| `color` | `color` | `Style.textPrimary` | Text color |
-| `maxWidth` | `int` | `9999` | Caps `implicitWidth`; pills set this to `200` |
-| `pauseDuration` | `int` | `1500` | Ms to pause at each end before animating |
-| `speed` | `int` | `20` | Ms per pixel of overflow |
-| `font` | `font` | (alias) | Full font alias — set `font.family`, `font.pixelSize`, etc. |
-
-`implicitWidth` is `min(label.implicitWidth, maxWidth)`. When `implicitWidth ≤ parent.width` no animation runs — text is static and left-aligned. Animation restarts automatically on `text` change.
-
-**Animation:** `SequentialAnimation` — pause → scroll left to `-(overflow)` at `speed` ms/px → pause → snap back to 0 instantly. Runs only while the item is visible and overflowing.
-
-**Call site:**
 ```qml
 ScrollingText {
-    text:     root._player ? root._player.trackArtist + " — " + root._player.trackTitle : ""
-    color:    Style.textNormal
-    maxWidth: 200
+    text:           root._player.trackTitle
+    color:          Style.textNormal
+    maxWidth:       200
     font.family:    Style.fontMono
     font.pixelSize: Style.fontSizeBody
 }
 ```
-
-**Used in:** MprisPill (track text), TimePill (calendar-imminent marquee), WindowPill (app id)
-
----
-
-## Implementation Notes
-
-- **PanelCard** — `default property alias` to a sub-item's `data` removed due to Qt 6.11 crash (`bad_function_call` in `lookupSingletonProperty` during binding finalization). Now visual-chrome-only; callers provide their own `ColumnLayout`.
-- **TogglePair** and **PanelDivider** — both need `import QtQuick.Layouts` even though they only use `Layout.fillWidth`. The `Layout` attached property requires the Layouts module imported in the file that uses it.
-- **SectionLabel** — root element is a plain `Text`; it does not wrap another `Text`.
-- **PanelNavBar** — must be the first child of every panel's root `ColumnLayout`. WindowSwitcherPanel is the only exception — it has its own dismiss/navigation model.
-
----
-
-## Candidates to Add
-
-These behaviors are shared across all panels but are currently implemented inline in `PanelSurface` rather than as discrete reusable components. Worth investigating whether they should be extracted.
-
-### ESC to dismiss
-
-**Current state:** `Keys.onEscapePressed` is handled inside `PanelSurface`'s Loader `onLoaded` block — the loaded panel item captures the key event and emits `dismissRequested()`.
-
-**Intent:** ESC dismisses the active panel. This is universal across all panels. Whether it stays in `PanelSurface` or gets extracted is open — the key question is whether any future panel would need to override or suppress the default ESC behavior. If yes, it should be a composable piece; if no, keeping it in `PanelSurface` is fine.
-
-### Click-outside to dismiss
-
-**Current state:** A fullscreen `MouseArea` behind the panel content in `PanelSurface` emits `dismissRequested()` on click. Disabled for `windowSwitcher` (see [modules.md](modules.md) fix candidate).
-
-**Intent:** Clicking anywhere outside the panel content dismisses it. Universal across all panels including WindowSwitcher (once the WindowSwitcher fix candidate is resolved). Same question as ESC — decide whether to extract once WindowSwitcher is fixed and the full behavior is confirmed consistent.
