@@ -15,7 +15,7 @@ PanelWindow {
     color: "transparent"
 
     implicitWidth: (contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40
-    implicitHeight: Style.fontSizePill + Style.pillPaddingV
+    implicitHeight: (contentLoader.item ? contentLoader.item.implicitHeight : Style.fontSizePill) + Style.pillPaddingV
 
     visible: shouldShow
     mask: Region {}
