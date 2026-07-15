@@ -104,11 +104,26 @@ echo "  linked labwc menu icons → hicolor"
 
 echo ""
 echo "Setting up media directories..."
-PICTURES_DIR="$(xdg-user-dir PICTURES)"
-VIDEOS_DIR="$(xdg-user-dir VIDEOS)"
-SCREENSHOTS_DIR="$PICTURES_DIR/Screenshots"
-RECORDINGS_DIR="$VIDEOS_DIR/Recordings"
-REPLAYS_DIR="$VIDEOS_DIR/Recordings/Replays"
+PICTURES_DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME")"
+VIDEOS_DIR="$(xdg-user-dir VIDEOS 2>/dev/null || echo "$HOME")"
+
+if [ "$PICTURES_DIR" = "$HOME" ] && [ "$VIDEOS_DIR" = "$HOME" ]; then
+    # xdg-user-dirs not configured — fall back to ~/Pillbox
+    PILLBOX_MEDIA_BASE="$HOME/Pillbox"
+    if [ ! -d "$PILLBOX_MEDIA_BASE" ]; then
+        echo "  xdg-user-dirs not configured and $PILLBOX_MEDIA_BASE not found — creating it"
+    else
+        echo "  xdg-user-dirs not configured — using existing $PILLBOX_MEDIA_BASE"
+    fi
+    SCREENSHOTS_DIR="$PILLBOX_MEDIA_BASE/Screenshots"
+    RECORDINGS_DIR="$PILLBOX_MEDIA_BASE/Recordings"
+    REPLAYS_DIR="$PILLBOX_MEDIA_BASE/Recordings/Replays"
+else
+    SCREENSHOTS_DIR="$PICTURES_DIR/Screenshots"
+    RECORDINGS_DIR="$VIDEOS_DIR/Recordings"
+    REPLAYS_DIR="$VIDEOS_DIR/Recordings/Replays"
+fi
+
 for d in "$SCREENSHOTS_DIR" "$RECORDINGS_DIR" "$REPLAYS_DIR"; do
     if [ ! -d "$d" ]; then
         mkdir -p "$d"
@@ -122,7 +137,7 @@ mkdir -p "$MEDIA_LINK_DIR"
 ln -snf "$SCREENSHOTS_DIR" "$MEDIA_LINK_DIR/Screenshots"
 ln -snf "$RECORDINGS_DIR"  "$MEDIA_LINK_DIR/Recordings"
 ln -snf "$REPLAYS_DIR"     "$MEDIA_LINK_DIR/Replays"
-echo "  linked pillbox/media/ → XDG media dirs"
+echo "  linked pillbox/media/ → media dirs"
 
 echo ""
 echo "Done."
