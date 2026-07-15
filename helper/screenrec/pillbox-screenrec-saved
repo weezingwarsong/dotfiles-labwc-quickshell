@@ -1,0 +1,20 @@
+#!/bin/sh
+# pillbox-screenrec-saved — gpu-screen-recorder -sc callback
+#
+# Called by gsr after each file is saved. Writes the filepath to a well-known
+# temp file so pillbox-screenrec can read it and emit the correct stdout message.
+#
+# Args (provided by gsr):
+#   $1 — absolute path to the saved file
+#   $2 — type: "regular" | "replay" | "screenshot"
+
+FILEPATH="$1"
+TYPE="$2"
+NOTIFY="$HOME/.local/share/pillbox/screenrec-save"
+
+# Only act on regular and replay saves (not screenshots handled elsewhere)
+case "$TYPE" in
+    regular|replay)
+        printf '%s' "$FILEPATH" > "$NOTIFY"
+        ;;
+esac

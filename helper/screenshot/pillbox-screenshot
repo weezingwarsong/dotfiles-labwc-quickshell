@@ -1,0 +1,74 @@
+#!/bin/sh
+# pillbox-screenshot — screenshot helper for Pillbox
+#
+# Usage: pillbox-screenshot screen|all|region [--dir <save-dir>]
+#
+# stdout protocol (read by ScreenshotProcess.qml):
+#   screenshot:saved:/abs/path/file.png   — capture succeeded
+#   screenshot:error:<reason>             — capture failed (exits 1)
+#
+# Region mode exits 0 silently if the user cancels slurp.
+# Region mode auto-copies image/png bytes to clipboard immediately after capture.
+#
+# Save dir default: ~/.config/pillbox/media/Screenshots
+# Override via --dir or env var PILLBOX_SCREENSHOT_DIR.
+
+MODE="${1:-screen}"
+shift
+
+SAVE_DIR="${PILLBOX_SCREENSHOT_DIR:-$HOME/.config/pillbox/media/Screenshots}"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --dir) SAVE_DIR="$2"; shift 2 ;;
+        *)     shift ;;
+    esac
+done
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+die() { echo "screenshot:error:$1"; exit 1; }
+
+# ── setup ─────────────────────────────────────────────────────────────────────
+
+mkdir -p "$SAVE_DIR" || die "cannot create save dir: $SAVE_DIR"
+
+TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
+OUTPUT="$SAVE_DIR/screenshot_${TIMESTAMP}.png"
+
+# ── capture ───────────────────────────────────────────────────────────────────
+
+case "$MODE" in
+    screen)
+        grim "$OUTPUT" 2>/tmp/pillbox-screenshot-err || \
+            die "grim failed: $(cat /tmp/pillbox-screenshot-err)"
+        ;;
+
+    all)
+        grim "$OUTPUT" 2>/tmp/pillbox-screenshot-err || \
+            die "grim failed: $(cat /tmp/pillbox-screenshot-err)"
+        ;;
+
+    region)
+        # slurp exits non-zero if the user presses Esc — exit cleanly, emit nothing
+        REGION="$(slurp 2>/dev/null)" || exit 0
+        [ -n "$REGION" ] || exit 0
+
+        grim -g "$REGION" "$OUTPUT" 2>/tmp/pillbox-screenshot-err || \
+            die "grim region failed: $(cat /tmp/pillbox-screenshot-err)"
+
+        # Auto-copy image/png bytes to clipboard; non-fatal if wl-copy absent
+        wl-copy --type image/png < "$OUTPUT" 2>/dev/null || true
+        ;;
+
+    *)
+        die "unknown mode '$MODE' — expected: screen|all|region"
+        ;;
+esac
+
+# ── verify and emit ───────────────────────────────────────────────────────────
+
+[ -f "$OUTPUT" ] || die "output file not created: $OUTPUT"
+[ -s "$OUTPUT" ] || die "output file is empty: $OUTPUT"
+
+echo "screenshot:saved:$OUTPUT"

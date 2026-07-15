@@ -11,6 +11,7 @@ rofi                        # App launcher and window switcher
 
 # ── BROWSER ──────────────────────────────────────────────────────────────────
 xdg-utils                   # xdg-open for browser/file launch
+xdg-user-dirs               # xdg-user-dir command — used by install.sh for media directory resolution
 
 # ── BLUETOOTH ────────────────────────────────────────────────────────────────
 blueman                     # Bluetooth manager + systray applet (autostart)
@@ -28,6 +29,7 @@ gpu-screen-recorder         # Screen recorder (W-S-r keybind)
 qt6-multimedia              # Qt6 multimedia backend — required for video wallpaper support
 grim                        # Screenshot tool
 slurp                       # Region selector for grim
+wl-clipboard                # wl-copy / wl-paste — clipboard operations for screenshot pipeline
 imv                         # Image viewer
 
 # ── XDG PORTAL ───────────────────────────────────────────────────────────────
@@ -79,7 +81,7 @@ sudo pacman -S \
     labwc rofi mako wlrctl \
     blueman \
     pipewire wireplumber pavucontrol-qt \
-    gpu-screen-recorder qt6-multimedia grim slurp imv \
+    gpu-screen-recorder qt6-multimedia grim slurp wl-clipboard imv \
     xdg-desktop-portal xdg-desktop-portal-wlr xdg-desktop-portal-gtk xdg-utils \
     btop \
     kvantum qt5ct qt6ct \

@@ -92,6 +92,28 @@ ln -snf "$DOTFILES/labwc/icons/menu-steam.svg"       "$HICOLOR/22x22/apps/menu-s
 echo "  linked labwc menu icons → hicolor"
 
 echo ""
+echo "Setting up media directories..."
+PICTURES_DIR="$(xdg-user-dir PICTURES)"
+VIDEOS_DIR="$(xdg-user-dir VIDEOS)"
+SCREENSHOTS_DIR="$PICTURES_DIR/Screenshots"
+RECORDINGS_DIR="$VIDEOS_DIR/Recordings"
+REPLAYS_DIR="$VIDEOS_DIR/Recordings/Replays"
+for d in "$SCREENSHOTS_DIR" "$RECORDINGS_DIR" "$REPLAYS_DIR"; do
+    if [ ! -d "$d" ]; then
+        mkdir -p "$d"
+        echo "  created $d"
+    else
+        echo "  exists  $d"
+    fi
+done
+MEDIA_LINK_DIR="$DOTFILES/pillbox/media"
+mkdir -p "$MEDIA_LINK_DIR"
+ln -snf "$SCREENSHOTS_DIR" "$MEDIA_LINK_DIR/Screenshots"
+ln -snf "$RECORDINGS_DIR"  "$MEDIA_LINK_DIR/Recordings"
+ln -snf "$REPLAYS_DIR"     "$MEDIA_LINK_DIR/Replays"
+echo "  linked pillbox/media/ → XDG media dirs"
+
+echo ""
 echo "Done."
 echo "  Note: ensure ~/.local/bin is in your PATH for gcal-fetch/gtask-fetch."
 echo "  Note: gcal-fetch and gtask-fetch need ~/.config/gcal-quickshell/credentials.json (Google OAuth client, not in this repo)."
