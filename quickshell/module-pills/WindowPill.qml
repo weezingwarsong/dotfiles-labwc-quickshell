@@ -9,8 +9,8 @@ Item {
     property bool shouldShow: false
 
     // ── Priority interface (read by PillController) ───────────────────────────
-    readonly property int  priority:     shouldShow ? 200 : 0
-    readonly property bool shouldReveal: shouldShow
+    readonly property int  priority:     0 // To be revised or removed
+    readonly property bool shouldReveal: false // To be revised or removed
 
     readonly property string _appId: {
         if (toplevelProcess && toplevelProcess.focused)

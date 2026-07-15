@@ -20,3 +20,7 @@ FontPicker 1.0 FontPicker.qml
 RowLabel 1.0 RowLabel.qml
 SectionHeader 1.0 SectionHeader.qml
 PanelTabBar 1.0 PanelTabBar.qml
+ToastTimer 1.0 ToastTimer.qml
+MediaThumbnail 1.0 MediaThumbnail.qml
+ToastController 1.0 ToastController.qml
+ToastWindow 1.0 ToastWindow.qml

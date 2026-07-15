@@ -64,6 +64,11 @@ ShellRoot {
     ScreenshotProcess  { id: screenshot }
     ScreenrecProcess   { id: screenrec  }
 
+    ToastWindow {
+        screenshotProcess: screenshot
+        screenrecProcess:  screenrec
+    }
+
     // Wallpaper window — Background layer, always present, covers all workspaces.
     // No external daemon: Qt renders color/image/GIF/video directly.
     PanelWindow {
@@ -229,6 +234,8 @@ ShellRoot {
         notificationServer: notifServer
         audioProcess:       audio
         networkProcess:     network
+        screenshotProcess:  screenshot
+        screenrecProcess:   screenrec
         onDismissRequested:  panelController.toggle(panelController.activePanel)
         onNavigateRequested: (dir) => panelController.navigate(dir)
     }

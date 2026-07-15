@@ -24,6 +24,8 @@ PanelWindow {
     property var notificationServer:  null
     property var audioProcess:        null
     property var networkProcess:      null
+    property var screenshotProcess:   null
+    property var screenrecProcess:    null
 
     signal dismissRequested()
     signal navigateRequested(int direction)
@@ -130,12 +132,14 @@ PanelWindow {
                 }
                 if (root.activePanel === "notifications") {
                     item.notificationServer = Qt.binding(function() { return root.notificationServer })
+                    item.screenshotProcess  = Qt.binding(function() { return root.screenshotProcess  })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }
                 if (root.activePanel === "control") {
-                    item.audioProcess   = Qt.binding(function() { return root.audioProcess   })
-                    item.networkProcess = Qt.binding(function() { return root.networkProcess })
+                    item.audioProcess      = Qt.binding(function() { return root.audioProcess      })
+                    item.networkProcess    = Qt.binding(function() { return root.networkProcess    })
+                    item.screenrecProcess  = Qt.binding(function() { return root.screenrecProcess  })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
                     return
                 }

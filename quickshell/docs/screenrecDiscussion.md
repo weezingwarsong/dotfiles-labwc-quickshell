@@ -653,3 +653,58 @@ gpu-screen-recorder `-a` flag: PipeWire/PulseAudio audio source. Options: None (
 Audio is intentionally deferred for the initial build. The Control panel audio array is specced (see 2F) but hidden until implemented. All FIFO commands and script backend are designed to accept an audio parameter without breaking when it's absent.
 
 Audio capture applies to Screenrec only — not to screenshots, not to replay (replay inherits whatever audio flags the parent recording has).
+
+---
+
+## Build Todo
+
+- [x] **1. Build new reusable elements** — `ToastWindow.qml`, `ToastController.qml`, `MediaThumbnail.qml`, `ToastTimer.qml`.
+- [x] **2. Build the rest of the UI** — `module-toasts/ScreenshotPreview.qml`, `module-toasts/ScreenrecToast.qml`, Screenshots tab in NotificationPanel, Screenrec section in Control panel.
+- [x] **3. Update the plan with what has been completed. Commit and push.**
+
+> **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.
+
+---
+
+## Build Notes & Deviations
+
+### D1 — ToastController not separately instantiated in shell.qml
+
+**Plan:** ToastController is a standalone QtObject instantiated in shell.qml, receiving references to toast modules from ToastWindow.
+
+**Deviation:** ToastController exists as a standalone file (`module-reusable-elements/ToastController.qml`) but is **not** instantiated anywhere. Instead, `ToastWindow.visible` is computed directly from the Loader items' `shouldShow` properties:
+```qml
+visible: (_ssLoader.item ? _ssLoader.item.shouldShow : false) ||
+         (_srLoader.item  ? _srLoader.item.shouldShow  : false)
+```
+**Reason:** The circular reference problem — ToastWindow needs ToastController's shouldShow to set visible, and ToastController needs refs to modules inside ToastWindow. Inline computation avoids the dependency chain without losing any functionality. ToastController.qml remains as a reference/documentation artifact.
+
+### D2 — Toast modules loaded via Qt.resolvedUrl Loader
+
+**Plan:** Toast modules are children of ToastWindow's ColumnLayout.
+
+**Deviation:** Uses `Loader { source: Qt.resolvedUrl("../module-toasts/...") }` inside ToastWindow, same pattern as PanelSurface loading module-panels. This avoids a circular import between module-reusable-elements (ToastWindow) and module-toasts (ScreenshotPreview, ScreenrecToast).
+
+### D3 — No entrance/exit animations in first build
+
+**Plan:** Entrance animation — slide in from right, `NumberAnimation` on x, `Easing.OutCubic`, 150–250ms.
+
+**Deviation:** Deferred. First build uses `visible: shouldShow` with no animation. Reason: functional correctness first. Animations to be added as a follow-up.
+
+### D4 — Panel does not auto-dismiss when starting recording
+
+**Plan (section 2F):** "For Screen / Window: fires the appropriate FIFO command, panel dismisses"
+
+**Deviation:** The ControlPanel Start button calls `screenrecProcess.startScreen()` directly without dismissing the panel. The user can press ESC or click outside. Reason: no `dismissRequested` signal on ControlPanel. This is consistent with how other panels behave (they don't self-dismiss on button actions). To fix properly, a `dismissRequested` signal + PanelSurface wiring would be needed.
+
+### D5 — screenshotUI FIFO does not auto-switch to Screenshots tab
+
+**Plan:** `screenshotUI` FIFO command → opens NotificationPanel pre-landed on Screenshots tab.
+
+**Deviation:** `screenshotUI` opens the NotificationPanel but defaults to Notifications tab (tab 0). The Screenshots tab exists and is clickable, but no auto-switch on open. Reason: Loader-based panels don't persist state between open/close. A proper fix requires either keeping the panel always-alive or passing the target tab as a property through PanelSurface.onLoaded.
+
+### D6 — Notification card urgency color uses mat3Error directly
+
+**Plan:** No spec change — the original code used `Style.color11`.
+
+**Deviation:** `Style.color11` doesn't exist in the Style singleton. Changed to `Style.mat3Error` (the MD3 error color) inline in the card color expression. The result is equivalent to the original intent.

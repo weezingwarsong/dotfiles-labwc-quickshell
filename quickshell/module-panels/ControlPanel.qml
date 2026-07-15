@@ -6,8 +6,9 @@ import Quickshell.Io
 Item {
     id: root
 
-    property var    audioProcess:   null
-    property var    networkProcess: null
+    property var    audioProcess:    null
+    property var    networkProcess:  null
+    property var    screenrecProcess: null
     property string activePanel:    ""
     signal navigateRequested(int direction)
 
@@ -138,6 +139,69 @@ Item {
             }
         }
 
+        // ── Screenrec section ─────────────────────────────────────────────────
+        PanelDivider {}
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            SectionLabel { text: "Screen Recorder" }
+
+            // Mode selector
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                PanelButton {
+                    Layout.fillWidth: true
+                    label: "Screen"
+                    variant: root._recMode === "screen" ? "accent" : "default"
+                    enabled: !(root.screenrecProcess && root.screenrecProcess.recording)
+                    onClicked: root._recMode = "screen"
+                }
+                PanelButton {
+                    Layout.fillWidth: true
+                    label: "Region"
+                    variant: root._recMode === "region" ? "accent" : "default"
+                    enabled: !(root.screenrecProcess && root.screenrecProcess.recording)
+                    onClicked: root._recMode = "region"
+                }
+                // Window mode: Wayland caveat — grayed out, TBD
+                PanelButton {
+                    Layout.fillWidth: true
+                    label: "Window"
+                    variant: "default"
+                    enabled: false
+                    QQC.ToolTip.text: "Not available on Wayland (TBD)"
+                    QQC.ToolTip.visible: _winHover.hovered
+                    QQC.ToolTip.delay: 400
+                    HoverHandler { id: _winHover }
+                }
+            }
+
+            // Start / recording status
+            PanelButton {
+                Layout.fillWidth: true
+                variant: (root.screenrecProcess && root.screenrecProcess.recording) ? "critical" : "accent"
+                label: {
+                    if (root.screenrecProcess && root.screenrecProcess.recording) return "Recording..."
+                    return root._recMode === "region" ? "Pick Region & Start" : "Start — Screen"
+                }
+                enabled: root.screenrecProcess !== null
+                onClicked: {
+                    if (!root.screenrecProcess) return
+                    if (root.screenrecProcess.recording) {
+                        root.screenrecProcess.stop()
+                    } else if (root._recMode === "region") {
+                        root.screenrecProcess.startRegion()
+                    } else {
+                        root.screenrecProcess.startScreen()
+                    }
+                }
+            }
+        }
+
         // ── Session row ───────────────────────────────────────────────────────
         Item {
             Layout.fillWidth: true
@@ -198,6 +262,9 @@ Item {
             }
         }
     }
+
+    // ── Screenrec state ───────────────────────────────────────────────────────
+    property string _recMode: "screen"   // "screen" | "region"
 
     // ── Session state ─────────────────────────────────────────────────────────
     property string _pendingAction:    ""   // "" | "exit" | "reboot" | "shutdown"

@@ -7,18 +7,19 @@ Item {
     id: root
 
     property var    notificationServer: null
+    property var    screenshotProcess:  null
     property string activePanel:        ""
     signal navigateRequested(int direction)
 
-    readonly property bool _hasNotifs: notificationServer && notificationServer.countTotal > 0
+    property int _tab: 0   // 0 = Notifications, 1 = Screenshots
 
-    // Natural height = fixed top + cards (unconstrained) + systray footer + padding.
-    // PanelSurface clamps this to _maxHeight; the Flickable fills whatever remains.
+    readonly property bool _hasNotifs: notificationServer && notificationServer.countTotal > 0
+    readonly property var  _shots:     screenshotProcess  ? screenshotProcess.screenshots  : []
+
     implicitHeight: _topFixed.implicitHeight
-                  + (_hasNotifs ? _cardCol.implicitHeight + 8 + Style.panelMargin
-                                : 40)
+                  + _body.implicitHeight
                   + (_trayBar.count > 0 ? (1 + 24 + Style.panelMargin) : 0)
-                  + Style.panelMargin * 2 + 24
+                  + Style.panelMargin * 3 + 24
 
     // ── Background ────────────────────────────────────────────────────────────
 
@@ -51,31 +52,27 @@ Item {
             onNavigateRequested: (dir) => root.navigateRequested(dir)
         }
 
+        PanelTabBar {
+            Layout.fillWidth: true
+            labels:   ["Notifications", "Screenshots"]
+            selected: root._tab
+            onToggled: (idx) => root._tab = idx
+        }
+
+        // Clear all — only on notifications tab and only when there are notifs
         PanelButton {
             Layout.alignment: Qt.AlignRight
-            visible:          root._hasNotifs
-            variant:          "critical"
-            label:            "Clear all"
-            onClicked:        root.notificationServer && root.notificationServer.clearAll()
+            visible:   root._tab === 0 && root._hasNotifs
+            variant:   "critical"
+            label:     "Clear all"
+            onClicked: root.notificationServer && root.notificationServer.clearAll()
         }
     }
 
-    // ── Empty state ───────────────────────────────────────────────────────────
+    // ── Body — swaps between notification list and screenshots list ───────────
 
-    Text {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top:              _topFixed.bottom
-        anchors.topMargin:        16
-        visible:                  !root._hasNotifs
-        text:                     "No notifications"
-        color:                    Style.textMuted
-        font.family:              Style.fontMono
-        font.pixelSize:           Style.fontSizeBody
-    }
-
-    // ── Scrollable card list ──────────────────────────────────────────────────
-
-    Flickable {
+    Item {
+        id: _body
         anchors {
             top:          _topFixed.bottom
             left:         parent.left
@@ -86,225 +83,337 @@ Item {
             rightMargin:  Style.panelMargin
             bottomMargin: Style.panelMargin
         }
-        visible:       root._hasNotifs
-        contentHeight: _cardCol.implicitHeight
-        clip:          true
+        implicitHeight: Math.max(_notifFlick.implicitHeight, _shotFlick.implicitHeight)
 
-        ColumnLayout {
-            id:      _cardCol
-            width:   parent.width
-            spacing: 6
+        // ── Notifications ─────────────────────────────────────────────────────
 
-            Repeater {
-                model: root.notificationServer ? root.notificationServer.notifications : null
+        Item {
+            anchors.fill: parent
+            visible: root._tab === 0
 
-                delegate: Rectangle {
-                    id: _card
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top:              parent.top
+                anchors.topMargin:        16
+                visible:                  !root._hasNotifs
+                text:                     "No notifications"
+                color:                    Style.textMuted
+                font.family:              Style.fontMono
+                font.pixelSize:           Style.fontSizeBody
+            }
 
-                    required property var modelData
+            Flickable {
+                id: _notifFlick
+                anchors.fill:  parent
+                visible:       root._hasNotifs
+                contentHeight: _cardCol.implicitHeight
+                clip:          true
+                implicitHeight: _cardCol.implicitHeight
 
-                    Layout.fillWidth: true
-                    implicitHeight:   _cardRow.implicitHeight + 16
+                ColumnLayout {
+                    id:      _cardCol
+                    width:   parent.width
+                    spacing: 6
 
-                    radius:       Style.panelElementRadius
-                    border.width: Style.elementBorderWidth
-                    border.color: Style.borderFaintColor
+                    Repeater {
+                        model: root.notificationServer ? root.notificationServer.notifications : null
 
-                    color: {
-                        var u = _card.modelData.urgency
-                        if (u === NotificationUrgency.Critical)
-                            return Qt.rgba(Style.color11.r, Style.color11.g, Style.color11.b, 0.15)
-                        if (u === NotificationUrgency.Low)
-                            return Style.surfaceLowColor
-                        return Style.surfaceMidColor
-                    }
+                        delegate: Rectangle {
+                            id: _card
 
-                    // Per-card expand state for overflow actions
-                    property bool _expanded: false
+                            required property var modelData
 
-                    // Filtered labeled actions (exclude "default" identifier)
-                    readonly property var _labeledActions: {
-                        var acts = _card.modelData.actions
-                        if (!acts) return []
-                        var result = []
-                        for (var i = 0; i < acts.length; i++) {
-                            if (acts[i].identifier !== "default") result.push(acts[i])
-                        }
-                        return result
-                    }
-
-                    // Right click anywhere on card → dismiss
-                    // Left-click-to-invoke-default is deferred: in Qt 6, card-level TapHandler
-                    // fires even when child buttons are clicked, causing accidental dismissal.
-                    TapHandler {
-                        acceptedButtons: Qt.RightButton
-                        onTapped: _card.modelData.dismiss()
-                    }
-
-                    RowLayout {
-                        id:      _cardRow
-                        anchors {
-                            top:    parent.top
-                            left:   parent.left
-                            right:  parent.right
-                            margins: 8
-                        }
-                        spacing: 8
-
-                        // ── Left: image thumbnail ─────────────────────────────
-
-                        Rectangle {
-                            visible:                _card.modelData.image !== ""
-                            Layout.preferredWidth:  56
-                            Layout.preferredHeight: 56
-                            Layout.alignment:       Qt.AlignTop
-                            radius:                 Style.panelElementRadius
-                            color:                  Style.surfaceLowColor
-                            clip:                   true
-
-                            Image {
-                                anchors.fill: parent
-                                source:       _card.modelData.image || ""
-                                fillMode:     Image.PreserveAspectCrop
-                                visible:      status === Image.Ready
-                            }
-                        }
-
-                        // ── Right: content ────────────────────────────────────
-
-                        ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 3
+                            implicitHeight:   _cardRow.implicitHeight + 16
 
-                            // Header: spacer + timestamp + [×]
+                            radius:       Style.panelElementRadius
+                            border.width: Style.elementBorderWidth
+                            border.color: Style.borderFaintColor
+
+                            color: {
+                                var u = _card.modelData.urgency
+                                if (u === NotificationUrgency.Critical)
+                                    return Qt.rgba(Style.mat3Error.r, Style.mat3Error.g, Style.mat3Error.b, 0.15)
+                                if (u === NotificationUrgency.Low)
+                                    return Style.surfaceLowColor
+                                return Style.surfaceMidColor
+                            }
+
+                            property bool _expanded: false
+
+                            readonly property var _labeledActions: {
+                                var acts = _card.modelData.actions
+                                if (!acts) return []
+                                var result = []
+                                for (var i = 0; i < acts.length; i++) {
+                                    if (acts[i].identifier !== "default") result.push(acts[i])
+                                }
+                                return result
+                            }
+
+                            TapHandler {
+                                acceptedButtons: Qt.RightButton
+                                onTapped: _card.modelData.dismiss()
+                            }
+
                             RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
+                                id:      _cardRow
+                                anchors { top: parent.top; left: parent.left; right: parent.right; margins: 8 }
+                                spacing: 8
 
-                                // App name
-                                Text {
-                                    text:           _card.modelData.appName || ""
-                                    color:          Style.textMuted
-                                    font.family:    Style.fontMono
-                                    font.pixelSize: Style.fontSizeSubtle
-                                    elide:          Text.ElideRight
-                                    Layout.fillWidth: true
-                                    visible: text !== ""
-                                }
-
-                                // Timestamp
-                                Text {
-                                    property var _ts: root.notificationServer
-                                        ? root.notificationServer.getTimestamp(_card.modelData.id)
-                                        : null
-                                    text:           _ts ? Qt.formatTime(_ts, "hh:mm") : ""
-                                    color:          Style.textMuted
-                                    font.family:    Style.fontMono
-                                    font.pixelSize: Style.fontSizeSubtle
-                                    visible:        text !== ""
-                                }
-
-                                // [×] dismiss button
                                 Rectangle {
-                                    width:  Style.buttonHeight - 4
-                                    height: Style.buttonHeight - 4
-                                    radius: Style.panelElementRadius
-                                    color:  _xHover.hovered ? Style.surfaceLowColor : Style.transparent
+                                    visible:                _card.modelData.image !== ""
+                                    Layout.preferredWidth:  56
+                                    Layout.preferredHeight: 56
+                                    Layout.alignment:       Qt.AlignTop
+                                    radius:                 Style.panelElementRadius
+                                    color:                  Style.surfaceLowColor
+                                    clip:                   true
 
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text:           "×"
-                                        color:          Style.textMuted
-                                        font.family:    Style.fontMono
-                                        font.pixelSize: Style.fontSizeBody
+                                    Image {
+                                        anchors.fill: parent
+                                        source:       _card.modelData.image || ""
+                                        fillMode:     Image.PreserveAspectCrop
+                                        visible:      status === Image.Ready
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 3
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 4
+
+                                        Text {
+                                            text:           _card.modelData.appName || ""
+                                            color:          Style.textMuted
+                                            font.family:    Style.fontMono
+                                            font.pixelSize: Style.fontSizeSubtle
+                                            elide:          Text.ElideRight
+                                            Layout.fillWidth: true
+                                            visible: text !== ""
+                                        }
+
+                                        Text {
+                                            property var _ts: root.notificationServer
+                                                ? root.notificationServer.getTimestamp(_card.modelData.id)
+                                                : null
+                                            text:           _ts ? Qt.formatTime(_ts, "hh:mm") : ""
+                                            color:          Style.textMuted
+                                            font.family:    Style.fontMono
+                                            font.pixelSize: Style.fontSizeSubtle
+                                            visible:        text !== ""
+                                        }
+
+                                        Rectangle {
+                                            width:  Style.buttonHeight - 4
+                                            height: Style.buttonHeight - 4
+                                            radius: Style.panelElementRadius
+                                            color:  _xHover.hovered ? Style.surfaceLowColor : Style.transparent
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text:           "×"
+                                                color:          Style.textMuted
+                                                font.family:    Style.fontMono
+                                                font.pixelSize: Style.fontSizeBody
+                                            }
+
+                                            HoverHandler { id: _xHover; cursorShape: Qt.PointingHandCursor }
+                                            TapHandler   { onTapped: _card.modelData.dismiss() }
+                                        }
                                     }
 
-                                    HoverHandler { id: _xHover; cursorShape: Qt.PointingHandCursor }
-                                    TapHandler   { onTapped: _card.modelData.dismiss() }
-                                }
-                            }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text:           _card.modelData.summary || ""
+                                        color:          Style.textNormal
+                                        font.family:    Style.fontMono
+                                        font.pixelSize: Style.fontSizeBody
+                                        wrapMode:       Text.WordWrap
+                                        visible:        text !== ""
+                                    }
 
-                            // Summary
-                            Text {
-                                Layout.fillWidth: true
-                                text:           _card.modelData.summary || ""
-                                color:          Style.textNormal
-                                font.family:    Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                wrapMode:       Text.WordWrap
-                                visible:        text !== ""
-                            }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text:           _card.modelData.body || ""
+                                        color:          Style.textSecondary
+                                        font.family:    Style.fontMono
+                                        font.pixelSize: Style.fontSizeSubtle
+                                        wrapMode:       Text.WordWrap
+                                        visible:        text !== ""
+                                    }
 
-                            // Body
-                            Text {
-                                Layout.fillWidth: true
-                                text:           _card.modelData.body || ""
-                                color:          Style.textSecondary
-                                font.family:    Style.fontMono
-                                font.pixelSize: Style.fontSizeSubtle
-                                wrapMode:       Text.WordWrap
-                                visible:        text !== ""
-                            }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 4
+                                        visible: _card._labeledActions.length > 0
 
-                            // Primary action row: up to 2 buttons + ⋮ if more
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-                                visible: _card._labeledActions.length > 0
+                                        Repeater {
+                                            model: Math.min(_card._labeledActions.length, 2)
+                                            delegate: PanelButton {
+                                                required property int index
+                                                property var _action: _card._labeledActions[index]
 
-                                Repeater {
-                                    model: Math.min(_card._labeledActions.length, 2)
-                                    delegate: PanelButton {
-                                        required property int index
-                                        property var _action: _card._labeledActions[index]
+                                                Layout.fillWidth:  true
+                                                label:             _action ? _action.text : ""
+                                                QQC.ToolTip.text:  _action ? _action.text : ""
+                                                QQC.ToolTip.visible: _hover2.hovered && implicitWidth > width + 4
+                                                QQC.ToolTip.delay: 600
 
-                                        Layout.fillWidth:  true
-                                        label:             _action ? _action.text : ""
-                                        QQC.ToolTip.text:  _action ? _action.text : ""
-                                        QQC.ToolTip.visible: _hover2.hovered && implicitWidth > width + 4
-                                        QQC.ToolTip.delay: 600
+                                                HoverHandler { id: _hover2 }
 
-                                        HoverHandler { id: _hover2 }
+                                                onClicked: {
+                                                    if (_action) _action.invoke()
+                                                    _card.modelData.dismiss()
+                                                }
+                                            }
+                                        }
 
-                                        onClicked: {
-                                            if (_action) _action.invoke()
-                                            _card.modelData.dismiss()
+                                        IconButton {
+                                            visible:   _card._labeledActions.length > 2
+                                            label:     "⋮"
+                                            fontFamily: Style.fontMono
+                                            onClicked: _card._expanded = !_card._expanded
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 4
+                                        visible: _card._expanded && _card._labeledActions.length > 2
+
+                                        Repeater {
+                                            model: Math.min(_card._labeledActions.length - 2, 2)
+                                            delegate: PanelButton {
+                                                required property int index
+                                                property var _action: _card._labeledActions[index + 2]
+
+                                                Layout.fillWidth:  true
+                                                label:             _action ? _action.text : ""
+                                                QQC.ToolTip.text:  _action ? _action.text : ""
+                                                QQC.ToolTip.visible: _hover3.hovered && implicitWidth > width + 4
+                                                QQC.ToolTip.delay: 600
+
+                                                HoverHandler { id: _hover3 }
+
+                                                onClicked: {
+                                                    if (_action) _action.invoke()
+                                                    _card.modelData.dismiss()
+                                                }
+                                            }
                                         }
                                     }
                                 }
-
-                                // ⋮ more button
-                                IconButton {
-                                    visible:   _card._labeledActions.length > 2
-                                    label:     "⋮"
-                                    fontFamily: Style.fontMono
-                                    onClicked: _card._expanded = !_card._expanded
-                                }
                             }
+                        }
+                    }
+                }
+            }
+        }
 
-                            // Overflow action row: actions 2 and 3
+        // ── Screenshots ───────────────────────────────────────────────────────
+
+        Item {
+            anchors.fill: parent
+            visible: root._tab === 1
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top:              parent.top
+                anchors.topMargin:        16
+                visible:                  root._shots.length === 0
+                text:                     "No screenshots"
+                color:                    Style.textMuted
+                font.family:              Style.fontMono
+                font.pixelSize:           Style.fontSizeBody
+            }
+
+            Flickable {
+                id: _shotFlick
+                anchors.fill:  parent
+                visible:       root._shots.length > 0
+                contentHeight: _shotCol.implicitHeight
+                clip:          true
+                implicitHeight: _shotCol.implicitHeight
+
+                ColumnLayout {
+                    id:      _shotCol
+                    width:   parent.width
+                    spacing: 6
+
+                    Repeater {
+                        model: root._shots
+
+                        delegate: Rectangle {
+                            id: _shotCard
+
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            implicitHeight:   _shotRow.implicitHeight + 16
+
+                            radius:       Style.panelElementRadius
+                            border.width: Style.elementBorderWidth
+                            border.color: Style.borderFaintColor
+                            color:        Style.surfaceLowColor
+
                             RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-                                visible: _card._expanded && _card._labeledActions.length > 2
+                                id: _shotRow
+                                anchors { top: parent.top; left: parent.left; right: parent.right; margins: 8 }
+                                spacing: 8
 
-                                Repeater {
-                                    model: Math.min(_card._labeledActions.length - 2, 2)
-                                    delegate: PanelButton {
-                                        required property int index
-                                        property var _action: _card._labeledActions[index + 2]
+                                MediaThumbnail {
+                                    source:   _shotCard.modelData.path
+                                    filename: ""
+                                    Layout.preferredWidth: 72
+                                    onThumbnailClicked: _xdgOpen.running = true
 
-                                        Layout.fillWidth:  true
-                                        label:             _action ? _action.text : ""
-                                        QQC.ToolTip.text:  _action ? _action.text : ""
-                                        QQC.ToolTip.visible: _hover3.hovered && implicitWidth > width + 4
-                                        QQC.ToolTip.delay: 600
+                                    Process {
+                                        id: _xdgOpen
+                                        command: ["xdg-open", _shotCard.modelData.path]
+                                    }
+                                }
 
-                                        HoverHandler { id: _hover3 }
+                                ColumnLayout {
+                                    Layout.fillWidth:  true
+                                    Layout.alignment:  Qt.AlignTop
+                                    spacing: 3
 
-                                        onClicked: {
-                                            if (_action) _action.invoke()
-                                            _card.modelData.dismiss()
+                                    Text {
+                                        text:           _shotCard.modelData.name
+                                        color:          Style.textNormal
+                                        font.family:    Style.fontMono
+                                        font.pixelSize: Style.fontSizeSubtle
+                                        elide:          Text.ElideMiddle
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Text {
+                                        text:           Qt.formatTime(new Date(_shotCard.modelData.timestamp), "hh:mm:ss")
+                                        color:          Style.textMuted
+                                        font.family:    Style.fontMono
+                                        font.pixelSize: Style.fontSizeSubtle
+                                    }
+
+                                    RowLayout {
+                                        spacing: 4
+
+                                        PanelButton {
+                                            label: "Open"
+                                            onClicked: _xdgOpen.running = true
+                                        }
+
+                                        PanelButton {
+                                            label: "Copy"
+                                            onClicked: _copyImg.running = true
+
+                                            Process {
+                                                id: _copyImg
+                                                command: ["sh", "-c", "wl-copy -t image/png < \"$1\"", "sh", _shotCard.modelData.path]
+                                            }
                                         }
                                     }
                                 }
@@ -317,16 +426,10 @@ Item {
     }
 
     // ── Systray footer ────────────────────────────────────────────────────────
-    // _sysDivider anchors above _trayBar; Flickable anchors its bottom here.
-    // When no tray items both heights collapse to 0 so Flickable fills parent.
 
     Rectangle {
         id: _sysDivider
-        anchors {
-            bottom: _trayBar.top
-            left:   parent.left
-            right:  parent.right
-        }
+        anchors { bottom: _trayBar.top; left: parent.left; right: parent.right }
         height: _trayBar.count > 0 ? 1 : 0
         color:  Style.panelBorderColor
     }
