@@ -15,3 +15,5 @@ NotificationServer 1.0 NotificationServer.qml
 AudioProcess 1.0 AudioProcess.qml
 NetworkProcess 1.0 NetworkProcess.qml
 CavaProcess 1.0 CavaProcess.qml
+ScreenshotProcess 1.0 ScreenshotProcess.qml
+ScreenrecProcess 1.0 ScreenrecProcess.qml

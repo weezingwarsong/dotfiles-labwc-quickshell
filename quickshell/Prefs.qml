@@ -37,6 +37,13 @@ Item {
         // When extractColors is true, WallpaperProcess runs matugen on every
         // image/video pick, writing colors.json which Colors.qml watches live.
         property bool extractColors: false
+
+        // Media dirs — empty string means "use the pillbox/media/ symlink default".
+        // User-configurable via Settings panel (future). Resolved at runtime by
+        // ScreenshotProcess / ScreenrecProcess.
+        property string screenshotDir: ""
+        property string recordingDir:  ""
+        property string replayDir:     ""
     }
 
     // ── Public (read) ─────────────────────────────────────────────────────────
@@ -65,6 +72,10 @@ Item {
 
     readonly property bool extractColors: _store.extractColors
 
+    readonly property string screenshotDir: _store.screenshotDir
+    readonly property string recordingDir:  _store.recordingDir
+    readonly property string replayDir:     _store.replayDir
+
     // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
     function setFontNerd(v)           { _store.fontNerd           = v }
@@ -90,6 +101,10 @@ Item {
     function setSlideshowInterval(v)    { _store.slideshowInterval    = v }
 
     function setExtractColors(v) { _store.extractColors = v }
+
+    function setScreenshotDir(v) { _store.screenshotDir = v }
+    function setRecordingDir(v)  { _store.recordingDir  = v }
+    function setReplayDir(v)     { _store.replayDir     = v }
 
     Component.onCompleted: console.log(
         "[Prefs] loaded | fontSizePill:", _store.fontSizePill,

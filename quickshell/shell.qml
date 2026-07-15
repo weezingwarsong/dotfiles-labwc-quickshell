@@ -31,6 +31,16 @@ ShellRoot {
         onStopwatchStopRequested:        timer.stopStopwatch()
         onStopwatchResetRequested:       timer.resetStopwatch()
         onToggleVisualizerRequested:     visualizerVisible = !visualizerVisible
+
+        onScreenshotScreenRequested:  screenshot.takeScreen()
+        onScreenshotAllRequested:     screenshot.takeAll()
+        onScreenshotRegionRequested:  screenshot.takeRegion()
+        onScreenshotUIRequested:      panelController.toggle("notifications")
+
+        onScreenrecStartScreenRequested: screenrec.startScreen()
+        onScreenrecStartRegionRequested: screenrec.startRegion()
+        onScreenrecStopRequested:        screenrec.stop()
+        onScreenrecSaveReplayRequested:  screenrec.saveReplay()
     }
 
     property bool visualizerVisible: true
@@ -50,6 +60,8 @@ ShellRoot {
     NotificationServer { id: notifServer }
     AudioProcess       { id: audio }
     NetworkProcess     { id: network }
+    ScreenshotProcess  { id: screenshot }
+    ScreenrecProcess   { id: screenrec  }
 
     // Wallpaper window — Background layer, always present, covers all workspaces.
     // No external daemon: Qt renders color/image/GIF/video directly.

@@ -22,7 +22,11 @@
   - **Safety net:** `trap _emergency_stop EXIT` sends SIGINT to gsr if the script itself exits unexpectedly (QML crash, SIGKILL), preventing unbounded recording files
   - **Wayland note:** `-w focused` is X11-only; on Wayland/labwc, window mode = screen capture + `--replay` flag
   - **Region mode:** not tested interactively (requires slurp UI); tested implicitly via screenshot region path; screenrec region uses `slurp -f '%wx%h+%x+%y'` → `-w region -region WxH+X+Y`
-- [ ] **8. Build QML processes and wire scripts** — `ScreenshotProcess.qml`, `ScreenrecProcess.qml`; test each via FIFO commands; note what was tested and results
+- [x] **8. Build QML processes and wire scripts** — `ScreenshotProcess.qml`, `ScreenrecProcess.qml` in `root-processes/`; Prefs entries (`screenshotDir`, `recordingDir`, `replayDir`); FifoListener signals; shell.qml wiring; scripts symlinked to `~/.local/bin/`. Tested via FIFO with quickshell running:
+  - `screenshotScreen` → `[ScreenshotProcess] saved: .../screenshot_*.png` ✓, file verified in `~/Screenshots/`
+  - `screenshotAll` → same ✓
+  - `screenrecStartScreen` → `[ScreenrecProcess] started`, CTL FIFO EXISTS ✓
+  - `screenrecStop` → `[ScreenrecProcess] stopped: .../recording_*.mp4`, CTL FIFO cleaned, 2.3MB valid MP4 ✓
 
 ---
 

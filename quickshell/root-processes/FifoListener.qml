@@ -22,6 +22,16 @@ Item {
     signal stopwatchResetRequested()
     signal toggleVisualizerRequested()
 
+    signal screenshotScreenRequested()
+    signal screenshotAllRequested()
+    signal screenshotRegionRequested()
+    signal screenshotUIRequested()
+
+    signal screenrecStartScreenRequested()
+    signal screenrecStartRegionRequested()
+    signal screenrecStopRequested()
+    signal screenrecSaveReplayRequested()
+
     Process {
         id: fifoReader
         command: ["sh", "-c",
@@ -56,6 +66,17 @@ Item {
                 else if (cmd === "stopStopwatch")     root.stopwatchStopRequested()
                 else if (cmd === "resetStopwatch")    root.stopwatchResetRequested()
                 else if (cmd === "toggleVisualizer")  root.toggleVisualizerRequested()
+
+                else if (cmd === "screenshotScreen")  root.screenshotScreenRequested()
+                else if (cmd === "screenshotAll")     root.screenshotAllRequested()
+                else if (cmd === "screenshotRegion")  root.screenshotRegionRequested()
+                else if (cmd === "screenshotUI")      root.screenshotUIRequested()
+
+                else if (cmd === "screenrecStartScreen")  root.screenrecStartScreenRequested()
+                else if (cmd === "screenrecStartRegion")  root.screenrecStartRegionRequested()
+                else if (cmd === "screenrecStop")         root.screenrecStopRequested()
+                else if (cmd === "screenrecSaveReplay")   root.screenrecSaveReplayRequested()
+
                 else if (cmd.startsWith("setTimer:")) {
                     var secs = parseInt(cmd.slice(9))
                     if (!isNaN(secs) && secs > 0) root.timerSet(secs)
