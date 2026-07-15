@@ -37,10 +37,11 @@ ShellRoot {
         onScreenshotRegionRequested:  screenshot.takeRegion()
         onScreenshotUIRequested:      panelController.toggle("notifications")
 
-        onScreenrecStartScreenRequested: screenrec.startScreen()
-        onScreenrecStartRegionRequested: screenrec.startRegion()
-        onScreenrecStopRequested:        screenrec.stop()
-        onScreenrecSaveReplayRequested:  screenrec.saveReplay()
+        onScreenrecStartScreenRequested:  screenrec.startScreen()
+        onScreenrecStartRegionRequested:  screenrec.startRegion()
+        onScreenrecStopRequested:         screenrec.stop()
+        onScreenrecSaveReplayRequested:   screenrec.saveReplay()
+        onScreenrecToggleScreenRequested: screenrec.recording ? screenrec.stop() : screenrec.startScreen()
     }
 
     property bool visualizerVisible: true

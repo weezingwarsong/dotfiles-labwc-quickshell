@@ -31,6 +31,7 @@ Item {
     signal screenrecStartRegionRequested()
     signal screenrecStopRequested()
     signal screenrecSaveReplayRequested()
+    signal screenrecToggleScreenRequested()
 
     Process {
         id: fifoReader
@@ -76,6 +77,7 @@ Item {
                 else if (cmd === "screenrecStartRegion")  root.screenrecStartRegionRequested()
                 else if (cmd === "screenrecStop")         root.screenrecStopRequested()
                 else if (cmd === "screenrecSaveReplay")   root.screenrecSaveReplayRequested()
+                else if (cmd === "screenrecToggleScreen") root.screenrecToggleScreenRequested()
 
                 else if (cmd.startsWith("setTimer:")) {
                     var secs = parseInt(cmd.slice(9))

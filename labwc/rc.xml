@@ -98,13 +98,13 @@
     </keybind>
 
     <keybind key="W-S-s">
-      <action name="Execute" command="sh -c 'mkdir -p ~/Screenshot &amp;&amp; grim -g &quot;$(slurp)&quot; ~/Screenshot/$(date +%Y-%m-%d-%T)-screenshot.png'" />
+      <action name="Execute" command="sh -c 'echo screenshotScreen > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
     <keybind key="W-S-d">
       <action name="Execute" command="sh -c 'sleep 1 &amp;&amp; grim ~/Screenshot/$(date +%Y-%m-%d-%T)-screenshot.png'" />
     </keybind>
     <keybind key="W-S-r">
-      <action name="Execute" command="sh -c '$HOME/.config/scripts/record-toggle.sh'" />
+      <action name="Execute" command="sh -c 'echo screenrecToggleScreen > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
 
 
