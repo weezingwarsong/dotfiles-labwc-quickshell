@@ -98,13 +98,16 @@
     </keybind>
 
     <keybind key="W-S-s">
-      <action name="Execute" command="sh -c 'echo screenshotRegion > ~/.local/share/pillbox/pillbox.fifo'" />
+      <action name="Execute" command="~/.local/bin/pillbox-screenshot-region" />
     </keybind>
     <keybind key="W-S-d">
       <action name="Execute" command="sh -c 'echo screenshotScreen > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
     <keybind key="W-S-r">
       <action name="Execute" command="sh -c 'echo screenrecToggleScreen > ~/.local/share/pillbox/pillbox.fifo'" />
+    </keybind>
+    <keybind key="W-S-e">
+      <action name="Execute" command="~/.local/bin/pillbox-screenrec-region" />
     </keybind>
 
 

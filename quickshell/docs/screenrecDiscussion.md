@@ -309,7 +309,48 @@ Screenshots tab — scrollable card list, visually identical to notification car
 
 **Save folder:** `$(xdg-user-dir PICTURES)/Screenshots/` — resolved at install time, symlinked to `~/.config/pillbox/media/Screenshots`. `ScreenshotProcess` reads the path from Prefs (`screenshotDir`), defaulting to the symlink. User can override via Settings panel (future).
 
-**FIFO `screenshotUI`:** opens NotificationPanel pre-landed on Screenshots tab.
+**FIFO `screenshotUI`:** opens NotificationPanel pre-landed on Screenshots tab. Implemented via `notificationInitialTab` on PanelSurface (see D5).
+
+#### Image bank scan implementation (ready to build)
+
+Pattern mirrors `WallpaperProcess` image/video scan exactly. Key details:
+
+- **`find -printf "%T@\t%p\n"`** — outputs `mtime_epoch<TAB>path` per file, one pass
+- **`StdioCollector`** (not SplitParser) — collects full output, processes in `onStreamFinished`
+- **Sort by mtime descending** (newest first) in JS after parsing
+- **Cap at 200 entries** for Repeater performance
+- **Scan in `Component.onCompleted`** — auto-runs on Quickshell startup, persists because `ScreenshotProcess` is a root-process (always alive). Panel open/close does not re-scan; data lives in the process.
+- **Live captures** (`notifyExternalSave`, `screenshotSaved`) unshift to the front as they do now. No dedup needed — startup scan runs before user can take a screenshot.
+
+```qml
+// In ScreenshotProcess.qml — add alongside existing _proc
+Process {
+    id: _scanProc
+    command: ["find", root._dir, "-maxdepth", "1", "-type", "f",
+              "-name", "*.png", "-printf", "%T@\\t%p\\n"]
+    stdout: StdioCollector {
+        onStreamFinished: {
+            var entries = []
+            text.split("\n").forEach(function(line) {
+                line = line.trim()
+                if (line === "" || !line.includes("\t")) return
+                var tab  = line.indexOf("\t")
+                var ts   = parseFloat(line.slice(0, tab)) * 1000
+                var path = line.slice(tab + 1)
+                entries.push({ path: path, name: path.split("/").pop(), timestamp: ts })
+            })
+            entries.sort(function(a, b) { return b.timestamp - a.timestamp })
+            root.screenshots = entries.slice(0, 200)
+            console.log("[ScreenshotProcess] scanned:", entries.length, "screenshots")
+        }
+    }
+    onExited: function(code, signal) {
+        if (code !== 0)
+            console.log("[ScreenshotProcess] scan failed:", code, "dir:", root._dir)
+    }
+}
+// In Component.onCompleted, after resolving _dir: _scanProc.running = true
+```
 
 ---
 
@@ -423,226 +464,230 @@ quickshell/
 
 ## 2. Screenrec
 
-### 2A. Intent
-
-Screen recording has two distinct user modes — casual/general recording ("I want to capture what I'm doing") and gaming mode ("I want to keep the last N seconds of this game"). These two modes have fundamentally different setups, triggers, and UX needs. Mixing them into one UI flow creates complexity; keeping them explicitly separated gives the user clear mental models.
-
-**Core principle:** the user makes their mode choice once (in the Control panel) before recording starts. Once recording is active, the Control panel is gone and the in-session controls live entirely in `ScreenrecToast`.
+> **⚠ STALE CODE — DO NOT USE AS REFERENCE.**
+> The original 2A–2J design and the code it produced (`helper/screenrec/pillbox-screenrec`, `quickshell/root-processes/ScreenrecProcess.qml`, the ControlPanel screenrec section) are superseded by the redesign below. The CTL FIFO control mechanism, the start/stop gsr model, and the old FIFO commands are all obsolete. Wrapper scripts (`pillbox-screenshot-region`, `pillbox-screenrec-region`) remain valid. Post-recording UI (`ScreenrecToast.qml`) spec in section 2G is still the target — the interface that feeds it will change.
 
 ---
 
-### 2B. The Three Modes
+### 2A. Two Operational Modes
 
-| Mode | gpu-screen-recorder flag | Use case | Replay possible? |
-|---|---|---|---|
-| **Screen** | `-w screen` (primary output) | General/desktop recording | No |
-| **Region pick** | `-cr x,y,w,h` (from slurp) | Cropped area of screen | No |
-| **Window (focused)** | `-w focused` | Gaming / single-app capture | **Yes** |
+The user selects one mode from the ControlPanel. The choice is saved in Prefs and persists across sessions. Modes are **mutually exclusive** — switching while recording is blocked in the UI.
 
-**Screen mode** captures the primary output. No region selection, no focus tracking. Simplest path.
-
-**Region pick mode** requires the user to draw a rectangle before recording starts. This uses the same `slurp` flow as screenshot region — the user draws a box, its coordinates are passed to gpu-screen-recorder via `-w region -region WxH+X+Y` (slurp output format: `slurp -f '%wx%h+%x+%y'`). The recording is then a fixed crop of those screen coordinates regardless of what window is in that area. Suitable for cropping a secondary monitor, a canvas, a reference stream.
-
-**Window (focused) mode** uses `-w focused` — gpu-screen-recorder captures whichever window has focus at the moment recording starts. This is the dedicated gaming mode: launch game → focus it → start recording. If the user alt-tabs out, the window's content continues being captured (gpu-screen-recorder follows the texture, not the position). This is also the only mode where replay makes sense, because the user typically can't predict the epic moment — they want to "save the last 30s" reactively.
-
----
-
-### 2C. Replay Buffer
-
-Replay is **opt-in, arm-on-demand, window mode only.**
-
-**How it works:** gpu-screen-recorder's `-r <seconds>` flag keeps a rolling in-memory buffer. Nothing is written to disk until the user triggers save-replay. The buffer is entirely in GPU VRAM during capture (DMA-BUF path) — zero CPU cost and zero disk cost until save.
-
-**Why arm-on-demand vs always-on:**
-- Always-on replay would mean the daemon needs to be running with a recording target at all times, even during desktop use. This causes unnecessary GPU work and makes mode selection complex.
-- Arm-on-demand: user opens Control panel → sets Window mode → toggles Replay on → starts recording. The replay buffer starts when recording starts, stops when recording stops.
-- If the user doesn't need replay, they leave the toggle off and window mode behaves identically to screen mode (just with window focus tracking).
-
-**Replay buffer duration:** TBD — likely 30s default, user-configurable in Prefs later.
-
-**Important pitfall — daemon pre-run requirement:** gpu-screen-recorder's replay functionality requires the daemon (`gpu-screen-recorder -d`) to already be running with `-r` before recording starts. You cannot add replay to an in-progress recording. The daemon must be started with replay enabled from the beginning. This means: if user wants replay, the script starts the daemon with `-r <seconds>` when they arm recording. If they don't want replay, no `-r` flag.
-
----
-
-### 2D. User Decision Points
-
-There are exactly three moments where the user has to make a choice:
-
-**Decision 1: Pre-session setup (Control panel)**
-- What mode? Screen / Region pick / Window
-- What audio? None / System / Mic / Both (for now: no audio — deferred)
-- Replay? (only enabled/clickable when mode = Window)
-
-**Decision 2: Arm the gaming session (replay toggle, Window mode)**
-- User launches game, focuses it, arms replay by toggling it on in Control panel before starting
-- Once recording starts, Control panel is dismissed — no way to change these settings mid-session
-
-**Decision 3: In-session control (ScreenrecToast)**
-- Stop recording (ends capture, saves file, transitions to saved state)
-- Save replay (saves last N seconds without stopping the recording — can trigger multiple times)
-- Pause/resume (if desired — FIFO-backed)
-
-The user never needs to touch a terminal or remember a command. Keybinds in rc.xml send the FIFO signals.
-
----
-
-### 2E. FIFO Interface
-
-| Command | Effect |
+| Mode | Description |
 |---|---|
-| `screenrecStartScreen` | Start recording in screen mode (no region pick, no window tracking) |
-| `screenrecStartRegion` | Invoke slurp for region pick, then start recording in that crop |
-| `screenrecStartWindow` | Start recording in window (focused) mode |
-| `screenrecStop` | Stop active recording, save file, emit saved signal |
-| `screenrecSaveReplay` | Save replay buffer segment (window mode + replay armed only) |
-| `screenrecPause` | Pause active recording |
-| `screenrecResume` | Resume paused recording |
-
-**`screenrecStartRegion` pitfall — panel dismiss timing:** The user selects Region mode in the Control panel, then presses a keybind (or clicks a button). That button sends `screenrecStartRegion` to FIFO. The FIFO listener in Quickshell must:
-1. Dismiss the panel (PanelSurface hides)
-2. **Wait for the panel to fully disappear** (surface unmapped)
-3. *Then* launch slurp for region pick
-
-If slurp launches while the panel is still visible, the panel steals keyboard/pointer focus and the user can't draw the region rectangle. The panel UI will be captured in the recording crop as well.
-
-**Fix:** The `ScreenrecProcess` listens for a `panelDismissed` signal (or a short timer — e.g., 200ms) before invoking slurp. The exact mechanism (signal vs timer) is determined at build time based on what Quickshell exposes cleanly.
+| **A — One-shot** | gsr spawns on demand. Records until stopped. Any capture source including region. No replay buffer. |
+| **B — Replay (Persistent)** | gsr starts at Quickshell startup and runs indefinitely. Rolling replay buffer always hot. Recording-to-file toggled via signal. Screen source only. |
 
 ---
 
-### 2F. Control Panel Additions
+### 2B. One-Shot Mode (A)
 
-The existing Control panel gets a **Screenrec section** added. It appears below the existing audio/network section.
+gsr spawns when the user starts recording, exits when stopped.
 
-**Mode selector — horizontal button array:**
+**gsr invocation:**
+```sh
+gpu-screen-recorder \
+    -w <source> \           # screen | region (+ -region WxH+X+Y) | monitor name (e.g. DP-1)
+    -f 60 \
+    -c mp4 \
+    -o "$RECORDING_DIR/recording_TIMESTAMP.mp4" \
+    -sc pillbox-screenrec-saved
 ```
-[ Screen ]  [ Region ]  [ Window ]
-```
-- These function like radio buttons — one active at a time, highlighted when selected
-- Clicking a mode button: sets the mode, does NOT start recording immediately
-- The "Start" action is a separate button (or keybind) so the user can configure without accidentally triggering
 
-**Audio selector — horizontal button array (deferred, included for completeness):**
-```
-[ None ]  [ System ]  [ Mic ]  [ Both ]
-```
-- Defaulted to None for now. Section may be hidden until audio is implemented.
+**Signal control:**
+- Stop + save: `SIGINT`
+- Pause/unpause: `SIGUSR2`
 
-**Replay toggle:**
-```
-[ ⬤ Replay  30s ]
-```
-- Toggle button, grayed out and unclickable unless mode = Window
-- When grayed out, tooltip (or label): "Only available in Window mode"
-- When enabled: shows buffer duration (30s default). Long-press or secondary button for duration setting (deferred)
-
-**Start Recording button:**
-- Primary action at bottom of Screenrec section
-- Text changes based on mode: "Start — Screen", "Pick Region & Start", "Start — Window"
-- Clicking Start:
-  - For Screen / Window: fires the appropriate FIFO command, panel dismisses
-  - For Region: fires `screenrecStartRegion`, panel dismisses, then slurp runs (see timing pitfall above)
+No replay buffer. Source can be anything gsr supports.
 
 ---
 
-### 2G. `ScreenrecToast.qml` (index 1 in ToastWindow)
+### 2C. Replay / Persistent Mode (B)
 
-The persistent in-session indicator. Lives at index 1 (bottom row, closest to corner) — it's a status anchor that should feel stable while recording is active. Index 0 (ScreenshotPreview) floats above it.
+gsr starts in `ScreenrecProcess` `Component.onCompleted` and stays alive until Quickshell exits.
 
-**Two states:**
+**gsr invocation:**
+```sh
+gpu-screen-recorder \
+    -w screen \
+    -f 60 \
+    -c mp4 \
+    -r <replayBufferSecs> \     # Prefs: replayBufferSecs, default 300 (5 min)
+    -bm cbr -q 10000 \          # CBR for predictable RAM usage
+    -o "$REPLAY_DIR" \          # replay clips save here
+    -ro "$RECORDING_DIR" \      # toggle-recording saves here
+    -sc pillbox-screenrec-saved
+```
 
-#### State 1: Recording active (persistent, never auto-dismisses)
+**Signal → action:**
 
+| Signal | Effect |
+|---|---|
+| `SIGRTMIN` | Toggle recording to `-ro` dir (start if idle, stop + save if active) |
+| `SIGUSR1` | Save full replay clip to `-o` dir |
+| `SIGRTMIN+2` | Save last 30 s |
+| `SIGRTMIN+3` | Save last 60 s |
+| `SIGRTMIN+4` | Save last 5 min |
+| `SIGUSR2` | Pause / unpause |
+| `SIGINT` | Emergency stop — exits gsr entirely |
+
+Switching Replay → One-shot: SIGINT stops gsr, one-shot mode takes over on next start. Switching back: restarts persistent gsr.
+
+---
+
+### 2D. Keybind Behavior
+
+Both keybinds are mode-aware.
+
+| Keybind | One-shot mode (A) | Replay mode (B) |
+|---|---|---|
+| **W-S-r** | Toggle screen recording (start / stop) | `SIGRTMIN` — toggle recording to file |
+| **W-S-e** | Invoke slurp picker → one-shot region recording | Save last N seconds (Prefs: `replaySaveDefaultSecs`, default 30 s) |
+
+W-S-e calls `pillbox-screenrec-region` in one-shot mode (slurp runs as direct labwc child — pointer grab works). In replay mode it sends `screenrecSaveReplay` (or `screenrecSaveReplay:30`) to FIFO.
+
+---
+
+### 2E. Script Architecture
+
+**`pillbox-screenrec`** — full rewrite needed.
+
+Invocation: `pillbox-screenrec <oneshot|replay> [--source <spec>] [--region WxH+X+Y] [--fps N] [--dir <dir>] [--replay-dir <dir>] [--replay-secs N]`
+
+**In `oneshot` sub-mode:**
+1. Build gsr command with `-w <source>` (plus `-region` if source=region)
+2. Launch gsr, emit `screenrec:started` once alive
+3. Create notify FIFO (`screenrec-notify`), start background reader forwarding `-sc` callbacks to stdout: `screenrec:saved:PATH:TYPE`
+4. CTL FIFO commands: `stop` → `SIGINT`, `pause` → `SIGUSR2`
+5. On gsr exit: emit `screenrec:gsr:exited`, cleanup
+
+**In `replay` sub-mode:**
+1. Build gsr command with `-r`, `-bm cbr`, `-o` (replay dir), `-ro` (recordings dir)
+2. Launch gsr, emit `screenrec:started` once alive
+3. Same notify FIFO reader as oneshot
+4. CTL FIFO commands: `toggleRec` → `SIGRTMIN`, `saveReplay` → `SIGUSR1`, `saveReplay:30` → `SIGRTMIN+2`, `saveReplay:60` → `SIGRTMIN+3`, `saveReplay:300` → `SIGRTMIN+4`, `pause` → `SIGUSR2`, `stop` → `SIGINT`
+5. On gsr exit: emit `screenrec:gsr:exited`, cleanup
+
+**`pillbox-screenrec-saved`** — rewrite needed.
+Currently writes to a temp file. New behaviour: write to notify FIFO:
+```sh
+NOTIFY_FIFO="$HOME/.local/share/pillbox/screenrec-notify"
+[ -p "$NOTIFY_FIFO" ] && echo "saved:$1:$2" > "$NOTIFY_FIFO"
+```
+
+**`pillbox-screenrec-region`** — unchanged. Calls slurp (as direct labwc child), writes `screenrecStartRegionWith:WxH+X+Y` to pillbox FIFO. Only used in one-shot mode.
+
+---
+
+### 2F. QML Architecture
+
+**`ScreenrecProcess.qml`** — full rewrite needed.
+
+```qml
+// Mode (read from Prefs, persisted)
+property string recMode: "oneshot"   // "oneshot" | "replay"
+
+// State
+property bool   active:    false     // gsr process is alive
+property bool   recording: false     // currently writing to file
+property string lastPath:  ""
+
+// Signals (unchanged — ScreenrecToast still listens to these)
+signal recordingStarted()
+signal recordingStopped(string path)
+signal replaySaved(string path)
+signal recordingError(string reason)
+
+// Public API (replaces startScreen / startRegion / stop)
+function toggle()              // oneshot: start/stop; replay: SIGRTMIN via CTL FIFO
+function saveReplay()          // SIGUSR1
+function saveReplaySeconds(n)  // SIGRTMIN+2..+4 based on n
+function pause()               // SIGUSR2
+function emergencyStop()       // SIGINT
+function startRegionWith(coords) // one-shot region start (called by FifoListener)
+function notifyExternalSave(path) // still needed for screenshot — not screenrec
+```
+
+In replay mode: `Component.onCompleted` starts gsr immediately.
+In one-shot mode: gsr spawns on first `toggle()` call.
+
+**`FifoListener.qml`** — update commands:
+- Remove: `screenrecStartScreen`, `screenrecStartRegion`, `screenrecStop`, `screenrecSaveReplay`, `screenrecToggleScreen`
+- Keep: `screenrecStartRegionWith:COORDS` (from `pillbox-screenrec-region` wrapper)
+- Add: `screenrecToggle`, `screenrecSaveReplay`, `screenrecSaveReplay:N`, `screenrecEmergencyStop`
+
+**`shell.qml`** — update handlers to match new API.
+
+---
+
+### 2G. ScreenrecToast — Spec (target unchanged)
+
+The toast spec from the original plan remains the target. Two states:
+
+**State 1 — Recording active (persistent):**
 ```
 ┌────────────────────────────────────┐
 │  ● 00:03:42   [ ■ Stop ]  [ ↓ ]  │
 └────────────────────────────────────┘
 ```
+- Pulsing red dot, elapsed timer (monospaced), Stop button, Save Replay button (replay mode only)
+- Background: `criticalBgColor`
 
-- `●` — pulsing red dot (same animation token as critical dot, faster blink)
-- `00:03:42` — elapsed timer, counts up from 0:00, monospaced (`fontMono`)
-- `[ ■ Stop ]` — stops recording + saves file + transitions to State 2
-- `[ ↓ ]` — Save Replay button; **only visible when replay is armed**; sends `screenrecSaveReplay`; does NOT stop recording; on press: brief visual flash to confirm ("Saved!") then returns to normal
-- Background: `criticalBgColor` or a dedicated `recordingBgColor` (TBD at build — criticalBgColor may be fine since red = "recording in progress" is a universal signal)
-
-When the `[ ↓ ]` button is triggered, the button momentarily shows a checkmark glyph for ~1s then reverts. This confirms the replay clip was saved without modal interruption.
-
-#### State 2: Saved (transient, auto-dismisses)
-
+**State 2 — Saved (auto-dismisses after 8 s, hover-pause):**
 ```
 ┌─────────────────────────────────────────┐
 │  [filename.mp4]  3:42  [ play ] [ ⋮ ]  │
 └─────────────────────────────────────────┘
 ```
+- Filename (elide middle), duration, open button, more button
+- Background: `pillBgColor`
 
-- Filename (elided middle), recording duration
-- `[ play ]` / open glyph: `xdg-open file`
-- `[ ⋮ ]` / more glyph: opens a TBD media bank panel (future — no panel exists yet; for now this copies the filepath)
-- Auto-dismisses after 8s (longer than screenshot — video files take longer to decide what to do with)
-- Hover-pause: same pattern as ScreenshotPreview — mouse inside pauses auto-dismiss timer, resets on leave
-- Right-click to dismiss
-- Background: `pillBgColor` — back to neutral, recording is done
+`shouldShow: _recording || _showingSaved`
 
-**`shouldShow` logic:**
-```qml
-readonly property bool shouldShow: _recording || _showingSaved
-```
-- `_recording`: true while gpu-screen-recorder process is active
-- `_showingSaved`: true from stop until auto-dismiss or user dismiss
-- Both can be false simultaneously (idle state) — ScreenrecToast contributes no height to ToastWindow
+The toast receives its data from `ScreenrecProcess` signals — these signals are unchanged, so the existing `ScreenrecToast.qml` stub can remain as-is until the backend is ready.
 
 ---
 
-### 2H. Script backend — `pillbox-screenrec`
+### 2H. ControlPanel UI (rewrite needed)
 
-Mirrors `pillbox-screenshot` in structure. Quickshell's `ScreenrecProcess` spawns this script and reads its stdout for status signals.
+```
+─── Screen Recorder ───────────────────
 
-**Responsibilities:**
-- Start gpu-screen-recorder with correct flags based on FIFO command received
-- For region mode: run slurp first, parse output, pass `-cr x,y,w,h` to gpu-screen-recorder
-- Manage gpu-screen-recorder daemon lifecycle (start on arm, stop on stop command)
-- Emit status lines to stdout: `recording:started`, `recording:stopped:/path/to/file.mp4`, `replay:saved:/path/to/clip.mp4`
-- Handle save folder: resolved from Prefs (`recordingDir` / `replayDir`), defaulting to `~/.config/pillbox/media/Recordings` and `~/.config/pillbox/media/Replays` (symlinks to XDG Videos subdirs, created by install.sh)
+Mode:  [ One-shot ]  [ Replay ]
 
-**Daemon vs direct invocation:**
-- gpu-screen-recorder daemon mode (`gpu-screen-recorder -d`) is required for replay buffer
-- For non-replay modes, direct invocation (`gpu-screen-recorder <flags>`) is simpler and doesn't leave a daemon running between sessions
-- Script handles both: if replay is armed (passed as argument), use daemon + ctl; otherwise invoke directly
+── One-shot ───────────────────────────
+Source:  [ Screen ]  [ Region ]
+         [ Start / Stop ]
+
+── Replay ─────────────────────────────
+         [ Toggle Recording ]
+         [ Save Last 30 s  ▾ ]    30 s / 60 s / 5 min / 10 min
+         Status: ● running / ○ stopped
+```
+
+Region source in one-shot: clicking "Region" + "Start" writes `screenrecStartRegionWith` path — or simply shows tooltip "Use W+Shift+E". Decide at build time.
+
+In replay mode: "Save Last N" dropdown maps to `saveReplaySeconds(n)`. Duration options driven by Prefs `replaySaveDefaultSecs`.
 
 ---
 
-### 2I. Directory additions
+### 2I. Prefs Entries
 
-```
-quickshell/
-├── module-toasts/
-│   ├── ScreenrecToast.qml     ← index 1, persistent during recording
-│   └── ...
-├── root-processes/
-│   └── ScreenrecProcess.qml   ← NEW — manages daemon, reads stdout signals
-├── helper/
-│   └── screenrec/
-│       └── pillbox-screenrec  ← NEW — bash script: mode dispatch, slurp, daemon ctl
-```
-
-### 2J. Prefs entries (to add at build time)
-
-Three new keys in `prefs.json`, all user-configurable via Settings panel (future):
-
-| Key | Default value | Used by |
+| Key | Default | Notes |
 |---|---|---|
-| `screenshotDir` | `~/.config/pillbox/media/Screenshots` | ScreenshotProcess, pillbox-screenshot |
-| `recordingDir` | `~/.config/pillbox/media/Recordings` | ScreenrecProcess, pillbox-screenrec |
-| `replayDir` | `~/.config/pillbox/media/Replays` | ScreenrecProcess, pillbox-screenrec |
-
-The defaults resolve through the `pillbox/media/` symlinks created by `install.sh`. Changing a Prefs value redirects saves to the new folder — symlinks are unaffected, XDG dirs remain untouched. If a user uninstalls, removing `~/.config/pillbox/media/` drops the symlinks only; their actual media in `~/Pictures/Screenshots/` etc. is never touched.
-
-**Temp/operational files:** `~/.local/share/pillbox/` (existing convention — FIFO, PID). Truly ephemeral script scratch (if ever needed) uses `$XDG_RUNTIME_DIR/pillbox/` — created by scripts at runtime, no install.sh setup needed, cleaned on logout automatically.
+| `screenshotDir` | `~/.config/pillbox/media/Screenshots` | Unchanged |
+| `recordingDir` | `~/.config/pillbox/media/Recordings` | Both modes |
+| `replayDir` | `~/.config/pillbox/media/Replays` | Replay clips |
+| `recMode` | `"oneshot"` | Persisted mode preference |
+| `replayBufferSecs` | `300` | Rolling buffer size (5 min) |
+| `replaySaveDefaultSecs` | `30` | W-S-e save duration in replay mode |
+| `recordingFps` | `60` | Shared across modes |
 
 ---
 
 ## 3. Replay Buffer
 
-Covered inline in section 2C above. Replay is not a standalone module — it is an optional mode of Screenrec (window mode only, arm-on-demand). No separate FIFO process or UI module needed.
+Covered in section 2C. Replay is Mode B of Screenrec — always-on, signal-controlled. Not a standalone module.
 
 ---
 
@@ -661,6 +706,14 @@ Audio capture applies to Screenrec only — not to screenshots, not to replay (r
 - [x] **1. Build new reusable elements** — `ToastWindow.qml`, `ToastController.qml`, `MediaThumbnail.qml`, `ToastTimer.qml`.
 - [x] **2. Build the rest of the UI** — `module-toasts/ScreenshotPreview.qml`, `module-toasts/ScreenrecToast.qml`, Screenshots tab in NotificationPanel, Screenrec section in Control panel.
 - [x] **3. Update the plan with what has been completed. Commit and push.**
+- [ ] **4. Rewrite screenrec script backend** — `pillbox-screenrec` (oneshot + replay sub-modes, notify FIFO, signal-based CTL), `pillbox-screenrec-saved` (write to notify FIFO). See section 2E.
+- [ ] **5. Rewrite `ScreenrecProcess.qml`** — dual mode, `Component.onCompleted` init for replay, new API (`toggle`, `saveReplay`, `saveReplaySeconds`, `pause`, `emergencyStop`). See section 2F.
+- [ ] **6. Update `FifoListener.qml` + `shell.qml`** — replace stale screenrec commands with new ones. See section 2F.
+- [ ] **7. Rewrite ControlPanel screenrec section** — mode toggle (one-shot / replay), new button layout. See section 2H.
+- [ ] **8. Add Prefs entries** — `recMode`, `replayBufferSecs`, `replaySaveDefaultSecs`, `recordingFps`. See section 2I.
+- [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
+- [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
+- [ ] **11. Fix toast** — both `ScreenshotPreview.qml` and `ScreenrecToast.qml` need review and repair to work with current state.
 
 > **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.
 
@@ -697,14 +750,39 @@ visible: (_ssLoader.item ? _ssLoader.item.shouldShow : false) ||
 
 **Deviation:** The ControlPanel Start button calls `screenrecProcess.startScreen()` directly without dismissing the panel. The user can press ESC or click outside. Reason: no `dismissRequested` signal on ControlPanel. This is consistent with how other panels behave (they don't self-dismiss on button actions). To fix properly, a `dismissRequested` signal + PanelSurface wiring would be needed.
 
-### D5 — screenshotUI FIFO does not auto-switch to Screenshots tab
+### D5 — screenshotUI FIFO auto-switch to Screenshots tab ✓ FIXED
 
 **Plan:** `screenshotUI` FIFO command → opens NotificationPanel pre-landed on Screenshots tab.
 
-**Deviation:** `screenshotUI` opens the NotificationPanel but defaults to Notifications tab (tab 0). The Screenshots tab exists and is clickable, but no auto-switch on open. Reason: Loader-based panels don't persist state between open/close. A proper fix requires either keeping the panel always-alive or passing the target tab as a property through PanelSurface.onLoaded.
+**Original deviation:** Defaulted to tab 0. Loader-based panels don't persist state between open/close.
+
+**Fix implemented:** `PanelSurface` gained `property int notificationInitialTab: 0`. In `shell.qml`, `onScreenshotUIRequested` sets `panelSurface.notificationInitialTab = 1` then calls `panelController.toggle("notifications")`. In PanelSurface's notifications `onLoaded`, `item._tab = root.notificationInitialTab` is set and then `root.notificationInitialTab = 0` resets it so normal W-6 always opens on tab 0. PanelSurface was given `id: panelSurface` in shell.qml.
 
 ### D6 — Notification card urgency color uses mat3Error directly
 
 **Plan:** No spec change — the original code used `Style.color11`.
 
 **Deviation:** `Style.color11` doesn't exist in the Style singleton. Changed to `Style.mat3Error` (the MD3 error color) inline in the card color expression. The result is equivalent to the original intent.
+
+### D8 — Image bank scan: `find -L` + `sh -c` required (symlink + escape issues)
+
+**Plan (1B):** `find "$dir" -maxdepth 1 -type f -name "*.png" -printf "%T@\t%p\n"` as direct Process command array.
+
+**Deviations:**
+1. `find` without `-L` does not traverse a symlink given as the starting path. `~/.config/pillbox/media/Screenshots` is a symlink → `~/Screenshots`; scan returned 0 files. Fix: `find -L`.
+2. `"\t"` and `"\n"` in a QML JS string literal are tab and newline characters (ASCII 9/10). Passing them as a `find -printf` format argument produces literal chars in the output rather than format sequences. Fix: wrap in `sh -c` with single-quoted format string so `find` receives `\t`/`\n` escape sequences it interprets itself.
+3. Path passed via positional arg `"$1"` (not string interpolation) for correct quoting.
+4. **Addition not in plan:** Delete button added to each screenshot card (`variant: "critical"`). Calls `screenshotProcess.deleteScreenshot(path)` — immediately filters the entry from the in-memory list, then runs `rm -f` async via `_deleteProc` in `ScreenshotProcess.qml`.
+
+**Final command:**
+```qml
+command: ["sh", "-c",
+    "find -L \"$1\" -maxdepth 1 -type f -name '*.png' -printf '%T@\\t%p\\n' 2>/dev/null",
+    "sh", root._dir]
+```
+
+### D7 — NotificationPanel missing Quickshell.Io import + keyboard Tab shortcut added
+
+**Fix:** `NotificationPanel.qml` was missing `import Quickshell.Io` — caused `Process is not a type` error on open, making the panel invisible. Added the import.
+
+**Addition:** `focus: true` added to NotificationPanel root Item (mirrors MediaPlayerPanel pattern). `Keys.onPressed` handles `Qt.Key_Tab` to toggle `_tab` between 0 (Notifications) and 1 (Screenshots). PanelSurface Loader already has `focus: true` so keyboard focus propagates automatically on panel open.

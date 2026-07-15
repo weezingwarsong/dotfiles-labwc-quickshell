@@ -1,0 +1,13 @@
+#!/bin/sh
+# pillbox-screenrec-region — pick region via slurp and start region recording.
+#
+# Must be called from rc.xml (NOT via QML Process) so slurp can get the
+# Wayland pointer grab. Writes coords to FIFO; Quickshell then starts screenrec
+# via the screenrecStartRegionWith command.
+
+FIFO="$HOME/.local/share/pillbox/pillbox.fifo"
+
+REGION="$(slurp -f '%wx%h+%x+%y' 2>/dev/null)" || exit 0
+[ -n "$REGION" ] || exit 0
+
+[ -p "$FIFO" ] && echo "screenrecStartRegionWith:$REGION" > "$FIFO"

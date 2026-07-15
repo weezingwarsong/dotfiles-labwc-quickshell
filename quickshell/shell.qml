@@ -32,16 +32,21 @@ ShellRoot {
         onStopwatchResetRequested:       timer.resetStopwatch()
         onToggleVisualizerRequested:     visualizerVisible = !visualizerVisible
 
-        onScreenshotScreenRequested:  screenshot.takeScreen()
-        onScreenshotAllRequested:     screenshot.takeAll()
-        onScreenshotRegionRequested:  screenshot.takeRegion()
-        onScreenshotUIRequested:      panelController.toggle("notifications")
+        onScreenshotScreenRequested:   screenshot.takeScreen()
+        onScreenshotAllRequested:      screenshot.takeAll()
+        onScreenshotRegionRequested:   screenshot.takeRegion()
+        onScreenshotUIRequested: {
+            panelSurface.notificationInitialTab = 1
+            panelController.toggle("notifications")
+        }
+        onScreenshotNotifyRequested:   (path)   => screenshot.notifyExternalSave(path)
 
-        onScreenrecStartScreenRequested:  screenrec.startScreen()
-        onScreenrecStartRegionRequested:  screenrec.startRegion()
-        onScreenrecStopRequested:         screenrec.stop()
-        onScreenrecSaveReplayRequested:   screenrec.saveReplay()
-        onScreenrecToggleScreenRequested: screenrec.recording ? screenrec.stop() : screenrec.startScreen()
+        onScreenrecStartScreenRequested:    screenrec.startScreen()
+        onScreenrecStartRegionRequested:    screenrec.startRegion()
+        onScreenrecStopRequested:           screenrec.stop()
+        onScreenrecSaveReplayRequested:     screenrec.saveReplay()
+        onScreenrecToggleScreenRequested:   screenrec.recording ? screenrec.stop() : screenrec.startScreen()
+        onScreenrecStartRegionWithRequested: (coords) => screenrec.startRegionWith(coords)
     }
 
     property bool visualizerVisible: true
@@ -220,6 +225,7 @@ ShellRoot {
     }
 
     PanelSurface {
+        id: panelSurface
         activePanel:     panelController.activePanel
         shouldShow:      panelController.shouldShow
         settingsProcess: settings

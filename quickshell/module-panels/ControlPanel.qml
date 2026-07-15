@@ -181,20 +181,30 @@ Item {
             }
 
             // Start / recording status
+            // Region start is disabled here — slurp can't get pointer grab as a QML child.
+            // Use W+Shift+E keybind instead (calls pillbox-screenrec-region as labwc child).
             PanelButton {
+                id: _startBtn
                 Layout.fillWidth: true
                 variant: (root.screenrecProcess && root.screenrecProcess.recording) ? "critical" : "accent"
                 label: {
                     if (root.screenrecProcess && root.screenrecProcess.recording) return "Recording..."
-                    return root._recMode === "region" ? "Pick Region & Start" : "Start — Screen"
+                    if (root._recMode === "region") return "Pick Region & Start"
+                    return "Start — Screen"
                 }
-                enabled: root.screenrecProcess !== null
+                enabled: root.screenrecProcess !== null &&
+                         ((root.screenrecProcess && root.screenrecProcess.recording) ||
+                          root._recMode !== "region")
+                QQC.ToolTip.text: "Use W+Shift+E to pick region"
+                QQC.ToolTip.visible: root._recMode === "region" &&
+                                     !(root.screenrecProcess && root.screenrecProcess.recording) &&
+                                     _startBtnHover.hovered
+                QQC.ToolTip.delay: 300
+                HoverHandler { id: _startBtnHover }
                 onClicked: {
                     if (!root.screenrecProcess) return
                     if (root.screenrecProcess.recording) {
                         root.screenrecProcess.stop()
-                    } else if (root._recMode === "region") {
-                        root.screenrecProcess.startRegion()
                     } else {
                         root.screenrecProcess.startScreen()
                     }

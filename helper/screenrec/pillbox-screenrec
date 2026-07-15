@@ -33,6 +33,7 @@ SAVE_DIR="$HOME/.config/pillbox/media/Recordings"
 REPLAY_DIR="$HOME/.config/pillbox/media/Replays"
 FPS=60
 REPLAY=0
+REGION_COORDS=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -40,6 +41,7 @@ while [ $# -gt 0 ]; do
         --fps)        FPS="$2";             shift 2 ;;
         --dir)        SAVE_DIR="$2";        shift 2 ;;
         --replay-dir) REPLAY_DIR="$2";      shift 2 ;;
+        --region)     REGION_COORDS="$2";   shift 2 ;;
         *)            shift ;;
     esac
 done
@@ -91,8 +93,12 @@ trap _emergency_stop EXIT
 REGION_FLAGS=""
 case "$MODE" in
     region)
-        REGION="$(slurp -f '%wx%h+%x+%y' 2>/dev/null)" || { cleanup; exit 0; }
-        [ -n "$REGION" ] || { cleanup; exit 0; }
+        if [ -n "$REGION_COORDS" ]; then
+            REGION="$REGION_COORDS"
+        else
+            REGION="$(slurp -f '%wx%h+%x+%y' 2>/dev/null)" || { cleanup; exit 0; }
+            [ -n "$REGION" ] || { cleanup; exit 0; }
+        fi
         REGION_FLAGS="-w region -region $REGION"
         ;;
     screen)

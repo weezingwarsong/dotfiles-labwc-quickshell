@@ -26,12 +26,14 @@ Item {
     signal screenshotAllRequested()
     signal screenshotRegionRequested()
     signal screenshotUIRequested()
+    signal screenshotNotifyRequested(string path)
 
     signal screenrecStartScreenRequested()
     signal screenrecStartRegionRequested()
     signal screenrecStopRequested()
     signal screenrecSaveReplayRequested()
     signal screenrecToggleScreenRequested()
+    signal screenrecStartRegionWithRequested(string coords)
 
     Process {
         id: fifoReader
@@ -78,6 +80,9 @@ Item {
                 else if (cmd === "screenrecStop")         root.screenrecStopRequested()
                 else if (cmd === "screenrecSaveReplay")   root.screenrecSaveReplayRequested()
                 else if (cmd === "screenrecToggleScreen") root.screenrecToggleScreenRequested()
+
+                else if (cmd.startsWith("screenshotNotify:"))          root.screenshotNotifyRequested(cmd.slice(17))
+                else if (cmd.startsWith("screenrecStartRegionWith:"))  root.screenrecStartRegionWithRequested(cmd.slice(25))
 
                 else if (cmd.startsWith("setTimer:")) {
                     var secs = parseInt(cmd.slice(9))

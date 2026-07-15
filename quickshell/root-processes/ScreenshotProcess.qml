@@ -18,9 +18,26 @@ Item {
     function takeAll()     { _launch("all")     }
     function takeRegion()  { _launch("region")  }
 
+    function notifyExternalSave(path) {
+        var name = path.split("/").pop()
+        var updated = root.screenshots.slice()
+        updated.unshift({ path: path, name: name, timestamp: Date.now() })
+        root.screenshots = updated
+        root.lastPath = path
+        root.screenshotSaved(path)
+        console.log("[ScreenshotProcess] external save notified:", path)
+    }
+
+    function deleteScreenshot(path) {
+        root.screenshots = root.screenshots.filter(function(s) { return s.path !== path })
+        root._deletePath = path
+        _deleteProc.running = true
+    }
+
     // ── Internal ──────────────────────────────────────────────────────────────
-    property string _dir:  ""   // resolved in onCompleted from Prefs or default
-    property string _mode: ""
+    property string _dir:        ""   // resolved in onCompleted from Prefs or default
+    property string _mode:       ""
+    property string _deletePath: ""
 
     function _launch(mode) {
         if (_proc.running) {
@@ -29,6 +46,43 @@ Item {
         }
         root._mode = mode
         _proc.running = true
+    }
+
+    Process {
+        id: _scanProc
+        command: ["sh", "-c",
+            "find -L \"$1\" -maxdepth 1 -type f -name '*.png' -printf '%T@\\t%p\\n' 2>/dev/null",
+            "sh", root._dir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var entries = []
+                text.split("\n").forEach(function(line) {
+                    line = line.trim()
+                    if (line === "" || !line.includes("\t")) return
+                    var tab  = line.indexOf("\t")
+                    var ts   = parseFloat(line.slice(0, tab)) * 1000
+                    var path = line.slice(tab + 1)
+                    entries.push({ path: path, name: path.split("/").pop(), timestamp: ts })
+                })
+                entries.sort(function(a, b) { return b.timestamp - a.timestamp })
+                root.screenshots = entries.slice(0, 200)
+                console.log("[ScreenshotProcess] scanned:", entries.length, "screenshots in", root._dir)
+            }
+        }
+        onExited: function(code, signal) {
+            if (code !== 0)
+                console.log("[ScreenshotProcess] scan failed:", code, "dir:", root._dir)
+        }
+    }
+
+    Process {
+        id: _deleteProc
+        command: ["rm", "-f", root._deletePath]
+        onExited: function(code, signal) {
+            _deleteProc.running = false
+            if (code !== 0)
+                console.log("[ScreenshotProcess] delete failed:", root._deletePath)
+        }
     }
 
     Process {
@@ -61,6 +115,7 @@ Item {
         }
 
         onExited: function(code, signal) {
+            _proc.running = false
             if (code !== 0)
                 console.log("[ScreenshotProcess] script exited", code, "| mode:", root._mode)
         }
@@ -73,5 +128,6 @@ Item {
             ? Prefs.screenshotDir
             : home + "/.config/pillbox/media/Screenshots"
         console.log("[ScreenshotProcess] started | dir:", root._dir)
+        _scanProc.running = true
     }
 }

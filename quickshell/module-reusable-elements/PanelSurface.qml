@@ -26,6 +26,7 @@ PanelWindow {
     property var networkProcess:      null
     property var screenshotProcess:   null
     property var screenrecProcess:    null
+    property int notificationInitialTab: 0
 
     signal dismissRequested()
     signal navigateRequested(int direction)
@@ -134,6 +135,8 @@ PanelWindow {
                     item.notificationServer = Qt.binding(function() { return root.notificationServer })
                     item.screenshotProcess  = Qt.binding(function() { return root.screenshotProcess  })
                     item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
+                    item._tab = root.notificationInitialTab
+                    root.notificationInitialTab = 0
                     return
                 }
                 if (root.activePanel === "control") {

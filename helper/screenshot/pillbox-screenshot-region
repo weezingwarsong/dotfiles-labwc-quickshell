@@ -1,0 +1,28 @@
+#!/bin/sh
+# pillbox-screenshot-region — region screenshot via slurp, run as a direct labwc child.
+#
+# Must be called from rc.xml (NOT via QML Process) so slurp can get the
+# Wayland pointer grab. After capture, notifies Quickshell via FIFO.
+#
+# FIFO protocol (→ Quickshell):
+#   screenshotNotify:/abs/path/file.png   — capture done, trigger toast + image bank
+
+FIFO="$HOME/.local/share/pillbox/pillbox.fifo"
+SAVE_DIR="${PILLBOX_SCREENSHOT_DIR:-$HOME/.config/pillbox/media/Screenshots}"
+
+# slurp exits non-zero on Esc — bail out silently
+REGION="$(slurp 2>/dev/null)" || exit 0
+[ -n "$REGION" ] || exit 0
+
+mkdir -p "$SAVE_DIR" || exit 1
+OUTPUT="$SAVE_DIR/screenshot_$(date +%Y-%m-%d_%H-%M-%S).png"
+
+grim -g "$REGION" "$OUTPUT" 2>/dev/null || exit 1
+
+[ -f "$OUTPUT" ] && [ -s "$OUTPUT" ] || exit 1
+
+# Auto-copy image bytes to clipboard
+wl-copy --type image/png < "$OUTPUT" 2>/dev/null || true
+
+# Notify Quickshell
+[ -p "$FIFO" ] && echo "screenshotNotify:$OUTPUT" > "$FIFO"

@@ -17,16 +17,18 @@ Item {
     signal recordingError(string reason)
 
     // ── Public API (called by FifoListener handlers in shell.qml) ────────────
-    function startScreen() { _start("screen") }
-    function startRegion() { _start("region") }
-    function stop()        { _sendCtl("stop")        }
-    function saveReplay()  { _sendCtl("save-replay") }
+    function startScreen()           { root._regionCoords = ""; _start("screen") }
+    function startRegion()           { root._regionCoords = ""; _start("region") }
+    function startRegionWith(coords) { root._regionCoords = coords; _start("region") }
+    function stop()                  { _sendCtl("stop")        }
+    function saveReplay()            { _sendCtl("save-replay") }
 
     // ── Internal ──────────────────────────────────────────────────────────────
-    property string _dir:       ""
-    property string _replayDir: ""
-    property string _ctlFifo:   ""
-    property string _startMode: ""
+    property string _dir:          ""
+    property string _replayDir:    ""
+    property string _ctlFifo:      ""
+    property string _startMode:    ""
+    property string _regionCoords: ""
 
     function _start(mode) {
         if (root.recording) {
@@ -56,8 +58,9 @@ Item {
         id: _proc
         command: {
             var args = ["pillbox-screenrec", root._startMode]
-            if (root._dir       !== "") { args.push("--dir");        args.push(root._dir)       }
-            if (root._replayDir !== "") { args.push("--replay-dir"); args.push(root._replayDir) }
+            if (root._dir          !== "") { args.push("--dir");        args.push(root._dir)          }
+            if (root._replayDir    !== "") { args.push("--replay-dir"); args.push(root._replayDir)    }
+            if (root._regionCoords !== "") { args.push("--region");     args.push(root._regionCoords) }
             return args
         }
         running: false
@@ -90,6 +93,7 @@ Item {
         }
 
         onExited: function(code, signal) {
+            _proc.running = false
             if (root.recording) {
                 root.recording = false
                 console.log("[ScreenrecProcess] process exited unexpectedly:", code)

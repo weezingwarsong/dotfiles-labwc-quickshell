@@ -2,9 +2,11 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC
 import Quickshell.Services.Notifications
+import Quickshell.Io
 
 Item {
     id: root
+    focus: true
 
     property var    notificationServer: null
     property var    screenshotProcess:  null
@@ -12,6 +14,16 @@ Item {
     signal navigateRequested(int direction)
 
     property int _tab: 0   // 0 = Notifications, 1 = Screenshots
+
+    Keys.onPressed: (event) => {
+        switch (event.key) {
+        case Qt.Key_Tab:
+            root._tab = root._tab === 0 ? 1 : 0
+            event.accepted = true; break
+        default:
+            event.accepted = false
+        }
+    }
 
     readonly property bool _hasNotifs: notificationServer && notificationServer.countTotal > 0
     readonly property var  _shots:     screenshotProcess  ? screenshotProcess.screenshots  : []
@@ -414,6 +426,12 @@ Item {
                                                 id: _copyImg
                                                 command: ["sh", "-c", "wl-copy -t image/png < \"$1\"", "sh", _shotCard.modelData.path]
                                             }
+                                        }
+
+                                        PanelButton {
+                                            label:    "Delete"
+                                            variant:  "critical"
+                                            onClicked: root.screenshotProcess && root.screenshotProcess.deleteScreenshot(_shotCard.modelData.path)
                                         }
                                     }
                                 }
