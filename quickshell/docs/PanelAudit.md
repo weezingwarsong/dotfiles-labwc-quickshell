@@ -8,6 +8,51 @@
 
 ---
 
+## V2 Rework Plan
+
+Major architectural refactor. Work in this order — each step unblocks the next.
+
+### Phase 1 — PanelSurface / PanelContainer
+
+- [ ] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
+- [ ] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
+- [ ] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
+- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel)
+- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome
+
+### Phase 2 — Reusable Elements Classification
+
+- [ ] **2a. Document classification** in `docs/components.md` — three buckets:
+  - **Infrastructure** — PillWindow, PanelSurface, HoverZone, PillController, PanelController, ToastWindow, ToastController (structural, not visual atoms)
+  - **Panel chrome** — PanelTabBar, PanelDivider, PanelCard, SectionHeader, SectionLabel, RowLabel (build panel page layouts; use `Layout.*` attached props)
+  - **Controls / atoms** — PanelButton, IconButton, TogglePair, SegmentedControl, ScrollChip, ScrollingText, FontPicker, StatusDot, MediaThumbnail (leaf elements; declare `implicitWidth`/`implicitHeight`, caller decides layout behavior)
+- [ ] **2b. Verify each atom declares `implicitWidth` + `implicitHeight`** — no Layout-specific defaults baked in
+
+### Phase 3 — Layout Standardization (Audit Fixes)
+
+Apply the audit findings from the priority table below, one component at a time.
+
+- [ ] **3a. ControlPanel** — fix conflicting anchors on network Text; fix bare `height` on network Rectangle
+- [ ] **3b. MediaPlayerPanel** — fix bare `width`/`height` on `_volBtn` and `_marqueeClip`; add progress bar + polling timer
+- [ ] **3c. TimerWidget** — fix bare `height` on all ColumnLayout children
+- [ ] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
+- [ ] **3e. CalendarPanel** — fix `anchors.fill` in all three Flickables
+- [ ] **3f. PanelTabBar** — replace `Row { anchors.fill }` + manual widths with `RowLayout`
+- [ ] **3g. ScrollChip** — replace `Row { anchors }` with `RowLayout`; remove anchors-in-positioner
+- [ ] **3h. SectionHeader** — remove redundant `anchors.verticalCenter` inside `Row`
+- [ ] **3i. PanelNavBar** — replace `Row` with `RowLayout` for dot indicators
+- [ ] **3j. PanelCard** — replace `childrenRect.height` with layout-safe sizing
+
+### Phase 4 — Panel Module Content Rework
+
+Individual panel content rewrites. Order TBD based on priority.
+
+- [ ] **4a. ControlPanel** — screenrec section rewrite (was step 7 in screenrecDiscussion.md)
+- [ ] **4b. MediaPlayerPanel** — progress bar, track time, layout polish
+- [ ] Other panels as needed
+
+---
+
 ## The Rules We're Standardizing On
 
 1. Items inside a `RowLayout` / `ColumnLayout` must size themselves via `implicitWidth`/`implicitHeight` or `Layout.preferredWidth`/`Layout.preferredHeight` — **not** bare `width`/`height`.
