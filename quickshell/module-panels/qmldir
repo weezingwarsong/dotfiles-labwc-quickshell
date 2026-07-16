@@ -16,6 +16,7 @@ RowLabel 1.0 ../module-reusable-elements/RowLabel.qml
 SectionHeader 1.0 ../module-reusable-elements/SectionHeader.qml
 PanelTabBar 1.0 ../module-reusable-elements/PanelTabBar.qml
 MediaThumbnail 1.0 ../module-reusable-elements/MediaThumbnail.qml
+SegmentedControl 1.0 ../module-reusable-elements/SegmentedControl.qml
 CalendarPanel 1.0 CalendarPanel.qml
 MediaPlayerPanel 1.0 MediaPlayerPanel.qml
 SettingsPanel 1.0 SettingsPanel.qml

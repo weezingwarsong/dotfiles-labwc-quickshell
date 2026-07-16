@@ -1,11 +1,12 @@
 import QtQuick
+import QtQuick.Layouts
 
 // Mutually exclusive button group (MD3 Segmented Button).
 // Pure look-and-feel — no persistence. The caller owns `selected` and handles `onToggled`.
 //
 // variant "accent"   — active button: accentBgColor / textOnAccent
 // variant "critical" — active button: criticalBgColor / textCritical
-Row {
+RowLayout {
     id: root
 
     property var    model:      []
