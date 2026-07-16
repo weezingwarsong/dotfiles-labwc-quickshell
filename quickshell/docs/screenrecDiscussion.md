@@ -648,26 +648,44 @@ The toast receives its data from `ScreenrecProcess` signals — these signals ar
 
 ---
 
-### 2H. ControlPanel UI (rewrite needed)
+### 2H. ControlPanel UI (redesigned — compact two-row layout)
 
+Old layout (PanelButton grid) is superseded by the design below.
+
+```qml
+ColumnLayout {
+    PanelDivider {}
+
+    RowLayout {                                            // Row 1 — mode + start/stop
+        SectionLabel { text: "Rec. Mode" }
+        // spacer
+        TogglePair { labelA: "Single"; labelB: "Replay"  // switches recMode; blocked while recording
+                     selected: _modeIdx }
+        TogglePair { labelA: "▶"; labelB: "■"            // Start / Stop
+                     selected: _recording ? 1 : 0 }
+    }
+
+    RowLayout {                                            // Row 2 — context (mode-dependent)
+        Text { text: _modeIdx === 0 ? "Region" : "W-S-e: save" }
+        IconButton { visible: _modeIdx === 0 }            // crosshair glyph — region pick (Single only)
+    }
+
+    // Row 3 — Audio (added after SegmentedControl is built; see step 7a)
+    // RowLayout {
+    //     SectionLabel { text: "Audio" }
+    //     SegmentedControl { model: ["None", "System", "Mic", "Both"]; selected: _audioIdx }
+    // }
+}
 ```
-─── Screen Recorder ───────────────────
 
-Mode:  [ One-shot ]  [ Replay ]
-
-── One-shot ───────────────────────────
-Source:  [ Screen ]  [ Region ]
-         [ Start / Stop ]
-
-── Replay ─────────────────────────────
-         [ Toggle Recording ]
-         [ Save Last 30 s  ▾ ]    30 s / 60 s / 5 min / 10 min
-         Status: ● running / ○ stopped
-```
-
-Region source in one-shot: clicking "Region" + "Start" writes `screenrecStartRegionWith` path — or simply shows tooltip "Use W+Shift+E". Decide at build time.
-
-In replay mode: "Save Last N" dropdown maps to `saveReplaySeconds(n)`. Duration options driven by Prefs `replaySaveDefaultSecs`.
+**Behavior:**
+- **Mode TogglePair** (`Single | Replay`): switches `recMode` Prefs; blocked (disabled) while recording is active
+- **Start/Stop TogglePair** (`▶ | ■`):
+  - Single mode: `▶` → start oneshot; `■` → send `stop` CTL command
+  - Replay mode: `▶ | ■` → send `toggleRec` CTL command (toggles recording-to-file; gsr daemon stays alive)
+  - `selected` is driven by `screenrecProcess.recording` — the toggle reflects actual state, not user intent
+- **Row 2 — Single mode:** "Region" label + crosshair `IconButton` → triggers `screenrecStartRegion` FIFO; no button when already recording
+- **Row 2 — Replay mode:** "W-S-e: save" hint text only (keybind reminder for replay save); no interactive button
 
 ---
 
@@ -710,6 +728,7 @@ Audio capture applies to Screenrec only — not to screenshots, not to replay (r
 - [ ] **5. Rewrite `ScreenrecProcess.qml`** — dual mode, `Component.onCompleted` init for replay, new API (`toggle`, `saveReplay`, `saveReplaySeconds`, `pause`, `emergencyStop`). See section 2F.
 - [ ] **6. Update `FifoListener.qml` + `shell.qml`** — replace stale screenrec commands with new ones. See section 2F.
 - [ ] **7. Rewrite ControlPanel screenrec section** — mode toggle (one-shot / replay), new button layout. See section 2H.
+- [ ] **7a. Build `SegmentedControl.qml`** — new reusable element. MD3 Segmented Button: row of N mutually exclusive buttons, shared rounded border, accent highlight on selected. API: `model: list<string>`, `selected: int`, `fontFamily: string` (optional, for Nerd Font glyphs), `signal toggled(int index)`. Used for audio source selection (`None | System | Mic | Both`) and potentially other N-option controls. Build before completing step 7 so the audio row can be wired in the same pass.
 - [ ] **8. Add Prefs entries** — `recMode`, `replayBufferSecs`, `replaySaveDefaultSecs`, `recordingFps`. See section 2I.
 - [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
 - [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
