@@ -706,7 +706,7 @@ Audio capture applies to Screenrec only — not to screenshots, not to replay (r
 - [x] **1. Build new reusable elements** — `ToastWindow.qml`, `ToastController.qml`, `MediaThumbnail.qml`, `ToastTimer.qml`.
 - [x] **2. Build the rest of the UI** — `module-toasts/ScreenshotPreview.qml`, `module-toasts/ScreenrecToast.qml`, Screenshots tab in NotificationPanel, Screenrec section in Control panel.
 - [x] **3. Update the plan with what has been completed. Commit and push.**
-- [ ] **4. Rewrite screenrec script backend** — `pillbox-screenrec` (oneshot + replay sub-modes, notify FIFO, signal-based CTL), `pillbox-screenrec-saved` (write to notify FIFO). See section 2E.
+- [x] **4. Rewrite screenrec script backend** — `pillbox-screenrec` (oneshot + replay sub-modes, notify FIFO, signal-based CTL), `pillbox-screenrec-saved` (write to notify FIFO). See section 2E. See D9.
 - [ ] **5. Rewrite `ScreenrecProcess.qml`** — dual mode, `Component.onCompleted` init for replay, new API (`toggle`, `saveReplay`, `saveReplaySeconds`, `pause`, `emergencyStop`). See section 2F.
 - [ ] **6. Update `FifoListener.qml` + `shell.qml`** — replace stale screenrec commands with new ones. See section 2F.
 - [ ] **7. Rewrite ControlPanel screenrec section** — mode toggle (one-shot / replay), new button layout. See section 2H.
@@ -780,6 +780,17 @@ command: ["sh", "-c",
     "find -L \"$1\" -maxdepth 1 -type f -name '*.png' -printf '%T@\\t%p\\n' 2>/dev/null",
     "sh", root._dir]
 ```
+
+### D9 — Script backend: notify FIFO, gsr stdout suppression, audio flag added early
+
+**Plan (2E):** Notify mechanism described as forwarding `-sc` callbacks to stdout. Plan said "notify FIFO (`screenrec-notify`)" for inter-process comms.
+
+**Implementation details:**
+1. **Notify FIFO reader pattern:** `exec 4<>"$NOTIFY_FIFO"` holds write end open (prevents blocking on callback open). Background subshell closes its inherited fd 4, then reads from the FIFO via redirected stdin (`done < "$NOTIFY_FIFO"`). Parent closes fd 4 in `cleanup()` → subshell gets EOF → drains remaining messages → exits. `wait "$NOTIFY_READER_PID"` in cleanup ensures all messages are emitted before the script exits.
+2. **gsr stdout suppressed:** gsr v5 prints saved paths to stdout in addition to calling -sc. Added `>/dev/null` to both gsr invocations to prevent leaking raw paths into the protocol stream.
+3. **SIGRTMIN computed at runtime:** `python3 -c 'import signal; print(int(signal.SIGRTMIN))'` with fallback 34. Signal arithmetic uses `$(( _RTMIN + N ))`.
+4. **`saveReplay:10` added:** man page shows `SIGRTMIN+1` = save last 10 seconds, not in original plan. Added for completeness.
+5. **Audio (`--audio`) added ahead of ControlPanel work:** Plan said script should accept audio param without breaking when absent. Added `--audio none|system|mic|both|<raw-gsr-source>` to both oneshot and replay invocations. Maps to zero, one, or two `-a` gsr flags. Passes through unchanged when `--audio none` or omitted. ControlPanel (step 7) and ScreenrecProcess (step 5) can wire it without revisiting the script.
 
 ### D7 — NotificationPanel missing Quickshell.Io import + keyboard Tab shortcut added
 

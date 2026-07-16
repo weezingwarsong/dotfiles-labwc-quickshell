@@ -1,86 +1,141 @@
-#!/bin/sh
-# pillbox-screenrec — screen recorder helper for Pillbox
+#!/bin/bash
+# pillbox-screenrec — screen recorder helper for Pillbox (v2)
 #
-# Usage: pillbox-screenrec screen|region [--replay] [--fps N]
-#                          [--dir <recordings-dir>] [--replay-dir <replay-dir>]
+# Usage: pillbox-screenrec oneshot|replay [options]
 #
-# NOTE — Wayland limitation:
-#   gpu-screen-recorder's -w focused (window capture) is X11-only.
-#   On Wayland/labwc, "window mode" is implemented as screen capture + replay
-#   enabled. Use screen mode with --replay for gaming/replay use cases.
+# Sub-mode oneshot:
+#   Spawns gsr on demand. Records until stopped.
+#   --source screen|region  (default: screen)
+#   --region WxH+X+Y        (coords from slurp; required when source=region)
+#   --fps N                 (default: 60)
+#   --dir PATH              (recordings output dir)
 #
-# stdout protocol (read by ScreenrecProcess.qml):
-#   screenrec:started                          — recording has begun
-#   screenrec:stopped:/abs/path/file.mp4       — recording stopped, file ready
-#   screenrec:replay:saved:/abs/path/clip.mp4  — replay clip saved
-#   screenrec:error:<reason>                   — something went wrong (exits 1)
+# Sub-mode replay:
+#   Spawns gsr immediately. Rolling replay buffer always hot. Screen only.
+#   --fps N
+#   --dir PATH              (regular recordings dir, -ro)
+#   --replay-dir PATH       (replay clips dir, -o)
+#   --replay-secs N         (buffer size in seconds, default: 300)
 #
-# Control FIFO: ~/.local/share/pillbox/screenrec-ctl
-#   Write "stop"        to stop recording cleanly (finalises mp4, then exits)
-#   Write "save-replay" to save replay buffer (--replay mode only)
+# Audio (both modes):
+#   --audio none            no audio (default)
+#   --audio system          desktop audio  (-a default_output)
+#   --audio mic             microphone     (-a default_input)
+#   --audio both            desktop + mic  (-a default_output -a default_input)
+#   --audio <gsr-source>    raw gsr source string (device:name, app:name, etc.)
 #
-# The script blocks until "stop" is received or gsr dies unexpectedly.
-# Run it as a long-running Process from ScreenrecProcess.qml.
+# stdout protocol (read by ScreenrecProcess.qml via SplitParser):
+#   screenrec:started
+#   screenrec:stopped:PATH       recording-to-file ended; PATH is absolute
+#   screenrec:replay:saved:PATH  replay clip saved
+#   screenrec:error:REASON       something went wrong (exits 1 unless gsr crashed)
 #
-# Save dirs:
-#   Recordings: ~/.config/pillbox/media/Recordings  (override: --dir)
-#   Replays:    ~/.config/pillbox/media/Replays      (override: --replay-dir)
+# CTL FIFO: ~/.local/share/pillbox/screenrec-ctl
+#   Both modes : stop          → SIGINT  (oneshot: saves; replay: exits without saving)
+#   Both modes : pause         → SIGUSR2 (toggle pause/resume)
+#   replay only: toggleRec     → SIGRTMIN (start/stop recording to -ro dir)
+#   replay only: saveReplay    → SIGUSR1  (save full buffer to -o dir)
+#   replay only: saveReplay:10  → SIGRTMIN+1
+#   replay only: saveReplay:30  → SIGRTMIN+2
+#   replay only: saveReplay:60  → SIGRTMIN+3
+#   replay only: saveReplay:300 → SIGRTMIN+4
+#   replay only: saveReplay:600 → SIGRTMIN+5
+#   replay only: saveReplay:1800→ SIGRTMIN+6
+#
+# Save notifications flow:
+#   gsr -sc pillbox-screenrec-saved fires on each file save.
+#   The callback writes TYPE:PATH to the screenrec-notify FIFO.
+#   A background reader in this script forwards those messages to stdout.
 
-MODE="${1:-screen}"
+set -o noglob   # prevent glob expansion in kill signal arithmetic
+
+SUBMODE="${1:-oneshot}"
 shift
 
+# ── defaults ──────────────────────────────────────────────────────────────────
+
+SOURCE="screen"
+REGION_COORDS=""
+FPS=60
+AUDIO="none"
 SAVE_DIR="$HOME/.config/pillbox/media/Recordings"
 REPLAY_DIR="$HOME/.config/pillbox/media/Replays"
-FPS=60
-REPLAY=0
-REGION_COORDS=""
+REPLAY_SECS=300
+
+# ── args ──────────────────────────────────────────────────────────────────────
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --replay)     REPLAY=1;             shift ;;
-        --fps)        FPS="$2";             shift 2 ;;
-        --dir)        SAVE_DIR="$2";        shift 2 ;;
-        --replay-dir) REPLAY_DIR="$2";      shift 2 ;;
-        --region)     REGION_COORDS="$2";   shift 2 ;;
-        *)            shift ;;
+        --source)      SOURCE="$2";         shift 2 ;;
+        --region)      REGION_COORDS="$2";  shift 2 ;;
+        --fps)         FPS="$2";            shift 2 ;;
+        --audio)       AUDIO="$2";          shift 2 ;;
+        --dir)         SAVE_DIR="$2";       shift 2 ;;
+        --replay-dir)  REPLAY_DIR="$2";     shift 2 ;;
+        --replay-secs) REPLAY_SECS="$2";    shift 2 ;;
+        *)             shift ;;
     esac
 done
+
+case "$SUBMODE" in
+    oneshot|replay) ;;
+    *) echo "screenrec:error:unknown sub-mode '$SUBMODE' (expected oneshot|replay)"; exit 1 ;;
+esac
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 
 PILLBOX_RUN="$HOME/.local/share/pillbox"
 CTL_FIFO="$PILLBOX_RUN/screenrec-ctl"
-SAVE_NOTIFY="$PILLBOX_RUN/screenrec-save"   # written by -sc callback
+NOTIFY_FIFO="$PILLBOX_RUN/screenrec-notify"
 PID_FILE="$PILLBOX_RUN/screenrec.pid"
+GSR_ERR="/tmp/pillbox-gsr-err"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SC_CALLBACK="$SCRIPT_DIR/pillbox-screenrec-saved"
+
+# ── SIGRTMIN ──────────────────────────────────────────────────────────────────
+
+_RTMIN=$(python3 -c 'import signal; print(int(signal.SIGRTMIN))' 2>/dev/null || echo 34)
+
+# ── audio flags ───────────────────────────────────────────────────────────────
+# Returns zero, one, or two -a flags for gsr based on --audio value.
+# none/""         → (nothing)
+# system          → -a default_output
+# mic             → -a default_input
+# both            → -a default_output -a default_input
+# anything else   → -a <value>  (raw gsr source string, e.g. device:name)
+
+_audio_flags() {
+    case "$AUDIO" in
+        none|"") ;;
+        system)  printf '%s' "-a default_output" ;;
+        mic)     printf '%s' "-a default_input" ;;
+        both)    printf '%s' "-a default_output -a default_input" ;;
+        *)       printf '%s' "-a $AUDIO" ;;
+    esac
+}
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-die() { echo "screenrec:error:$1"; cleanup; exit 1; }
+NOTIFY_READER_PID=""
+WATCHER_PID=""
 
-cleanup() {
-    rm -f "$CTL_FIFO" "$SAVE_NOTIFY" "$PID_FILE"
+die() {
+    echo "screenrec:error:$1"
+    cleanup
+    exit 1
 }
 
-# Guard against a second instance launching while one is already running
-if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    die "already recording (pid $(cat "$PID_FILE"))"
-fi
+cleanup() {
+    # Close our write-end hold on the notify FIFO so the reader drains to EOF.
+    # Wait for the reader to finish emitting any pending messages before we exit.
+    exec 4>&- 2>/dev/null || true
+    [ -n "$NOTIFY_READER_PID" ] && wait "$NOTIFY_READER_PID" 2>/dev/null || true
+    exec 3>&- 2>/dev/null || true
+    [ -n "$WATCHER_PID" ] && kill "$WATCHER_PID" 2>/dev/null || true
+    rm -f "$CTL_FIFO" "$NOTIFY_FIFO" "$PID_FILE"
+}
 
-# ── setup dirs ────────────────────────────────────────────────────────────────
-
-mkdir -p "$SAVE_DIR" "$REPLAY_DIR" "$PILLBOX_RUN" || \
-    die "cannot create output directories"
-
-TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
-
-# ── control FIFO ──────────────────────────────────────────────────────────────
-
-rm -f "$CTL_FIFO"   # clear any stale file or pipe from a previous crash
-mkfifo "$CTL_FIFO" || die "cannot create control FIFO"
-
-# Safety net: if this script exits for any reason without a clean stop (e.g. crash,
-# SIGKILL on the QML process), send SIGINT to gsr so it finalises the MP4 rather
-# than leaving an unbounded, never-closed recording file on disk.
 _emergency_stop() {
     kill -INT "$GSR_PID" 2>/dev/null || true
     wait "$GSR_PID" 2>/dev/null || true
@@ -88,85 +143,118 @@ _emergency_stop() {
 }
 trap _emergency_stop EXIT
 
-# ── region pick (must happen before gsr starts; panel should be dismissed) ────
+# Guard: second instance
+if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+    die "already recording (pid $(cat "$PID_FILE"))"
+fi
 
-REGION_FLAGS=""
-case "$MODE" in
-    region)
-        if [ -n "$REGION_COORDS" ]; then
-            REGION="$REGION_COORDS"
-        else
-            REGION="$(slurp -f '%wx%h+%x+%y' 2>/dev/null)" || { cleanup; exit 0; }
-            [ -n "$REGION" ] || { cleanup; exit 0; }
-        fi
-        REGION_FLAGS="-w region -region $REGION"
+# ── setup ─────────────────────────────────────────────────────────────────────
+
+mkdir -p "$SAVE_DIR" "$REPLAY_DIR" "$PILLBOX_RUN" || die "cannot create output directories"
+
+TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
+
+rm -f "$CTL_FIFO" "$NOTIFY_FIFO"
+mkfifo "$CTL_FIFO"    || die "cannot create CTL FIFO"
+mkfifo "$NOTIFY_FIFO" || die "cannot create notify FIFO"
+
+# ── notify FIFO reader ────────────────────────────────────────────────────────
+# Hold the write end open (exec 4<>) so pillbox-screenrec-saved can open for
+# writing without blocking, and so the reader doesn't get spurious EOF.
+# The subshell closes its inherited write end before reading, ensuring EOF is
+# delivered when the parent closes fd 4 in cleanup().
+
+exec 4<>"$NOTIFY_FIFO"
+
+(
+    exec 4>&-   # subshell: drop write end; only parent controls EOF
+    while IFS= read -r msg; do
+        type="${msg%%:*}"
+        path="${msg#*:}"
+        case "$type" in
+            regular) echo "screenrec:stopped:$path" ;;
+            replay)  echo "screenrec:replay:saved:$path" ;;
+        esac
+    done
+) < "$NOTIFY_FIFO" &
+NOTIFY_READER_PID=$!
+
+# ── build gsr command ─────────────────────────────────────────────────────────
+
+case "$SUBMODE" in
+    oneshot)
+        case "$SOURCE" in
+            region)
+                if [ -n "$REGION_COORDS" ]; then
+                    CAPTURE="-w region -region $REGION_COORDS"
+                else
+                    RC="$(slurp -f '%wx%h+%x+%y' 2>/dev/null)" || { cleanup; exit 0; }
+                    [ -n "$RC" ] || { cleanup; exit 0; }
+                    CAPTURE="-w region -region $RC"
+                fi
+                ;;
+            *)
+                CAPTURE="-w screen"
+                ;;
+        esac
+
+        OUTPUT="$SAVE_DIR/recording_${TIMESTAMP}.mp4"
+
+        AUDIO_FLAGS="$(_audio_flags)"
+        # shellcheck disable=SC2086
+        gpu-screen-recorder \
+            $CAPTURE \
+            $AUDIO_FLAGS \
+            -f "$FPS" \
+            -c mp4 \
+            -o "$OUTPUT" \
+            -sc "$SC_CALLBACK" \
+            -v no \
+            >/dev/null 2>"$GSR_ERR" &
         ;;
-    screen)
-        REGION_FLAGS="-w screen"
-        ;;
-    *)
-        die "unknown mode '$MODE' — expected: screen|region"
+
+    replay)
+        AUDIO_FLAGS="$(_audio_flags)"
+        # shellcheck disable=SC2086
+        gpu-screen-recorder \
+            -w screen \
+            $AUDIO_FLAGS \
+            -f "$FPS" \
+            -c mp4 \
+            -r "$REPLAY_SECS" \
+            -bm cbr \
+            -q 40000 \
+            -o "$REPLAY_DIR" \
+            -ro "$SAVE_DIR" \
+            -sc "$SC_CALLBACK" \
+            -v no \
+            >/dev/null 2>"$GSR_ERR" &
         ;;
 esac
-
-# ── callback script path (used by gsr -sc to report saved filenames) ──────────
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SC_CALLBACK="$SCRIPT_DIR/pillbox-screenrec-saved"
-
-# ── start gpu-screen-recorder ─────────────────────────────────────────────────
-
-if [ "$REPLAY" -eq 1 ]; then
-    # Replay mode: -r enables rolling buffer, -o is the REPLAY dir, -ro is for regular stops
-    gpu-screen-recorder \
-        $REGION_FLAGS \
-        -f "$FPS" \
-        -c mp4 \
-        -r 30 \
-        -o "$REPLAY_DIR" \
-        -ro "$SAVE_DIR" \
-        -sc "$SC_CALLBACK" \
-        2>/tmp/pillbox-screenrec-err &
-else
-    # Direct mode: -o is a single output file
-    OUTPUT="$SAVE_DIR/recording_${TIMESTAMP}.mp4"
-    gpu-screen-recorder \
-        $REGION_FLAGS \
-        -f "$FPS" \
-        -c mp4 \
-        -o "$OUTPUT" \
-        -sc "$SC_CALLBACK" \
-        2>/tmp/pillbox-screenrec-err &
-fi
 
 GSR_PID=$!
 echo "$GSR_PID" > "$PID_FILE"
 
-# Brief pause — let gsr initialise before declaring started
+# Brief pause — let gsr initialise
 sleep 0.5
 
-# Verify gsr actually launched (it may have failed on bad flags or missing device)
 if ! kill -0 "$GSR_PID" 2>/dev/null; then
-    die "gpu-screen-recorder failed to start: $(cat /tmp/pillbox-screenrec-err)"
+    die "gpu-screen-recorder failed to start: $(tail -1 "$GSR_ERR" 2>/dev/null)"
 fi
 
 echo "screenrec:started"
 
-# ── monitor gsr for unexpected death ─────────────────────────────────────────
-# If gsr exits on its own (crash, device lost), unblock the control FIFO so
-# we don't hang forever waiting for a "stop" that will never come.
-# NOTE: wait(1) only works for direct children. The watcher is a subshell and
-# cannot wait on gsr directly, so we poll with kill -0 instead.
+# ── gsr death watcher ─────────────────────────────────────────────────────────
+# Polls until gsr exits, then unblocks the CTL loop via a sentinel message.
+
 (
     while kill -0 "$GSR_PID" 2>/dev/null; do sleep 0.5; done
     echo "__gsr_exited__" > "$CTL_FIFO" 2>/dev/null || true
 ) &
 WATCHER_PID=$!
 
-# ── control loop ─────────────────────────────────────────────────────────────
-# Keep the write end of CTL_FIFO open inside this process (fd 3) so reads
-# never get EOF until we explicitly close it. Without this, a writer closing
-# its end would cause read to return immediately with EOF each time.
+# ── CTL loop ──────────────────────────────────────────────────────────────────
+# Keep a write fd on CTL_FIFO (fd 3) open so reads never get spurious EOF.
 
 exec 3<>"$CTL_FIFO"
 
@@ -176,69 +264,63 @@ while IFS= read -r CMD <&3; do
         stop)
             kill -INT "$GSR_PID" 2>/dev/null || true
             wait "$GSR_PID" 2>/dev/null
-
             kill "$WATCHER_PID" 2>/dev/null || true
-
-            if [ "$REPLAY" -eq 1 ]; then
-                # In replay mode gsr decides the filename; read it from the -sc callback file
-                SAVED="$(cat "$SAVE_NOTIFY" 2>/dev/null)"
-                if [ -n "$SAVED" ] && [ -f "$SAVED" ]; then
-                    echo "screenrec:stopped:$SAVED"
-                else
-                    # Fallback: find the newest regular recording in SAVE_DIR
-                    SAVED="$(ls -t "$SAVE_DIR"/*.mp4 2>/dev/null | head -1)"
-                    [ -n "$SAVED" ] && echo "screenrec:stopped:$SAVED" || \
-                        echo "screenrec:error:stop ok but output file not found"
-                fi
-            else
-                if [ -f "$OUTPUT" ] && [ -s "$OUTPUT" ]; then
-                    echo "screenrec:stopped:$OUTPUT"
-                else
-                    echo "screenrec:error:stop ok but output file not found: $OUTPUT"
-                fi
-            fi
-
-            rm -f "$SAVE_NOTIFY"
+            WATCHER_PID=""
+            # cleanup() closes fd 4, drains notify reader, then exits.
+            # For oneshot: -sc fired before gsr exited → reader emits stopped.
+            # For replay: SIGINT exits without save → reader emits nothing.
             break
             ;;
 
-        save-replay)
-            if [ "$REPLAY" -ne 1 ]; then
-                echo "screenrec:error:save-replay requires --replay mode"
-                continue
-            fi
-
-            rm -f "$SAVE_NOTIFY"              # clear any previous entry
-            kill -USR1 "$GSR_PID" 2>/dev/null || { echo "screenrec:error:gsr not running"; continue; }
-            sleep 0.8                          # wait for gsr to write the clip
-
-            SAVED="$(cat "$SAVE_NOTIFY" 2>/dev/null)"
-            if [ -n "$SAVED" ] && [ -f "$SAVED" ]; then
-                echo "screenrec:replay:saved:$SAVED"
-            else
-                # Fallback: newest file in REPLAY_DIR
-                SAVED="$(ls -t "$REPLAY_DIR"/*.mp4 2>/dev/null | head -1)"
-                [ -n "$SAVED" ] && echo "screenrec:replay:saved:$SAVED" || \
-                    echo "screenrec:error:replay saved but filename unknown"
-            fi
+        pause)
+            kill -USR2 "$GSR_PID" 2>/dev/null || echo "screenrec:error:pause: gsr not running"
             ;;
 
+        toggleRec)
+            if [ "$SUBMODE" != "replay" ]; then
+                echo "screenrec:error:toggleRec requires replay mode"
+                continue
+            fi
+            kill -"$_RTMIN" "$GSR_PID" 2>/dev/null || echo "screenrec:error:toggleRec failed"
+            ;;
+
+        saveReplay)
+            [ "$SUBMODE" != "replay" ] && { echo "screenrec:error:saveReplay requires replay mode"; continue; }
+            kill -USR1 "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay failed"
+            ;;
+
+        saveReplay:10)
+            kill -$(( _RTMIN + 1 )) "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay:10 failed" ;;
+        saveReplay:30)
+            kill -$(( _RTMIN + 2 )) "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay:30 failed" ;;
+        saveReplay:60)
+            kill -$(( _RTMIN + 3 )) "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay:60 failed" ;;
+        saveReplay:300)
+            kill -$(( _RTMIN + 4 )) "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay:300 failed" ;;
+        saveReplay:600)
+            kill -$(( _RTMIN + 5 )) "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay:600 failed" ;;
+        saveReplay:1800)
+            kill -$(( _RTMIN + 6 )) "$GSR_PID" 2>/dev/null || echo "screenrec:error:saveReplay:1800 failed" ;;
+
         __gsr_exited__)
-            # gsr died without a stop command — recording ended unexpectedly
             kill "$WATCHER_PID" 2>/dev/null || true
-            if [ "$REPLAY" -ne 1 ] && [ -f "$OUTPUT" ] && [ -s "$OUTPUT" ]; then
-                echo "screenrec:stopped:$OUTPUT"
+            WATCHER_PID=""
+            if [ "$SUBMODE" = "oneshot" ] && [ -f "$OUTPUT" ] && [ -s "$OUTPUT" ]; then
+                # gsr exited cleanly on its own (unusual but not an error); -sc should
+                # have fired. Let the notify reader emit the stopped message.
+                :
             else
-                echo "screenrec:error:gsr exited unexpectedly: $(cat /tmp/pillbox-screenrec-err)"
+                echo "screenrec:error:gsr exited unexpectedly: $(tail -1 "$GSR_ERR" 2>/dev/null)"
             fi
             break
             ;;
 
         *)
-            echo "screenrec:error:unknown command: $CMD"
+            echo "screenrec:error:unknown CTL command: $CMD"
             ;;
     esac
 done
 
 exec 3>&-
+# EXIT trap fires → _emergency_stop → cleanup
 exit 0

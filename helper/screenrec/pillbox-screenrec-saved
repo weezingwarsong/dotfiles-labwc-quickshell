@@ -1,20 +1,19 @@
 #!/bin/sh
-# pillbox-screenrec-saved — gpu-screen-recorder -sc callback
+# pillbox-screenrec-saved — gpu-screen-recorder -sc callback (v2)
 #
-# Called by gsr after each file is saved. Writes the filepath to a well-known
-# temp file so pillbox-screenrec can read it and emit the correct stdout message.
+# Called by gsr after each file is finalised.
+# Args: $1=absolute path, $2=type (regular|replay|screenshot)
 #
-# Args (provided by gsr):
-#   $1 — absolute path to the saved file
-#   $2 — type: "regular" | "replay" | "screenshot"
+# Writes TYPE:PATH to the screenrec-notify FIFO for pillbox-screenrec to read
+# and forward to stdout as the appropriate screenrec:stopped / screenrec:replay:saved
+# protocol message.
 
 FILEPATH="$1"
 TYPE="$2"
-NOTIFY="$HOME/.local/share/pillbox/screenrec-save"
+NOTIFY_FIFO="$HOME/.local/share/pillbox/screenrec-notify"
 
-# Only act on regular and replay saves (not screenshots handled elsewhere)
 case "$TYPE" in
     regular|replay)
-        printf '%s' "$FILEPATH" > "$NOTIFY"
+        [ -p "$NOTIFY_FIFO" ] && printf '%s:%s\n' "$TYPE" "$FILEPATH" > "$NOTIFY_FIFO"
         ;;
 esac
