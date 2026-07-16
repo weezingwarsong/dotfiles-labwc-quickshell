@@ -9,6 +9,7 @@ Rectangle {
     property string source:   ""
     property string filename: ""
     signal thumbnailClicked()
+    signal filenameClicked()
 
     clip:   true
     color:  Style.surfaceLowColor
@@ -28,6 +29,7 @@ Rectangle {
     }
 
     Rectangle {
+        id:      _overlay
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         height:  _name.implicitHeight + 6
         color:   Qt.rgba(0, 0, 0, 0.45)
@@ -45,5 +47,14 @@ Rectangle {
     }
 
     HoverHandler { cursorShape: Qt.PointingHandCursor }
-    TapHandler   { onTapped: root.thumbnailClicked() }
+    TapHandler {
+        onTapped: (eventPoint) => {
+            var inOverlay = root.filename !== ""
+                         && eventPoint.position.y > (root.height - _overlay.height)
+            if (inOverlay)
+                root.filenameClicked()
+            else
+                root.thumbnailClicked()
+        }
+    }
 }

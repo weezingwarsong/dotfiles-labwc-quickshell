@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 
 Item {
     id: root
@@ -19,13 +20,11 @@ Item {
     }
 
     property Component visualComponent: Component {
-        Row {
-            height: parent.height
+        RowLayout {
             spacing: 6
 
             Text {
-                height: parent.height
-                verticalAlignment: Text.AlignVCenter
+                Layout.alignment: Qt.AlignVCenter
                 text: root._glyphFor(root._appId)
                 color: Style.accentColor
                 font.family: Style.fontNerd
@@ -33,9 +32,8 @@ Item {
             }
 
             Text {
-                height: parent.height
-                verticalAlignment: Text.AlignVCenter
-                width: Math.min(implicitWidth, 200)
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: Math.min(implicitWidth, 200)
                 text: root._appId
                 color: Style.textPrimary
                 font.pixelSize: Style.fontSizePill

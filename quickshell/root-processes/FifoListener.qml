@@ -34,6 +34,7 @@ Item {
     signal screenrecSaveReplayRequested()
     signal screenrecToggleScreenRequested()
     signal screenrecStartRegionWithRequested(string coords)
+    signal dismissToastRequested(string id)
 
     Process {
         id: fifoReader
@@ -83,6 +84,7 @@ Item {
 
                 else if (cmd.startsWith("screenshotNotify:"))          root.screenshotNotifyRequested(cmd.slice(17))
                 else if (cmd.startsWith("screenrecStartRegionWith:"))  root.screenrecStartRegionWithRequested(cmd.slice(25))
+                else if (cmd.startsWith("dismissToast:"))              root.dismissToastRequested(cmd.slice(13))
 
                 else if (cmd.startsWith("setTimer:")) {
                     var secs = parseInt(cmd.slice(9))

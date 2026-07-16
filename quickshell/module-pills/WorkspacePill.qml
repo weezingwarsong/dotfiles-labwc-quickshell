@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 
 Item {
@@ -37,13 +38,11 @@ Item {
 
     // ── Visual component ──────────────────────────────────────────────────────
     property Component visualComponent: Component {
-        Row {
-            height: parent.height
+        RowLayout {
             spacing: 8
 
             Text {
-                height: parent.height
-                verticalAlignment: Text.AlignVCenter
+                Layout.alignment: Qt.AlignVCenter
                 text: root.displayText
                 color: Style.textPrimary
                 font.pixelSize: Style.fontSizePill
@@ -51,14 +50,12 @@ Item {
             }
 
             Row {
-                height: parent.height
                 spacing: 2
+                Layout.alignment: Qt.AlignVCenter
 
                 Repeater {
                     model: root.workspaceProcess ? root.workspaceProcess.list.length : 0
                     Text {
-                        height: parent.height
-                        verticalAlignment: Text.AlignVCenter
                         text: index === (root.workspaceProcess ? root.workspaceProcess.currentIndex : -1)
                             ? String.fromCodePoint(0xf444)
                             : String.fromCodePoint(0xf4c3)

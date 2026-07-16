@@ -40,6 +40,7 @@ ShellRoot {
             panelController.toggle("notifications")
         }
         onScreenshotNotifyRequested:   (path)   => screenshot.notifyExternalSave(path)
+        onDismissToastRequested:       (id)     => toastWindow.dismiss(id)
 
         onScreenrecStartScreenRequested:    screenrec.startScreen()
         onScreenrecStartRegionRequested:    screenrec.startRegion()
@@ -70,6 +71,7 @@ ShellRoot {
     ScreenrecProcess   { id: screenrec  }
 
     ToastWindow {
+        id: toastWindow
         screenshotProcess: screenshot
         screenrecProcess:  screenrec
     }

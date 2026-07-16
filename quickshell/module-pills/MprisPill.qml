@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell.Services.Mpris
 
 Item {
@@ -36,13 +37,11 @@ Item {
     // ── Visual component ──────────────────────────────────────────────────────
 
     property Component visualComponent: Component {
-        Row {
-            height: parent.height
+        RowLayout {
             spacing: 6
 
             Text {
-                height: parent.height
-                verticalAlignment: Text.AlignVCenter
+                Layout.alignment: Qt.AlignVCenter
                 text: {
                     if (!root.mprisProcess || !root.mprisProcess.activePlayer) return ""
                     var s = root.mprisProcess.activePlayer.playbackState
@@ -56,8 +55,8 @@ Item {
             }
 
             ScrollingText {
-                height: parent.height
-                width: implicitWidth
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: implicitWidth
                 text: {
                     if (!root.mprisProcess || !root.mprisProcess.activePlayer) return ""
                     var p = root.mprisProcess.activePlayer

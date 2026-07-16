@@ -55,14 +55,13 @@ Item {
     property Component visualComponent: Component {
         Item {
             id: vc
-            height: parent.height
             readonly property bool _showScroll: root._calendarImminent && !root._timerActive
-            implicitWidth: _showScroll ? _scrollLabel.implicitWidth : simpleText.implicitWidth
+            implicitWidth:  _showScroll ? _scrollLabel.implicitWidth : simpleText.implicitWidth
+            implicitHeight: Style.fontSizePill
 
             Text {
                 id: simpleText
-                height: parent.height
-                verticalAlignment: Text.AlignVCenter
+                anchors.centerIn: parent
                 visible: !vc._showScroll
                 text: root._urgentCountdown
                     ? root.displayText + (root.timerProcess ? root.timerProcess.displayCenti : "")
@@ -75,7 +74,7 @@ Item {
             ScrollingText {
                 id: _scrollLabel
                 visible: vc._showScroll
-                height: parent.height
+                anchors.centerIn: parent
                 width: implicitWidth
                 text: root._calendarText
                 color: Style.textPrimary

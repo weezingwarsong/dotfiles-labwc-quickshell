@@ -23,10 +23,15 @@ PanelWindow {
 
     implicitWidth:  Math.round(Screen.width * 0.15)
     implicitHeight: _col.implicitHeight
-    mask: Region {}
+    mask: Region { item: _col }
 
     visible: (_ssLoader.item ? _ssLoader.item.shouldShow : false) ||
              (_srLoader.item  ? _srLoader.item.shouldShow  : false)
+
+    function dismiss(id) {
+        if (id === "screenshot" && _ssLoader.item) _ssLoader.item._dismiss()
+        if (id === "screenrec"  && _srLoader.item) _srLoader.item._dismiss()
+    }
 
     ColumnLayout {
         id: _col

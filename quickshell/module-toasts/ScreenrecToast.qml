@@ -30,7 +30,6 @@ Item {
             root._recording    = false
             root._showingSaved = true
             _elapsed.stop()
-            _savedTimer.running = true
         }
         function onRecordingError() {
             root._recording = false
@@ -44,17 +43,11 @@ Item {
         onTriggered: root._elapsedSecs++
     }
 
-    ToastTimer {
-        id: _savedTimer
-        interval: 8000
-        paused:   _hover.hovered
-        onExpired: root._showingSaved = false
-    }
+    function _dismiss() { if (!root._recording) root._showingSaved = false }
 
-    HoverHandler { id: _hover }
     TapHandler {
         acceptedButtons: Qt.RightButton
-        onTapped: if (!root._recording) root._showingSaved = false
+        onTapped: root._dismiss()
     }
 
     Rectangle {
@@ -76,9 +69,12 @@ Item {
 
             // Pulsing red dot
             Rectangle {
-                width: 10; height: 10; radius: 5
-                color: Style.textCritical
+                Layout.preferredWidth:  10
+                Layout.preferredHeight: 10
+                Layout.maximumWidth:    10
                 Layout.alignment: Qt.AlignVCenter
+                radius: 5
+                color: Style.textCritical
 
                 SequentialAnimation on opacity {
                     running: root._recording; loops: Animation.Infinite
