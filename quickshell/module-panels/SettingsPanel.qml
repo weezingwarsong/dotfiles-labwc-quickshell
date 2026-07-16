@@ -56,6 +56,14 @@ FocusScope {
     implicitHeight: _pinnedCol.implicitHeight + 12 +
         (_tab === "services" ? _servicesLayout.implicitHeight : _appearanceLayout.implicitHeight)
 
+    // Tab toggles between Appearance and Services — intercepted here before bubbling to Loader.
+    Keys.onTabPressed: (event) => {
+        root._tab = (root._tab === "appearance" ? "services" : "appearance")
+        _filterInput.text = ""
+        _flickable.contentY = 0
+        event.accepted = true
+    }
+
     // ── Filter input (invisible key sink) ────────────────────────────────────
     TextInput {
         id: _filterInput
@@ -72,9 +80,6 @@ FocusScope {
         Keys.onDownPressed:  (e) => e.accepted = false
         Keys.onReturnPressed: (e) => e.accepted = false
         Keys.onTabPressed:    (e) => e.accepted = false
-        Keys.onEscapePressed: (e) => {
-            if (text !== "") { text = ""; e.accepted = true }
-        }
 
         onTextChanged: {
             _filter = text

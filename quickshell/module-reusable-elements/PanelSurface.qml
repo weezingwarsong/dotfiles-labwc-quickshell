@@ -55,9 +55,11 @@ PanelWindow {
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
-    Keys.onEscapePressed: (event) => { root.dismissRequested(); event.accepted = true }
-    Keys.onLeftPressed:   (event) => { root.navigateRequested(-1); event.accepted = true }
-    Keys.onRightPressed:  (event) => { root.navigateRequested(+1); event.accepted = true }
+    Shortcut {
+        sequence: "Escape"
+        context:  Qt.WindowShortcut
+        onActivated: root.dismissRequested()
+    }
 
     // ── Click-outside dismiss layer ───────────────────────────────────────────
     MouseArea {
@@ -107,6 +109,7 @@ PanelWindow {
 
                 Loader {
                     id: _loader
+                    focus: true
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(
                         item ? item.implicitHeight : 0,
@@ -123,6 +126,9 @@ PanelWindow {
                             default:              return ""
                         }
                     }
+                    Keys.onLeftPressed:  (event) => { root.navigateRequested(-1); event.accepted = true }
+                    Keys.onRightPressed: (event) => { root.navigateRequested(+1); event.accepted = true }
+
                     onLoaded: {
                         var it = item
                         if (!it) return
