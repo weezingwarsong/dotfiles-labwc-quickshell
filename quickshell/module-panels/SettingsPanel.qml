@@ -10,10 +10,6 @@ FocusScope {
     property var    calendarProcess:  null
     property var    tasksProcess:     null
     property var    wallpaperProcess: null
-    property string activePanel:      ""
-
-    signal navigateRequested(int direction)
-
     // ── Local state ───────────────────────────────────────────────────────────
     property string _locationDraft: settingsProcess ? settingsProcess.locationString : ""
     property bool   _revoking:      false
@@ -58,8 +54,7 @@ FocusScope {
 
     // ── Height ────────────────────────────────────────────────────────────────
     implicitHeight: _pinnedCol.implicitHeight + 12 +
-        (_tab === "services" ? _servicesLayout.implicitHeight : _appearanceLayout.implicitHeight) +
-        24
+        (_tab === "services" ? _servicesLayout.implicitHeight : _appearanceLayout.implicitHeight)
 
     // ── Filter input (invisible key sink) ────────────────────────────────────
     TextInput {
@@ -147,26 +142,11 @@ FocusScope {
         return Style.textSecondary
     }
 
-    // ── Background ────────────────────────────────────────────────────────────
-    Rectangle {
-        anchors.fill: parent
-        radius: Style.panelRadius
-        color: Style.panelBgColor
-        border.color: Style.panelBorderColor
-        border.width: Style.borderWidth
-        clip: true
-    }
-
     // ── Pinned header ─────────────────────────────────────────────────────────
     ColumnLayout {
         id: _pinnedCol
-        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+        anchors { left: parent.left; right: parent.right; top: parent.top }
         spacing: 12
-
-        PanelNavBar {
-            activePanel: root.activePanel
-            onNavigateRequested: (dir) => root.navigateRequested(dir)
-        }
 
         PanelTabBar {
             labels:   ["Appearance", "Services"]
@@ -212,10 +192,10 @@ FocusScope {
     Flickable {
         id: _flickable
         anchors {
-            left: parent.left;   leftMargin:   12
-            right: parent.right; rightMargin:  12
+            left: parent.left
+            right: parent.right
             top: _pinnedCol.bottom; topMargin: 12
-            bottom: parent.bottom;  bottomMargin: 12
+            bottom: parent.bottom
         }
         contentWidth: width
         contentHeight: _tab === "services"

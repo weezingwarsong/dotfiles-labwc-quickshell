@@ -1,10 +1,12 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import QtQuick.Layouts
 
 // Fullscreen transparent overlay that hosts the active panel.
-// The visible panel content sits in a sized Item at the center-top of the screen.
-// A fullscreen MouseArea (z:0) behind the panel dismisses on click-outside.
+// PanelContainer owns the visual chrome (background, border, radius) and the
+// NavBar. Panel modules are pure content — no chrome, no NavBar of their own.
+// A fullscreen MouseArea (z:0) behind the container dismisses on click-outside.
 PanelWindow {
     id: root
 
@@ -39,22 +41,25 @@ PanelWindow {
     exclusiveZone:  0
     color:          "transparent"
 
-    // Panel position — same geometry as before, now expressed as coordinates
-    // within the fullscreen window rather than window anchors+margins.
     readonly property real _panelY:     Screen.width * 0.10
     readonly property real _panelWidth: Screen.width * 0.15
     readonly property real _maxHeight:  Screen.height - 2 * _panelY
 
+    // Max space for row-2 content: total cap minus NavBar, col spacing, and top+bottom chrome padding.
+    readonly property real _maxContentHeight:
+        _maxHeight - _navBar.implicitHeight - _col.spacing - Style.panelMargin * 2
+
     visible: shouldShow
 
-    // All panels grab exclusive keyboard focus on open so ESC and arrow keys
-    // work immediately without a click first.
     WlrLayershell.keyboardFocus: root.shouldShow
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
+    Keys.onEscapePressed: (event) => { root.dismissRequested(); event.accepted = true }
+    Keys.onLeftPressed:   (event) => { root.navigateRequested(-1); event.accepted = true }
+    Keys.onRightPressed:  (event) => { root.navigateRequested(+1); event.accepted = true }
+
     // ── Click-outside dismiss layer ───────────────────────────────────────────
-    // Fullscreen, behind the panel container (z:0).
     MouseArea {
         anchors.fill: parent
         z: 0
@@ -62,105 +67,97 @@ PanelWindow {
     }
 
     // ── Panel container ───────────────────────────────────────────────────────
-    // Sized to the loaded panel content. A blocking MouseArea (z:0) inside it
-    // prevents uncaught clicks from propagating to the dismiss layer above.
+    // Fixed width; height follows _bg which owns the cap formula.
     Item {
-        id: _container
-        x: Math.round((parent.width - root._panelWidth) / 2)
-        y: root._panelY
-        width: root._panelWidth
-        height: loader.height
+        id: panelContainer
+        x:      Math.round((parent.width - root._panelWidth) / 2)
+        y:      root._panelY
+        width:  root._panelWidth
+        height: _bg.height
         z: 1
 
         MouseArea { anchors.fill: parent; z: 0 }
 
-        Loader {
-            id: loader
-            x: 0; y: 0
-            width: root._panelWidth
-            height: item ? Math.min(item.implicitHeight, root._maxHeight) : root._panelWidth
-            z: 1
-            focus: true
+        Rectangle {
+            id: _bg
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            // Owns the height cap: NavBar + col spacing + capped content + top/bottom padding.
+            height: _navBar.implicitHeight + _col.spacing
+                  + Math.min(_loader.item ? _loader.item.implicitHeight : 0, root._maxContentHeight)
+                  + Style.panelMargin * 2
+            radius:       Style.panelRadius
+            color:        Style.panelBgColor
+            border.color: Style.panelBorderColor
+            border.width: Style.borderWidth
+            clip:         true
 
-            Keys.onEscapePressed: (event) => {
-                root.dismissRequested()
-                event.accepted = true
-            }
-            Keys.onLeftPressed: (event) => {
-                if (root.activePanel !== "windowSwitcher") {
-                    root.navigateRequested(-1)
-                    event.accepted = true
-                }
-            }
-            Keys.onRightPressed: (event) => {
-                if (root.activePanel !== "windowSwitcher") {
-                    root.navigateRequested(+1)
-                    event.accepted = true
-                }
-            }
+            ColumnLayout {
+                id: _col
+                anchors.top:              parent.top
+                anchors.topMargin:        Style.panelMargin
+                anchors.horizontalCenter: parent.horizontalCenter
+                width:   parent.width - Style.panelMargin * 2
+                spacing: 10
 
-            source: {
-                if (root.activePanel === "calendar")       return Qt.resolvedUrl("../module-panels/CalendarPanel.qml")
-                if (root.activePanel === "control")        return Qt.resolvedUrl("../module-panels/ControlPanel.qml")
-                if (root.activePanel === "windowSwitcher") return Qt.resolvedUrl("../module-panels/WindowSwitcherPanel.qml")
-                if (root.activePanel === "mediaPlayer")    return Qt.resolvedUrl("../module-panels/MediaPlayerPanel.qml")
-                if (root.activePanel === "notifications")  return Qt.resolvedUrl("../module-panels/NotificationPanel.qml")
-                if (root.activePanel === "settings")       return Qt.resolvedUrl("../module-panels/SettingsPanel.qml")
-                if (root.activePanel === "wallpaper")      return Qt.resolvedUrl("../module-panels/WallpaperPanel.qml")
-                return ""
-            }
-            onLoaded: {
-                if (!item) return
-                if (root.activePanel === "windowSwitcher") {
-                    item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
-                    item.dismissed.connect(function() { root.dismissRequested() })
-                    return
+                PanelNavBar {
+                    id: _navBar
+                    activePanel: root.activePanel
+                    onNavigateRequested: (dir) => root.navigateRequested(dir)
                 }
-                item.activePanel = Qt.binding(function() { return root.activePanel })
-                if (root.activePanel === "settings") {
-                    item.settingsProcess  = Qt.binding(function() { return root.settingsProcess  })
-                    item.calendarProcess  = Qt.binding(function() { return root.calendarProcess  })
-                    item.tasksProcess     = Qt.binding(function() { return root.tasksProcess     })
-                    item.wallpaperProcess = Qt.binding(function() { return root.wallpaperProcess })
-                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
-                    return
+
+                Loader {
+                    id: _loader
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(
+                        item ? item.implicitHeight : 0,
+                        root._maxContentHeight
+                    )
+                    source: {
+                        switch (root.activePanel) {
+                            case "settings":      return "../module-panels/SettingsPanel.qml"
+                            case "calendar":      return "../module-panels/CalendarPanel.qml"
+                            case "mediaPlayer":   return "../module-panels/MediaPlayerPanel.qml"
+                            case "wallpaper":     return "../module-panels/WallpaperPanel.qml"
+                            case "notifications": return "../module-panels/NotificationPanel.qml"
+                            case "control":       return "../module-panels/ControlPanel.qml"
+                            default:              return ""
+                        }
+                    }
+                    onLoaded: {
+                        var it = item
+                        if (!it) return
+                        switch (root.activePanel) {
+                            case "settings":
+                                it.settingsProcess  = Qt.binding(() => root.settingsProcess)
+                                it.calendarProcess  = Qt.binding(() => root.calendarProcess)
+                                it.tasksProcess     = Qt.binding(() => root.tasksProcess)
+                                it.wallpaperProcess = Qt.binding(() => root.wallpaperProcess)
+                                break
+                            case "calendar":
+                                it.calendarProcess = Qt.binding(() => root.calendarProcess)
+                                it.tasksProcess    = Qt.binding(() => root.tasksProcess)
+                                it.clockProcess    = Qt.binding(() => root.clockProcess)
+                                break
+                            case "mediaPlayer":
+                                it.mprisProcess = Qt.binding(() => root.mprisProcess)
+                                break
+                            case "wallpaper":
+                                it.wallpaperProcess = Qt.binding(() => root.wallpaperProcess)
+                                break
+                            case "notifications":
+                                it.notificationServer     = Qt.binding(() => root.notificationServer)
+                                it.notificationInitialTab = Qt.binding(() => root.notificationInitialTab)
+                                break
+                            case "control":
+                                it.audioProcess     = Qt.binding(() => root.audioProcess)
+                                it.networkProcess   = Qt.binding(() => root.networkProcess)
+                                it.screenrecProcess = Qt.binding(() => root.screenrecProcess)
+                                break
+                        }
+                    }
                 }
-                if (root.activePanel === "mediaPlayer") {
-                    item.mprisProcess    = Qt.binding(function() { return root.mprisProcess    })
-                    item.toplevelProcess = Qt.binding(function() { return root.toplevelProcess })
-                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
-                    return
-                }
-                if (root.activePanel === "notifications") {
-                    item.notificationServer = Qt.binding(function() { return root.notificationServer })
-                    item.screenshotProcess  = Qt.binding(function() { return root.screenshotProcess  })
-                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
-                    item._tab = root.notificationInitialTab
-                    root.notificationInitialTab = 0
-                    return
-                }
-                if (root.activePanel === "control") {
-                    item.audioProcess      = Qt.binding(function() { return root.audioProcess      })
-                    item.networkProcess    = Qt.binding(function() { return root.networkProcess    })
-                    item.screenrecProcess  = Qt.binding(function() { return root.screenrecProcess  })
-                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
-                    return
-                }
-                if (root.activePanel === "wallpaper") {
-                    item.wallpaperProcess = Qt.binding(function() { return root.wallpaperProcess })
-                    item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
-                    if (root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== "")
-                        root.wallpaperProcess.scanDirectory(root.wallpaperProcess.wallpaperDir)
-                    return
-                }
-                // calendar
-                item.clockProcess    = Qt.binding(function() { return root.clockProcess    })
-                item.calendarProcess = Qt.binding(function() { return root.calendarProcess })
-                item.tasksProcess    = Qt.binding(function() { return root.tasksProcess    })
-                item.weatherProcess  = Qt.binding(function() { return root.weatherProcess  })
-                item.timerProcess    = Qt.binding(function() { return root.timerProcess    })
-                item.navigateRequested.connect(function(dir) { root.navigateRequested(dir) })
             }
         }
     }
+
 }
