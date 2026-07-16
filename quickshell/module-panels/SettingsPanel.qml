@@ -236,7 +236,7 @@ FocusScope {
             PanelCard {
                 Layout.fillWidth: true
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -321,7 +321,7 @@ FocusScope {
             PanelCard {
                 Layout.fillWidth: true
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -404,7 +404,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _typoVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -436,16 +436,37 @@ FocusScope {
                                 ScrollChip { text: Prefs.fontSizeVisClock + "px"; onScrolled: (delta) => { var next = Prefs.fontSizeVisClock + delta * 4; if (next >= 40 && next <= 200) Prefs.setFontSizeVisClock(next) } }
                             }
                             PanelDivider {}
-                            RowLabel { label: "Mono font"; fill: true
-                                FontPicker { Layout.fillWidth: true; value: Prefs.fontMono; onCommitted: (f) => Prefs.setFontMono(f) }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                RowLabel { label: "Mono font" }
+                                FontPicker {
+                                    Layout.preferredWidth: parent.width * 0.6
+                                    value: Prefs.fontMono
+                                    onCommitted: (f) => Prefs.setFontMono(f)
+                                }
                             }
                             PanelDivider {}
-                            RowLabel { label: "Glyph font"; fill: true
-                                FontPicker { Layout.fillWidth: true; value: Prefs.fontNerd; onCommitted: (f) => Prefs.setFontNerd(f) }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                RowLabel { label: "Glyph font" }
+                                FontPicker {
+                                    Layout.preferredWidth: parent.width * 0.6
+                                    value: Prefs.fontNerd
+                                    onCommitted: (f) => Prefs.setFontNerd(f)
+                                }
                             }
                             PanelDivider {}
-                            RowLabel { label: "Vis. clock"; fill: true
-                                FontPicker { Layout.fillWidth: true; value: Prefs.fontVisClock; onCommitted: (f) => Prefs.setFontVisClock(f) }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                RowLabel { label: "Vis. clock" }
+                                FontPicker {
+                                    Layout.preferredWidth: parent.width * 0.6
+                                    value: Prefs.fontVisClock
+                                    onCommitted: (f) => Prefs.setFontVisClock(f)
+                                }
                             }
                         }
                     }
@@ -457,7 +478,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _paddingVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -498,7 +519,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _cornerVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -539,7 +560,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _bordersVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -588,7 +609,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _panelVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -625,7 +646,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _themeVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {
@@ -661,7 +682,7 @@ FocusScope {
                 Layout.fillWidth: true
                 visible: _wallpaperVisible
                 ColumnLayout {
-                    anchors.left: parent.left; anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     SectionHeader {

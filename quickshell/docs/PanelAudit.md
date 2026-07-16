@@ -14,11 +14,11 @@ Major architectural refactor. Work in this order — each step unblocks the next
 
 ### Phase 1 — PanelSurface / PanelContainer
 
-- [ ] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
-- [ ] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
-- [ ] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
-- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel)
-- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome
+- [x] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
+- [x] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
+- [x] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
+- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel done; Calendar, MediaPlayer, Wallpaper, Notification remain
+- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel done; Calendar, MediaPlayer, Wallpaper, Notification remain
 
 ### Phase 2 — Reusable Elements Classification
 
@@ -32,7 +32,7 @@ Major architectural refactor. Work in this order — each step unblocks the next
 
 Apply the audit findings from the priority table below, one component at a time.
 
-- [ ] **3a. ControlPanel** — fix conflicting anchors on network Text; fix bare `height` on network Rectangle
+- [x] **3a. ControlPanel** — fix conflicting anchors on network Text; fix bare `height` on network Rectangle
 - [ ] **3b. MediaPlayerPanel** — fix bare `width`/`height` on `_volBtn` and `_marqueeClip`; add progress bar + polling timer
 - [ ] **3c. TimerWidget** — fix bare `height` on all ColumnLayout children
 - [ ] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
@@ -41,7 +41,7 @@ Apply the audit findings from the priority table below, one component at a time.
 - [ ] **3g. ScrollChip** — replace `Row { anchors }` with `RowLayout`; remove anchors-in-positioner
 - [ ] **3h. SectionHeader** — remove redundant `anchors.verticalCenter` inside `Row`
 - [ ] **3i. PanelNavBar** — replace `Row` with `RowLayout` for dot indicators
-- [ ] **3j. PanelCard** — replace `childrenRect.height` with layout-safe sizing
+- [x] **3j. PanelCard** — replace `childrenRect.height` with layout-safe sizing
 
 ### Phase 4 — Panel Module Content Rework
 
@@ -504,9 +504,9 @@ The image/video carousels use explicit item positioning for animation — intent
 
 | Priority | File | Issue | Severity |
 |---|---|---|---|
-| 1 | `ControlPanel.qml` | Conflicting `anchors.centerIn` + `anchors.left/right` on network Text | 🔴 Bug |
+| ~~1~~ | ~~`ControlPanel.qml`~~ | ~~Conflicting `anchors.centerIn` + `anchors.left/right` on network Text~~ | ✅ Fixed |
 | 2 | `MediaPlayerPanel.qml` | `width`/`height` on `_volBtn` and `_marqueeClip` inside RowLayout | 🔴 Bug |
-| 3 | `ControlPanel.qml` | `height: Style.buttonHeight` on network Rectangle inside ColumnLayout | ⚠️ |
+| ~~3~~ | ~~`ControlPanel.qml`~~ | ~~`height: Style.buttonHeight` on network Rectangle inside ColumnLayout~~ | ✅ Fixed |
 | 4 | `TimerWidget.qml` | `height: N` on all ColumnLayout children | ⚠️ |
 | 5 | `SettingsPanel.qml` | `height: Style.buttonHeight` on wallpaper input Rectangle | ⚠️ |
 | 6 | `SettingsPanel.qml` | Filter `Row` with anchors + anchors-inside-positioner children | ⚠️ |
@@ -515,7 +515,7 @@ The image/video carousels use explicit item positioning for animation — intent
 | 9 | `ScrollChip.qml` | `Row { anchors { left, right } }` + anchors-in-Row children | ⚠️ |
 | 10 | `SectionHeader.qml` | `anchors.verticalCenter` on items inside `Row` | ⚠️ |
 | 11 | `PanelNavBar.qml` | `Row` inside `RowLayout` for dot indicators | ⚠️ |
-| 12 | `PanelCard.qml` | `height: childrenRect.height` — fragile with layouts | ⚠️ |
+| ~~12~~ | ~~`PanelCard.qml`~~ | ~~`height: childrenRect.height` — fragile with layouts~~ | ✅ Fixed |
 | 13 | `WallpaperPanel.qml` | `Layout.fillWidth: true` on `Grid` (no-op) | ⚠️ minor |
 
 ---

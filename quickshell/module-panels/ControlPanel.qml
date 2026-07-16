@@ -6,136 +6,183 @@ import Quickshell.Io
 Item {
     id: root
 
-    property var    audioProcess:    null
-    property var    networkProcess:  null
-    property var    screenrecProcess: null
-    property string activePanel:    ""
-    signal navigateRequested(int direction)
+    property var audioProcess:     null
+    property var networkProcess:   null
+    property var screenrecProcess: null
 
-    implicitHeight: _col.implicitHeight + 24
+    property bool _audioCollapsed:   false
+    property bool _networkCollapsed: false
+    property bool _systemCollapsed:  true
 
-    Rectangle {
-        anchors.fill: parent
-        radius:       Style.panelRadius
-        color:        Style.panelBgColor
-        border.color: Style.panelBorderColor
-        border.width: 1
-        clip:         true
-    }
+    implicitHeight: _col.implicitHeight
 
     ColumnLayout {
         id: _col
-        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+        anchors { left: parent.left; right: parent.right; top: parent.top }
         spacing: 10
 
-        PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
-
-        // ── Audio | Network ───────────────────────────────────────────────────
-        RowLayout {
+        // ── Audio ─────────────────────────────────────────────────────────────
+        PanelCard {
             Layout.fillWidth: true
-            spacing: 8
-
-            // ── Volume column (left) ──────────────────────────────────────────
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: 0
 
-                SectionLabel { text: "Audio" }
-
-                // Source (mic)
-                ScrollChip {
+                SectionHeader {
                     Layout.fillWidth: true
-                    variant: "bar"
-                    value:  root.audioProcess ? root.audioProcess.sourceVolume : 0
-                    muted:  root.audioProcess ? root.audioProcess.sourceMuted  : false
-                    label:  root.audioProcess ? root.audioProcess.sourceName   : "—"
-                    glyph:  "🎤"
-                    onScrolled:      (d) => { if (root.audioProcess) root.audioProcess.setSourceVolume(d * 0.05) }
-                    onClicked:       if (root.audioProcess) root.audioProcess.toggleSourceMute()
-                    onRightClicked:  _pavuProc.running = true
+                    text: "Audio"; tooltip: "Volume and mute controls"
+                    collapsed: _audioCollapsed
+                    onToggled: _audioCollapsed = !_audioCollapsed
                 }
 
-                // Sink (headphone)
-                ScrollChip {
-                    Layout.fillWidth: true
-                    variant: "bar"
-                    value:  root.audioProcess ? root.audioProcess.sinkVolume : 0
-                    muted:  root.audioProcess ? root.audioProcess.sinkMuted  : false
-                    label:  root.audioProcess ? root.audioProcess.sinkName   : "—"
-                    glyph:  "🎧"
-                    onScrolled:      (d) => { if (root.audioProcess) root.audioProcess.setSinkVolume(d * 0.05) }
-                    onClicked:       if (root.audioProcess) root.audioProcess.toggleSinkMute()
-                    onRightClicked:  _pavuProc.running = true
-                }
-            }
+                Item {
+                    Layout.fillWidth: true; clip: true
+                    Layout.preferredHeight: !_audioCollapsed ? _audioRow.implicitHeight + 8 : 0
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-            Rectangle {
-                width: 1
-                Layout.fillHeight: true
-                color: Style.panelDividerColor
-            }
+                    RowLayout {
+                        id: _audioRow
+                        anchors {
+                            left: parent.left; right: parent.right; top: parent.top
+                            topMargin: 8
+                        }
+                        spacing: 8
 
-            // ── Network column (right) ────────────────────────────────────────
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
+                        ScrollChip {
+                            Layout.fillWidth: true
+                            variant: "bar"
+                            value:  root.audioProcess ? root.audioProcess.sourceVolume : 0
+                            muted:  root.audioProcess ? root.audioProcess.sourceMuted  : false
+                            label:  root.audioProcess ? root.audioProcess.sourceName   : "—"
+                            glyph:  "🎤"
+                            onScrolled:     (d) => { if (root.audioProcess) root.audioProcess.setSourceVolume(d * 0.05) }
+                            onClicked:      if (root.audioProcess) root.audioProcess.toggleSourceMute()
+                            onRightClicked: _pavuProc.running = true
+                        }
 
-                SectionLabel { text: "Network" }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: Style.buttonHeight
-                    radius: Style.panelElementRadius
-                    color:  _netHover.hovered ? Style.surfaceLowColor : Style.surfaceMidColor
-                    border.width: Style.elementBorderWidth
-                    border.color: Style.borderSoftColor
-
-                    HoverHandler { id: _netHover }
-
-                    Text {
-                        anchors.centerIn: parent
-                        anchors.left:    parent.left
-                        anchors.right:   parent.right
-                        anchors.margins: 6
-                        horizontalAlignment: Text.AlignHCenter
-                        elide:           Text.ElideRight
-                        text:  root.networkProcess && root.networkProcess.connected
-                               ? root.networkProcess.localIp
-                               : "No connection"
-                        color: root.networkProcess && root.networkProcess.connected
-                               ? Style.textSuccess
-                               : Style.textCritical
-                        font.family:    Style.fontMono
-                        font.pixelSize: Style.fontSizeBody
-                    }
-
-                    TapHandler {
-                        acceptedButtons: Qt.LeftButton
-                        onTapped: if (root.networkProcess) root.networkProcess.toggleNetworking()
-                    }
-                    TapHandler {
-                        acceptedButtons: Qt.RightButton
-                        onTapped: _nmConnProc.running = true
+                        ScrollChip {
+                            Layout.fillWidth: true
+                            variant: "bar"
+                            value:  root.audioProcess ? root.audioProcess.sinkVolume : 0
+                            muted:  root.audioProcess ? root.audioProcess.sinkMuted  : false
+                            label:  root.audioProcess ? root.audioProcess.sinkName   : "—"
+                            glyph:  "🎧"
+                            onScrolled:     (d) => { if (root.audioProcess) root.audioProcess.setSinkVolume(d * 0.05) }
+                            onClicked:      if (root.audioProcess) root.audioProcess.toggleSinkMute()
+                            onRightClicked: _pavuProc.running = true
+                        }
                     }
                 }
             }
         }
 
-        // ── System graphs placeholder (reserved for future) ───────────────────
-        Rectangle {
-            Layout.fillWidth:    true
-            Layout.preferredHeight: 120
-            radius: Style.panelElementRadius
-            color:  Style.surfaceLowColor
-            border.width: Style.elementBorderWidth
-            border.color: Style.borderFaintColor
+        // ── Network ───────────────────────────────────────────────────────────
+        PanelCard {
+            Layout.fillWidth: true
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
 
-            Text {
-                anchors.centerIn: parent
-                text:           "System"
-                color:          Style.textFaint
-                font.family:    Style.fontMono
-                font.pixelSize: Style.fontSizeSubtle
+                SectionHeader {
+                    Layout.fillWidth: true
+                    text: "Network"; tooltip: "Connection status and controls"
+                    collapsed: _networkCollapsed
+                    onToggled: _networkCollapsed = !_networkCollapsed
+                }
+
+                Item {
+                    Layout.fillWidth: true; clip: true
+                    Layout.preferredHeight: !_networkCollapsed ? _networkRows.implicitHeight + 8 : 0
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                    ColumnLayout {
+                        id: _networkRows
+                        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                        spacing: 4
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: Style.buttonHeight
+                            radius: Style.panelElementRadius
+                            color:  _netHover.hovered ? Style.surfaceLowColor : Style.surfaceMidColor
+                            border.width: Style.elementBorderWidth
+                            border.color: Style.borderSoftColor
+
+                            HoverHandler { id: _netHover }
+
+                            Text {
+                                anchors {
+                                    left: parent.left; right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    margins: 6
+                                }
+                                horizontalAlignment: Text.AlignHCenter
+                                elide:           Text.ElideRight
+                                text:  root.networkProcess && root.networkProcess.connected
+                                       ? root.networkProcess.localIp
+                                       : "No connection"
+                                color: root.networkProcess && root.networkProcess.connected
+                                       ? Style.textSuccess
+                                       : Style.textCritical
+                                font.family:    Style.fontMono
+                                font.pixelSize: Style.fontSizeBody
+                            }
+
+                            TapHandler {
+                                acceptedButtons: Qt.LeftButton
+                                onTapped: if (root.networkProcess) root.networkProcess.toggleNetworking()
+                            }
+                            TapHandler {
+                                acceptedButtons: Qt.RightButton
+                                onTapped: _nmConnProc.running = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── System ────────────────────────────────────────────────────────────
+        PanelCard {
+            Layout.fillWidth: true
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                SectionHeader {
+                    Layout.fillWidth: true
+                    text: "System"; tooltip: "System resource usage"
+                    collapsed: _systemCollapsed
+                    onToggled: _systemCollapsed = !_systemCollapsed
+                }
+
+                Item {
+                    Layout.fillWidth: true; clip: true
+                    Layout.preferredHeight: !_systemCollapsed ? _systemRows.implicitHeight + 8 : 0
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                    ColumnLayout {
+                        id: _systemRows
+                        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 120
+                            radius: Style.panelElementRadius
+                            color:  Style.surfaceLowColor
+                            border.width: Style.elementBorderWidth
+                            border.color: Style.borderFaintColor
+
+                            Text {
+                                anchors.centerIn: parent
+                                text:           "System"
+                                color:          Style.textFaint
+                                font.family:    Style.fontMono
+                                font.pixelSize: Style.fontSizeSubtle
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -148,7 +195,6 @@ Item {
 
             SectionLabel { text: "Screen Recorder" }
 
-            // Mode selector
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 4
@@ -167,7 +213,6 @@ Item {
                     enabled: !(root.screenrecProcess && root.screenrecProcess.recording)
                     onClicked: root._recMode = "region"
                 }
-                // Window mode: Wayland caveat — grayed out, TBD
                 PanelButton {
                     Layout.fillWidth: true
                     label: "Window"
@@ -180,7 +225,6 @@ Item {
                 }
             }
 
-            // Start / recording status
             // Region start is disabled here — slurp can't get pointer grab as a QML child.
             // Use W+Shift+E keybind instead (calls pillbox-screenrec-region as labwc child).
             PanelButton {
@@ -212,12 +256,11 @@ Item {
             }
         }
 
-        // ── Session row ───────────────────────────────────────────────────────
+        // ── Session ───────────────────────────────────────────────────────────
         Item {
             Layout.fillWidth: true
             implicitHeight: Style.buttonHeight
 
-            // Normal: four buttons right-aligned
             RowLayout {
                 anchors.fill: parent
                 visible: root._pendingAction === ""
@@ -225,26 +268,12 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                PanelButton {
-                    icon: "󰒓"; tooltip: "Reconfigure"
-                    onClicked: _reconfigProc.running = true
-                }
-                PanelButton {
-                    icon: "󰍃"; tooltip: "Exit"
-                    onClicked: root._startCountdown("exit")
-                }
-                PanelButton {
-                    icon: "󰜉"; tooltip: "Reboot"
-                    onClicked: root._startCountdown("reboot")
-                }
-                PanelButton {
-                    icon: "󰐥"; tooltip: "Shutdown"
-                    variant:   "critical"
-                    onClicked: root._startCountdown("shutdown")
-                }
+                PanelButton { icon: "󰒓"; tooltip: "Reconfigure"; onClicked: _reconfigProc.running = true }
+                PanelButton { icon: "󰍃"; tooltip: "Exit";        onClicked: root._startCountdown("exit") }
+                PanelButton { icon: "󰜉"; tooltip: "Reboot";      onClicked: root._startCountdown("reboot") }
+                PanelButton { icon: "󰐥"; tooltip: "Shutdown"; variant: "critical"; onClicked: root._startCountdown("shutdown") }
             }
 
-            // Confirm: countdown label + cancel
             RowLayout {
                 anchors.fill: parent
                 visible: root._pendingAction !== ""
@@ -265,10 +294,7 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                 }
 
-                PanelButton {
-                    label: "Cancel"
-                    onClicked: root._pendingAction = ""
-                }
+                PanelButton { label: "Cancel"; onClicked: root._pendingAction = "" }
             }
         }
     }
@@ -277,7 +303,7 @@ Item {
     property string _recMode: "screen"   // "screen" | "region"
 
     // ── Session state ─────────────────────────────────────────────────────────
-    property string _pendingAction:    ""   // "" | "exit" | "reboot" | "shutdown"
+    property string _pendingAction:    ""
     property real   _sessionStart:     0
     property int    _sessionRemaining: 3
 
@@ -307,11 +333,10 @@ Item {
     }
 
     // ── Processes ─────────────────────────────────────────────────────────────
-    Process { id: _pavuProc;    command: ["pavucontrol-qt"] }
-    Process { id: _nmConnProc;  command: ["nm-connection-editor"] }
-    Process { id: _reconfigProc; command: ["labwc", "--reconfigure"] }
-    Process { id: _exitProc;     command: ["labwc", "--exit"] }
-    Process { id: _rebootProc;   command: ["systemctl", "reboot"] }
-    Process { id: _shutdownProc; command: ["systemctl", "poweroff"] }
-
+    Process { id: _pavuProc;      command: ["pavucontrol-qt"] }
+    Process { id: _nmConnProc;    command: ["nm-connection-editor"] }
+    Process { id: _reconfigProc;  command: ["labwc", "--reconfigure"] }
+    Process { id: _exitProc;      command: ["labwc", "--exit"] }
+    Process { id: _rebootProc;    command: ["systemctl", "reboot"] }
+    Process { id: _shutdownProc;  command: ["systemctl", "poweroff"] }
 }

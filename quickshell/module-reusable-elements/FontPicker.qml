@@ -7,7 +7,7 @@ Item {
     property string value: ""
     signal committed(string fontFamily)
 
-    implicitHeight: 22
+    implicitHeight: Style.fontSizeBody + Style.panelElementVpadding
 
     readonly property var _allFonts: Qt.fontFamilies().sort()
 
