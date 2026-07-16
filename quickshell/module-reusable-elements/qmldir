@@ -24,3 +24,4 @@ ToastTimer 1.0 ToastTimer.qml
 MediaThumbnail 1.0 MediaThumbnail.qml
 ToastController 1.0 ToastController.qml
 ToastWindow 1.0 ToastWindow.qml
+SegmentedControl 1.0 SegmentedControl.qml
