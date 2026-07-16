@@ -24,6 +24,7 @@ FocusScope {
     property bool _bordersCollapsed:    false
     property bool _themeCollapsed:      false
     property bool _wallpaperCollapsed:  false
+    property bool _panelCollapsed:      false
 
     // ── Filter ────────────────────────────────────────────────────────────────
     property string _filter: ""
@@ -34,6 +35,7 @@ FocusScope {
     readonly property var _tagBorders:    ["pill","panel","elements","border","color","subtle","vibrant","thickness","width"]
     readonly property var _tagTheme:      ["extract","colors","wallpaper","theme","palette"]
     readonly property var _tagWallpaper:  ["wallpaper","directory","scan","path","image","video","folder","pictures"]
+    readonly property var _tagPanel:      ["panel","width","height","offset","position","size","layout"]
 
     function _matches(name, tags) {
         if (_filter === "") return true
@@ -51,6 +53,7 @@ FocusScope {
     readonly property bool _bordersVisible:  _matches("Borders",         _tagBorders)
     readonly property bool _themeVisible:    _matches("Theme",           _tagTheme)
     readonly property bool _wallpaperVisible: _matches("Wallpaper",      _tagWallpaper)
+    readonly property bool _panelVisible:    _matches("Panel",           _tagPanel)
 
     // ── Height ────────────────────────────────────────────────────────────────
     implicitHeight: _pinnedCol.implicitHeight + 12 +
@@ -580,6 +583,43 @@ FocusScope {
                 }
             }
 
+            // ── Panel ─────────────────────────────────────────────────────────
+            PanelCard {
+                Layout.fillWidth: true
+                visible: _panelVisible
+                ColumnLayout {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Panel"; tooltip: "Panel width and vertical position on screen"
+                        collapsed: _panelCollapsed
+                        onToggled: _panelCollapsed = !_panelCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        Layout.preferredHeight: (_filter !== "" || !_panelCollapsed) ? _panelRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _panelRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLabel { label: "Width"
+                                ScrollChip { text: Prefs.panelWidth + "%"; onScrolled: (delta) => { var next = Prefs.panelWidth + delta; if (next >= 5 && next <= 50) Prefs.setPanelWidth(next) } }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Height"
+                                ScrollChip { text: Prefs.panelOffsetY + "%"; onScrolled: (delta) => { var next = Prefs.panelOffsetY + delta; if (next >= 2 && next <= 25) Prefs.setPanelOffsetY(next) } }
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Theme ─────────────────────────────────────────────────────────
             PanelCard {
                 Layout.fillWidth: true
@@ -707,6 +747,8 @@ FocusScope {
                     Prefs.setElementBorderWidth(1)
                     Prefs.setBorderColorMode("subtle")
                     Prefs.setExtractColors(false)
+                    Prefs.setPanelWidth(15)
+                    Prefs.setPanelOffsetY(10)
                 }
             }
         }

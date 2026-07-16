@@ -115,4 +115,8 @@ QtObject {
     readonly property int pillPaddingV:       Prefs.pillPaddingV
     readonly property int borderWidth:        Prefs.borderWidth
     readonly property int elementBorderWidth: Prefs.elementBorderWidth
+
+    // ── Panel geometry ───────────────────────────────────────────────────────
+    readonly property int panelOffsetY: Prefs.panelOffsetY   // % of screen width
+    readonly property int panelWidth:   Prefs.panelWidth     // % of screen width
 }

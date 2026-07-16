@@ -41,8 +41,8 @@ PanelWindow {
     exclusiveZone:  0
     color:          "transparent"
 
-    readonly property real _panelY:     Screen.width * 0.10
-    readonly property real _panelWidth: Screen.width * 0.15
+    readonly property real _panelY:     Screen.width * (Style.panelOffsetY / 100.0)
+    readonly property real _panelWidth: Screen.width * (Style.panelWidth   / 100.0)
     readonly property real _maxHeight:  Screen.height - 2 * _panelY
 
     // Max space for row-2 content: total cap minus NavBar, col spacing, and top+bottom chrome padding.
@@ -99,7 +99,7 @@ PanelWindow {
                 anchors.topMargin:        Style.panelMargin
                 anchors.horizontalCenter: parent.horizontalCenter
                 width:   parent.width - Style.panelMargin * 2
-                spacing: 10
+                spacing: Style.panelCardVpadding
 
                 PanelNavBar {
                     id: _navBar

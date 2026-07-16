@@ -28,6 +28,9 @@ Item {
         property int    elementBorderWidth: 1
         property string borderColorMode:   "subtle"   // "subtle" | "vibrant"
 
+        property int panelOffsetY: 10   // % of screen width; drives vertical position + height cap
+        property int panelWidth:   15   // % of screen width
+
         property string wallpaperSourceType:  "color"
         property string wallpaperPath:        ""
         property string wallpaperColor:       "#2E3440"
@@ -67,6 +70,9 @@ Item {
     readonly property int    elementBorderWidth: _store.elementBorderWidth
     readonly property string borderColorMode:    _store.borderColorMode
 
+    readonly property int panelOffsetY: _store.panelOffsetY
+    readonly property int panelWidth:   _store.panelWidth
+
     readonly property string wallpaperSourceType:  _store.wallpaperSourceType
     readonly property string wallpaperPath:        _store.wallpaperPath
     readonly property string wallpaperColor:       _store.wallpaperColor
@@ -97,6 +103,9 @@ Item {
     function setBorderWidth(v)        { _store.borderWidth        = v }
     function setElementBorderWidth(v) { _store.elementBorderWidth = v }
     function setBorderColorMode(v)    { _store.borderColorMode    = v }
+
+    function setPanelOffsetY(v) { _store.panelOffsetY = v }
+    function setPanelWidth(v)   { _store.panelWidth   = v }
 
     function setWallpaperSourceType(v)  { _store.wallpaperSourceType  = v }
     function setWallpaperPath(v)        { _store.wallpaperPath        = v }
