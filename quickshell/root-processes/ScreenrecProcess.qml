@@ -6,7 +6,14 @@ Item {
     id: root
 
     // ── Public state ──────────────────────────────────────────────────────────
-    property bool   recording:         false
+    // recMode is driven by Prefs — switching while active is blocked in the UI.
+    readonly property string recMode: Prefs.recMode !== "" ? Prefs.recMode : "oneshot"
+
+    property bool   active:    false   // script process is alive
+    property bool   recording: false   // currently writing to file
+                                       // oneshot: same as active
+                                       // replay:  true only during toggleRec recording-to-file
+
     property string lastRecordingPath: ""
     property string lastReplayPath:    ""
 
@@ -16,51 +23,70 @@ Item {
     signal replaySaved(string path)
     signal recordingError(string reason)
 
-    // ── Public API (called by FifoListener handlers in shell.qml) ────────────
-    function startScreen()           { root._regionCoords = ""; _start("screen") }
-    function startRegion()           { root._regionCoords = ""; _start("region") }
-    function startRegionWith(coords) { root._regionCoords = coords; _start("region") }
-    function stop()                  { _sendCtl("stop")        }
-    function saveReplay()            { _sendCtl("save-replay") }
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    // oneshot: start if idle, stop (save) if active.
+    // replay:  send toggleRec (SIGRTMIN) — toggles recording-to-file.
+    function toggle() {
+        if (root.recMode === "oneshot") {
+            if (!root.active) {
+                root._regionCoords = ""
+                _proc.running = true
+            } else {
+                _sendCtl("stop")
+            }
+        } else {
+            if (!root.active) return
+            _sendCtl("toggleRec")
+            root.recording = !root.recording   // optimistic; cleared on screenrec:stopped
+        }
+    }
+
+    // One-shot region recording — coords come from pillbox-screenrec-region (slurp).
+    function startRegionWith(coords) {
+        if (root.recMode !== "oneshot" || root.active) return
+        root._regionCoords = coords
+        _proc.running = true
+    }
+
+    function saveReplay()         { _sendCtl("saveReplay") }
+    function saveReplaySeconds(n) { _sendCtl("saveReplay:" + n) }
+    function pause()              { _sendCtl("pause") }
+    function emergencyStop()      { _sendCtl("stop") }
 
     // ── Internal ──────────────────────────────────────────────────────────────
     property string _dir:          ""
     property string _replayDir:    ""
     property string _ctlFifo:      ""
-    property string _startMode:    ""
     property string _regionCoords: ""
 
-    function _start(mode) {
-        if (root.recording) {
-            console.log("[ScreenrecProcess] already recording, ignoring start:", mode)
-            return
-        }
-        if (_proc.running) {
-            console.log("[ScreenrecProcess] process still running, ignoring start:", mode)
-            return
-        }
-        root._startMode = mode
-        _proc.running = true
-    }
-
     function _sendCtl(cmd) {
-        if (!root.recording) {
-            console.log("[ScreenrecProcess] not recording, ignoring ctl:", cmd)
+        if (!root.active) {
+            console.log("[ScreenrecProcess] not active, ignoring ctl:", cmd)
             return
         }
-        if (_ctlWriter.running) return   // previous write still in-flight
-        _ctlWriter.command = ["sh", "-c", "echo '" + cmd + "' > " + root._ctlFifo]
+        if (_ctlWriter.running) return
+        _ctlWriter.command = ["sh", "-c",
+            "printf '%s\\n' \"$1\" > \"$2\"", "sh", cmd, root._ctlFifo]
         _ctlWriter.running = true
     }
 
-    // ── Long-running recording process ────────────────────────────────────────
+    // ── Long-running process ──────────────────────────────────────────────────
     Process {
         id: _proc
         command: {
-            var args = ["pillbox-screenrec", root._startMode]
-            if (root._dir          !== "") { args.push("--dir");        args.push(root._dir)          }
-            if (root._replayDir    !== "") { args.push("--replay-dir"); args.push(root._replayDir)    }
-            if (root._regionCoords !== "") { args.push("--region");     args.push(root._regionCoords) }
+            var mode = root.recMode
+            var args = ["pillbox-screenrec", mode]
+            if (root._dir !== "") {
+                args.push("--dir"); args.push(root._dir)
+            }
+            if (mode === "replay" && root._replayDir !== "") {
+                args.push("--replay-dir"); args.push(root._replayDir)
+            }
+            if (mode === "oneshot" && root._regionCoords !== "") {
+                args.push("--source"); args.push("region")
+                args.push("--region"); args.push(root._regionCoords)
+            }
             return args
         }
         running: false
@@ -69,12 +95,14 @@ Item {
             onRead: function(line) {
                 line = line.trim()
                 if (line === "screenrec:started") {
-                    root.recording = true
+                    root.active = true
+                    if (root.recMode === "oneshot") root.recording = true
                     root.recordingStarted()
-                    console.log("[ScreenrecProcess] started")
+                    console.log("[ScreenrecProcess] started, mode:", root.recMode)
                 } else if (line.startsWith("screenrec:stopped:")) {
                     var path = line.slice(18)
-                    root.recording         = false
+                    root.recording = false
+                    if (root.recMode === "oneshot") root.active = false
                     root.lastRecordingPath = path
                     root.recordingStopped(path)
                     console.log("[ScreenrecProcess] stopped:", path)
@@ -93,15 +121,14 @@ Item {
         }
 
         onExited: function(code, signal) {
-            _proc.running = false
-            if (root.recording) {
-                root.recording = false
-                console.log("[ScreenrecProcess] process exited unexpectedly:", code)
-            }
+            root.active    = false
+            root.recording = false
+            if (code !== 0)
+                console.log("[ScreenrecProcess] exited unexpectedly:", code)
         }
     }
 
-    // ── One-shot CTL FIFO writer ──────────────────────────────────────────────
+    // ── CTL FIFO writer ───────────────────────────────────────────────────────
     Process {
         id: _ctlWriter
         running: false
@@ -121,6 +148,9 @@ Item {
             ? Prefs.replayDir
             : home + "/.config/pillbox/media/Replays"
         root._ctlFifo   = home + "/.local/share/pillbox/screenrec-ctl"
-        console.log("[ScreenrecProcess] started | dir:", root._dir)
+        console.log("[ScreenrecProcess] init | mode:", root.recMode, "| dir:", root._dir)
+
+        if (root.recMode === "replay")
+            _proc.running = true
     }
 }

@@ -44,6 +44,9 @@ Item {
         property string screenshotDir: ""
         property string recordingDir:  ""
         property string replayDir:     ""
+
+        // Screen recorder mode — persists across restarts.
+        property string recMode: "oneshot"   // "oneshot" | "replay"
     }
 
     // ── Public (read) ─────────────────────────────────────────────────────────
@@ -75,6 +78,7 @@ Item {
     readonly property string screenshotDir: _store.screenshotDir
     readonly property string recordingDir:  _store.recordingDir
     readonly property string replayDir:     _store.replayDir
+    readonly property string recMode:       _store.recMode
 
     // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
@@ -105,6 +109,7 @@ Item {
     function setScreenshotDir(v) { _store.screenshotDir = v }
     function setRecordingDir(v)  { _store.recordingDir  = v }
     function setReplayDir(v)     { _store.replayDir     = v }
+    function setRecMode(v)       { _store.recMode       = v }
 
     Component.onCompleted: console.log(
         "[Prefs] loaded | fontSizePill:", _store.fontSizePill,

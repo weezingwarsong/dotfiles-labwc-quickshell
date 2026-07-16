@@ -28,11 +28,10 @@ Item {
     signal screenshotUIRequested()
     signal screenshotNotifyRequested(string path)
 
-    signal screenrecStartScreenRequested()
-    signal screenrecStartRegionRequested()
-    signal screenrecStopRequested()
+    signal screenrecToggleRequested()
     signal screenrecSaveReplayRequested()
-    signal screenrecToggleScreenRequested()
+    signal screenrecSaveReplaySecondsRequested(int n)
+    signal screenrecEmergencyStopRequested()
     signal screenrecStartRegionWithRequested(string coords)
     signal dismissToastRequested(string id)
 
@@ -76,15 +75,17 @@ Item {
                 else if (cmd === "screenshotRegion")  root.screenshotRegionRequested()
                 else if (cmd === "screenshotUI")      root.screenshotUIRequested()
 
-                else if (cmd === "screenrecStartScreen")  root.screenrecStartScreenRequested()
-                else if (cmd === "screenrecStartRegion")  root.screenrecStartRegionRequested()
-                else if (cmd === "screenrecStop")         root.screenrecStopRequested()
+                else if (cmd === "screenrecToggle")        root.screenrecToggleRequested()
                 else if (cmd === "screenrecSaveReplay")   root.screenrecSaveReplayRequested()
-                else if (cmd === "screenrecToggleScreen") root.screenrecToggleScreenRequested()
+                else if (cmd === "screenrecEmergencyStop") root.screenrecEmergencyStopRequested()
 
                 else if (cmd.startsWith("screenshotNotify:"))          root.screenshotNotifyRequested(cmd.slice(17))
                 else if (cmd.startsWith("screenrecStartRegionWith:"))  root.screenrecStartRegionWithRequested(cmd.slice(25))
                 else if (cmd.startsWith("dismissToast:"))              root.dismissToastRequested(cmd.slice(13))
+                else if (cmd.startsWith("screenrecSaveReplay:")) {
+                    var n = parseInt(cmd.slice(20))
+                    if (!isNaN(n) && n > 0) root.screenrecSaveReplaySecondsRequested(n)
+                }
 
                 else if (cmd.startsWith("setTimer:")) {
                     var secs = parseInt(cmd.slice(9))

@@ -42,12 +42,11 @@ ShellRoot {
         onScreenshotNotifyRequested:   (path)   => screenshot.notifyExternalSave(path)
         onDismissToastRequested:       (id)     => toastWindow.dismiss(id)
 
-        onScreenrecStartScreenRequested:    screenrec.startScreen()
-        onScreenrecStartRegionRequested:    screenrec.startRegion()
-        onScreenrecStopRequested:           screenrec.stop()
-        onScreenrecSaveReplayRequested:     screenrec.saveReplay()
-        onScreenrecToggleScreenRequested:   screenrec.recording ? screenrec.stop() : screenrec.startScreen()
-        onScreenrecStartRegionWithRequested: (coords) => screenrec.startRegionWith(coords)
+        onScreenrecToggleRequested:              screenrec.toggle()
+        onScreenrecSaveReplayRequested:          screenrec.saveReplay()
+        onScreenrecSaveReplaySecondsRequested:   (n)      => screenrec.saveReplaySeconds(n)
+        onScreenrecEmergencyStopRequested:       screenrec.emergencyStop()
+        onScreenrecStartRegionWithRequested:     (coords) => screenrec.startRegionWith(coords)
     }
 
     property bool visualizerVisible: true
