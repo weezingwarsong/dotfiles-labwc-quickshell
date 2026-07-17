@@ -35,7 +35,7 @@ Apply the audit findings from the priority table below, one component at a time.
 - [x] **3a. ControlPanel** — fix conflicting anchors on network Text; fix bare `height` on network Rectangle
 - [x] **3b. MediaPlayerPanel** — fix bare `width`/`height` on `_volBtn` and `_marqueeClip`; layout rework: chrome stripped, art 90% square centered, "No active player" row with music IconButton (⚠️ hover interaction pending physical test)
 - [x] **3c. TimerWidget** — fix bare `height` on all ColumnLayout children; replaced Rectangle+MouseArea buttons with TogglePair (mode), IconButton (start/stop), ScrollChip (duration), PanelButton (reset) in 2×2 GridLayout
-- [ ] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
+- [x] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
 - [x] **3e. CalendarPanel** — fix `anchors.fill` in all three Flickables; remove background Rectangle chrome (phase 1e); remove PanelNavBar (phase 1d)
 - [x] **3f. PanelTabBar** — replace `Row { anchors.fill }` + manual widths with `RowLayout`; add `glyphs` property with collapsible glyph row per tab
 - [x] **3g. ScrollChip** — replace `Row { anchors }` with `RowLayout`; remove anchors-in-positioner; fix `implicitHeight: Style.buttonHeight` → `Style.fontSizeBody + Style.panelElementVpadding`
@@ -476,8 +476,8 @@ The image/video carousels use explicit item positioning for animation — intent
 | ~~2~~ | ~~`MediaPlayerPanel.qml`~~ | ~~`width`/`height` on `_volBtn` and `_marqueeClip` inside RowLayout~~ | ✅ Fixed |
 | ~~3~~ | ~~`ControlPanel.qml`~~ | ~~`height: Style.buttonHeight` on network Rectangle inside ColumnLayout~~ | ✅ Fixed |
 | ~~4~~ | ~~`TimerWidget.qml`~~ | ~~`height: N` on all ColumnLayout children~~ | ✅ Fixed |
-| 5 | `SettingsPanel.qml` | `height: Style.buttonHeight` on wallpaper input Rectangle | ⚠️ |
-| 6 | `SettingsPanel.qml` | Filter `Row` with anchors + anchors-inside-positioner children | ⚠️ |
+| ~~5~~ | ~~`SettingsPanel.qml`~~ | ~~`height: Style.buttonHeight` on wallpaper input Rectangle~~ | ✅ Fixed |
+| ~~6~~ | ~~`SettingsPanel.qml`~~ | ~~Filter `Row` with anchors + anchors-inside-positioner children~~ | ✅ Fixed |
 | ~~7~~ | ~~`CalendarPanel.qml`~~ | ~~`anchors.fill` in Flickable (should be left+right+top only)~~ | ✅ Fixed |
 | ~~8~~ | ~~`PanelTabBar.qml`~~ | ~~`Row { anchors.fill }` + manual `width / labels.length`~~ | ✅ Fixed |
 | ~~9~~ | ~~`ScrollChip.qml`~~ | ~~`Row { anchors { left, right } }` + anchors-in-Row children + `implicitHeight: Style.buttonHeight`~~ | ✅ Fixed |

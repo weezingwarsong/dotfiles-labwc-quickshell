@@ -175,17 +175,17 @@ FocusScope {
             border.width: Style.elementBorderWidth
             border.color: Style.borderSoftColor
 
-            Row {
+            RowLayout {
                 anchors {
                     left: parent.left; right: parent.right
                     verticalCenter: parent.verticalCenter
                     leftMargin: 8; rightMargin: 8
                 }
                 spacing: 4
-                Text { text: "⌕"; color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: _filterInput.text; color: Style.textNormal; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "⌕"; color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
+                Text { text: _filterInput.text; color: Style.textNormal; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
                 Text {
-                    text: "│"; color: Style.accentColor; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody; anchors.verticalCenter: parent.verticalCenter
+                    text: "│"; color: Style.accentColor; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
                         NumberAnimation { to: 0; duration: 500 }
@@ -708,7 +708,7 @@ FocusScope {
 
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    height: Style.buttonHeight
+                                    implicitHeight: Style.buttonHeight
                                     radius: Style.panelElementRadius
                                     color:  Style.surfaceMidColor
                                     border.width: Style.elementBorderWidth
