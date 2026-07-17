@@ -17,8 +17,8 @@ Major architectural refactor. Work in this order — each step unblocks the next
 - [x] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
 - [x] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
 - [x] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
-- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel done; Calendar, MediaPlayer, Wallpaper, Notification remain
-- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel done; Calendar, MediaPlayer, Wallpaper, Notification remain
+- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel + MediaPlayerPanel done; Calendar, Wallpaper, Notification remain
+- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel + MediaPlayerPanel done; Calendar, Wallpaper, Notification remain
 
 ### Phase 2 — Reusable Elements Classification
 
@@ -33,7 +33,7 @@ Major architectural refactor. Work in this order — each step unblocks the next
 Apply the audit findings from the priority table below, one component at a time.
 
 - [x] **3a. ControlPanel** — fix conflicting anchors on network Text; fix bare `height` on network Rectangle
-- [ ] **3b. MediaPlayerPanel** — fix bare `width`/`height` on `_volBtn` and `_marqueeClip`; add progress bar + polling timer
+- [x] **3b. MediaPlayerPanel** — fix bare `width`/`height` on `_volBtn` and `_marqueeClip`; layout rework: chrome stripped, art 90% square centered, "No active player" row with music IconButton (⚠️ hover interaction pending physical test)
 - [ ] **3c. TimerWidget** — fix bare `height` on all ColumnLayout children
 - [ ] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
 - [ ] **3e. CalendarPanel** — fix `anchors.fill` in all three Flickables
@@ -505,7 +505,7 @@ The image/video carousels use explicit item positioning for animation — intent
 | Priority | File | Issue | Severity |
 |---|---|---|---|
 | ~~1~~ | ~~`ControlPanel.qml`~~ | ~~Conflicting `anchors.centerIn` + `anchors.left/right` on network Text~~ | ✅ Fixed |
-| 2 | `MediaPlayerPanel.qml` | `width`/`height` on `_volBtn` and `_marqueeClip` inside RowLayout | 🔴 Bug |
+| ~~2~~ | ~~`MediaPlayerPanel.qml`~~ | ~~`width`/`height` on `_volBtn` and `_marqueeClip` inside RowLayout~~ | ✅ Fixed |
 | ~~3~~ | ~~`ControlPanel.qml`~~ | ~~`height: Style.buttonHeight` on network Rectangle inside ColumnLayout~~ | ✅ Fixed |
 | 4 | `TimerWidget.qml` | `height: N` on all ColumnLayout children | ⚠️ |
 | 5 | `SettingsPanel.qml` | `height: Style.buttonHeight` on wallpaper input Rectangle | ⚠️ |

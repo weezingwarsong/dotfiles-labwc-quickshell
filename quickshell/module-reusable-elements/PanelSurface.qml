@@ -145,7 +145,8 @@ PanelWindow {
                                 it.clockProcess    = Qt.binding(() => root.clockProcess)
                                 break
                             case "mediaPlayer":
-                                it.mprisProcess = Qt.binding(() => root.mprisProcess)
+                                it.mprisProcess    = Qt.binding(() => root.mprisProcess)
+                                it.toplevelProcess = Qt.binding(() => root.toplevelProcess)
                                 break
                             case "wallpaper":
                                 it.wallpaperProcess = Qt.binding(() => root.wallpaperProcess)

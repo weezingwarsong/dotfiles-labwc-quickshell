@@ -1,15 +1,13 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Mpris
+import Quickshell.Io
 
 Item {
     id: root
-    focus: true
 
-    property var    mprisProcess:    null
-    property var    toplevelProcess: null
-    property string activePanel:     ""
-    signal navigateRequested(int direction)
+    property var mprisProcess:    null
+    property var toplevelProcess: null
 
     Keys.onPressed: (event) => {
         if (!root._player) { event.accepted = false; return }
@@ -39,73 +37,45 @@ Item {
         }
     }
 
-    function _focusPlayer() {
-        if (!root._player || !root.toplevelProcess) return
-        var entry    = (root._player.desktopEntry || "").toLowerCase()
-        var identity = (root._player.identity     || "").toLowerCase()
-        var guess    = identity.replace(/\s+/g, "-")
-        var wins     = root.toplevelProcess.windows.values
-        for (var i = 0; i < wins.length; i++) {
-            var id = wins[i].appId.toLowerCase()
-            if ((entry && id === entry) || id === guess) {
-                wins[i].activate()
-                return
-            }
-        }
-    }
-
     readonly property var  _player:      mprisProcess ? mprisProcess.activePlayer : null
     property real          _savedVolume: 1.0
     readonly property bool _muted:       !!_player && _player.volume < 0.01
-    readonly property real _artSize:     width - 2 * Style.panelMargin
 
-    implicitHeight: _col.implicitHeight + 24
-
-    Rectangle {
-        anchors.fill:  parent
-        radius:        Style.panelRadius
-        color:         Style.panelBgColor
-        border.color:  Style.panelBorderColor
-        border.width:  1
-        clip:          true
-    }
+    implicitHeight: _col.implicitHeight
 
     ColumnLayout {
         id: _col
-        anchors {
-            top:     parent.top
-            left:    parent.left
-            right:   parent.right
-            margins: Style.panelMargin
-        }
+        anchors { left: parent.left; right: parent.right; top: parent.top }
         spacing: 8
 
-        // ── Nav bar ───────────────────────────────────────────────────────────
-        PanelNavBar {
-            Layout.fillWidth: true
-            activePanel: root.activePanel
-            onNavigateRequested: (dir) => root.navigateRequested(dir)
-        }
-
         // ── No active player ──────────────────────────────────────────────────
-        Text {
-            Layout.fillWidth:    true
-            visible:             !root._player
-            text:                "No active player"
-            color:               Style.textMuted
-            font.family:         Style.fontMono
-            font.pixelSize:      Style.fontSizeBody
-            horizontalAlignment: Text.AlignHCenter
-            topPadding:          16
-            bottomPadding:       8
+        RowLayout {
+            Layout.fillWidth: true
+            visible:          !root._player
+            spacing:          6
+
+            Text {
+                Layout.fillWidth:    true
+                text:                "No active player"
+                color:               Style.textMuted
+                font.family:         Style.fontMono
+                font.pixelSize:      Style.fontSizeBody
+                topPadding:          16
+                bottomPadding:       8
+            }
+
+            IconButton {
+                label:     String.fromCodePoint(0xf001)
+                onClicked: _openMusicProc.running = true
+            }
         }
 
         // ── Album art ─────────────────────────────────────────────────────────
         Item {
-            id:                      _artContainer
-            Layout.fillWidth:        true
-            Layout.preferredHeight:  root._artSize
-            visible:                 !!root._player
+            Layout.preferredWidth:  _col.width * 0.9
+            Layout.preferredHeight: _col.width * 0.9
+            Layout.alignment:       Qt.AlignHCenter
+            visible:                !!root._player
 
             HoverHandler { cursorShape: Qt.PointingHandCursor }
             TapHandler   { onTapped: root._focusPlayer() }
@@ -131,7 +101,7 @@ Item {
                     text:             String.fromCodePoint(0xf001)
                     color:            Style.textFaint
                     font.family:      Style.fontNerd
-                    font.pixelSize:   Math.round(_artContainer.width * 0.35)
+                    font.pixelSize:   Math.round(_col.width * 0.9 * 0.35)
                 }
             }
         }
@@ -153,7 +123,7 @@ Item {
             Item {
                 id:               _marqueeClip
                 Layout.fillWidth: true
-                height:           Style.buttonHeight
+                implicitHeight:   Style.buttonHeight
                 clip:             true
 
                 HoverHandler {
@@ -168,7 +138,6 @@ Item {
                     }
                 }
 
-                // Track text — hidden while hovered
                 Text {
                     id:             _marqueeText
                     y:              Math.round((_marqueeClip.height - height) / 2)
@@ -194,7 +163,6 @@ Item {
                     }
                 }
 
-                // Play/pause glyph — shown while hovered
                 Text {
                     anchors.centerIn: parent
                     visible:          _marqueeHover.hovered && !!root._player
@@ -226,25 +194,23 @@ Item {
 
             // ── Volume button ─────────────────────────────────────────────────
             Item {
-                id:     _volBtn
-                width:  40
-                height: Style.buttonHeight
+                id:             _volBtn
+                implicitWidth:  40
+                implicitHeight: Style.buttonHeight
 
                 HoverHandler { id: _volHover }
 
-                // Glyph (not hovered)
                 Text {
                     anchors.centerIn: parent
                     visible:          !_volHover.hovered
                     text:             root._muted
-                                      ? String.fromCodePoint(0xf026)   // nf-fa-volume-off
-                                      : String.fromCodePoint(0xf028)   // nf-fa-volume-up
+                                      ? String.fromCodePoint(0xf026)
+                                      : String.fromCodePoint(0xf028)
                     color:            root._muted ? Style.textMuted : Style.accentColor
                     font.family:      Style.fontNerd
                     font.pixelSize:   Style.fontSizeBody
                 }
 
-                // Volume bar (hovered)
                 Item {
                     anchors.centerIn: parent
                     width:            parent.width - 8
@@ -288,6 +254,11 @@ Item {
         }
     }
 
+    Process {
+        id:      _openMusicProc
+        command: ["xdg-open", "https://music.youtube.com/watch?list=PLvjbqrIsCjSRP3ZQAuQK93XSfmpwJkSqT&playnext=1&autoplay=1"]
+    }
+
     SequentialAnimation {
         id:    _scrollAnim
         loops: Animation.Infinite
@@ -307,6 +278,21 @@ Item {
             to:          0
             duration:    400
             easing.type: Easing.InOutQuad
+        }
+    }
+
+    function _focusPlayer() {
+        if (!root._player || !root.toplevelProcess) return
+        var entry    = (root._player.desktopEntry || "").toLowerCase()
+        var identity = (root._player.identity     || "").toLowerCase()
+        var guess    = identity.replace(/\s+/g, "-")
+        var wins     = root.toplevelProcess.windows.values
+        for (var i = 0; i < wins.length; i++) {
+            var id = wins[i].appId.toLowerCase()
+            if ((entry && id === entry) || id === guess) {
+                wins[i].activate()
+                return
+            }
         }
     }
 }
