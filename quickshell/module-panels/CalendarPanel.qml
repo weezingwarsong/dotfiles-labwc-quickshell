@@ -6,6 +6,7 @@ import Quickshell
 
 Item {
     id: root
+    focus: true
 
     // ── Injected processes ────────────────────────────────────────────────────
     property var clockProcess:    null
@@ -33,12 +34,38 @@ Item {
             else root._navMonth--
             root._pickerOpen = false
             event.accepted = true; break
+        case Qt.Key_P:
+            if (root._view !== "timer" || !root.timerProcess) { event.accepted = false; break }
+            if (root.timerProcess.mode === "stopwatch") {
+                if (root.timerProcess.active) root.timerProcess.stopStopwatch()
+                else                          root.timerProcess.startStopwatch()
+            } else {
+                if (root.timerProcess.active) root.timerProcess.pauseTimer()
+                else                          root.timerProcess.startTimer()
+            }
+            event.accepted = true; break
         case Qt.Key_M:
-            root._pickerOpen = !root._pickerOpen
+            if (root._view === "timer") {
+                if (!root.timerProcess) { event.accepted = false; break }
+                root.timerProcess.setMode(root.timerProcess.mode === "stopwatch" ? "timer" : "stopwatch")
+            } else {
+                root._pickerOpen = !root._pickerOpen
+            }
             event.accepted = true; break
         case Qt.Key_R:
-            if (root.calendarProcess) root.calendarProcess.refresh()
-            if (root.tasksProcess)    root.tasksProcess.refresh()
+            if (root._view === "timer") {
+                if (!root.timerProcess) { event.accepted = false; break }
+                if (root.timerProcess.mode === "stopwatch") root.timerProcess.resetStopwatch()
+                else                                         root.timerProcess.resetTimer()
+            } else {
+                if (root.calendarProcess) root.calendarProcess.refresh()
+                if (root.tasksProcess)    root.tasksProcess.refresh()
+            }
+            event.accepted = true; break
+        case Qt.Key_0:
+        case Qt.Key_Insert:
+            if (root._view !== "timer" || !root.timerProcess || root.timerProcess.mode === "stopwatch") { event.accepted = false; break }
+            _timerWidget._inputExpanded = true
             event.accepted = true; break
         case Qt.Key_E:
             Qt.openUrlExternally("https://calendar.google.com")
@@ -69,7 +96,7 @@ Item {
     property int _navYear:  0
     property int _navMonth: 0
 
-    Component.onCompleted: _resetNav()
+    Component.onCompleted: { _resetNav(); forceActiveFocus() }
     onClockProcessChanged: if (clockProcess && _navYear === 0) _resetNav()
 
     function _resetNav() {
@@ -497,7 +524,8 @@ Item {
                         TimerWidget {
                             id: _timerWidget
                             anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
-                            timerProcess: root.timerProcess
+                            timerProcess:      root.timerProcess
+                            focusReturnTarget: root
                         }
                     }
                 }

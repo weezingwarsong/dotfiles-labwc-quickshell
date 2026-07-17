@@ -5,6 +5,8 @@ import Quickshell.Io
 
 Item {
     id: root
+    focus: true
+    Component.onCompleted: forceActiveFocus()
 
     property var mprisProcess:    null
     property var toplevelProcess: null

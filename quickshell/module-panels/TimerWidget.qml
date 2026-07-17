@@ -5,8 +5,9 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    property var  timerProcess:   null
-    property bool _inputExpanded: false
+    property var  timerProcess:      null
+    property bool _inputExpanded:    false
+    property Item focusReturnTarget: null
 
     implicitHeight: layout.implicitHeight
 
@@ -175,18 +176,30 @@ Item {
                 verticalAlignment: TextInput.AlignVCenter
                 color: Style.textNormal; font.pixelSize: Style.fontSizeBody; font.family: Style.fontMono
 
-                Keys.onReturnPressed: {
+                Keys.onReturnPressed: _submit()
+                Keys.onEnterPressed:  _submit()
+
+                function _submit() {
                     var secs = root._parseDuration(text)
-                    if (secs > 0 && root.timerProcess) root.timerProcess.setTimer(secs)
+                    if (secs > 0 && root.timerProcess) {
+                        root.timerProcess.setTimer(secs)
+                        root.timerProcess.startTimer()
+                    }
                     root._inputExpanded = false
                     text = ""
+                    if (root.focusReturnTarget) root.focusReturnTarget.forceActiveFocus()
                 }
                 Keys.onEscapePressed: {
                     root._inputExpanded = false
                     text = ""
+                    if (root.focusReturnTarget) root.focusReturnTarget.forceActiveFocus()
                 }
                 onActiveFocusChanged: {
-                    if (!activeFocus) { root._inputExpanded = false; text = "" }
+                    if (!activeFocus) {
+                        root._inputExpanded = false
+                        text = ""
+                        if (root.focusReturnTarget) Qt.callLater(root.focusReturnTarget.forceActiveFocus)
+                    }
                 }
             }
         }

@@ -144,6 +144,7 @@ PanelWindow {
                                 it.calendarProcess = Qt.binding(() => root.calendarProcess)
                                 it.tasksProcess    = Qt.binding(() => root.tasksProcess)
                                 it.clockProcess    = Qt.binding(() => root.clockProcess)
+                                it.timerProcess    = Qt.binding(() => root.timerProcess)
                                 if (root.calendarInitialView !== "") {
                                     it._view = root.calendarInitialView
                                     root.calendarInitialView = ""
