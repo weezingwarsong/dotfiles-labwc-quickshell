@@ -5,16 +5,15 @@ import Quickshell
 FocusScope {
     id: root
 
-    // Injected by WindowSwitcher
     property var toplevelProcess: null
 
     signal dismissed()
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: Style.panelCardVpadding + _filterBar.height + Style.panelCardVpadding + _list.implicitHeight + Style.panelCardVpadding
 
     Component.onCompleted: Qt.callLater(function() { filterInput.forceActiveFocus() })
 
-    // ── Filtered lists ────────────────────────────────────────────────────────
+    // ── Filtered lists ─────────────────────────────────────────────────────
 
     property int selectedFlat: 0
 
@@ -103,197 +102,128 @@ FocusScope {
         return String.fromCodePoint(0xf2d0)
     }
 
-    // ── Layout ────────────────────────────────────────────────────────────────
+    // ── Filter bar ─────────────────────────────────────────────────────────
 
-    ColumnLayout {
-        id: _col
-        anchors.fill:    parent
-        anchors.margins: 8
-        spacing:         4
+    Rectangle {
+        id: _filterBar
+        anchors { left: parent.left; right: parent.right; top: parent.top; margins: Style.panelCardVpadding }
+        height:       Style.fontSizeHeading + Style.panelElementHpadding
+        color:        Style.surfaceMidColor
+        radius:       Style.panelElementRadius
+        border.width: Style.elementBorderWidth
+        border.color: Style.borderSoftColor
 
-        // ── Filter bar ────────────────────────────────────────────────────────
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight:   Style.buttonHeight
-            color:            Style.surfaceMidColor
-            radius:           Style.panelElementRadius
-            border.width:     Style.elementBorderWidth
-            border.color:     Style.borderSoftColor
-
-            Text {
-                anchors { fill: parent; leftMargin: 8 }
-                verticalAlignment: Text.AlignVCenter
-                text:           "Filter…"
-                color:          Style.textMuted
-                font.family:    Style.fontMono
-                font.pixelSize: Style.fontSizeBody
-                visible:        filterInput.text.length === 0
-            }
-
-            TextInput {
-                id: filterInput
-                anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                verticalAlignment: TextInput.AlignVCenter
-                focus:          true
-                color:          Style.textPrimary
-                font.family:    Style.fontMono
-                font.pixelSize: Style.fontSizeBody
-                selectionColor: Style.accentBgColor
-
-                onTextChanged: root.selectedFlat = 0
-
-                Keys.priority: Keys.BeforeItem
-                Keys.onUpPressed:   (e) => { if (root.selectedFlat > 0) root.selectedFlat--; e.accepted = true }
-                Keys.onDownPressed: (e) => {
-                    var total = root.filteredWindows.length + root.filteredApps.length
-                    if (root.selectedFlat < total - 1) root.selectedFlat++
-                    e.accepted = true
-                }
-                Keys.onReturnPressed: (e) => { root._activateSelected(); e.accepted = true }
-                Keys.onEscapePressed: (e) => { root.dismissed(); e.accepted = true }
-            }
+        Text {
+            anchors { left: parent.left; right: parent.right; leftMargin: Style.panelElementHpadding; verticalCenter: parent.verticalCenter }
+            text:           "Filter…"
+            color:          Style.textMuted
+            font.family:    Style.fontMono
+            font.pixelSize: Style.fontSizeHeading
+            visible:        filterInput.text.length === 0
         }
 
-        // ── Scrollable list ───────────────────────────────────────────────────
-        Flickable {
-            Layout.fillWidth:  true
-            Layout.fillHeight: true
-            contentHeight:     _list.implicitHeight
-            clip:              true
+        TextInput {
+            id: filterInput
+            anchors { left: parent.left; right: parent.right; leftMargin: Style.panelElementHpadding; rightMargin: Style.panelElementHpadding; verticalCenter: parent.verticalCenter }
+            focus:          true
+            color:          Style.accentColor
+            font.family:    Style.fontMono
+            font.pixelSize: Style.fontSizeHeading
+            selectionColor: Style.accentBgColor
 
-            ColumnLayout {
-                id: _list
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                spacing: 0
+            onTextChanged: root.selectedFlat = 0
 
-                // ── Window rows ───────────────────────────────────────────────
-                Repeater {
-                    model: root.filteredWindows
-                    delegate: Item {
-                        id: winItem
-                        required property var modelData
-                        required property int index
+            Keys.priority: Keys.BeforeItem
+            Keys.onUpPressed: (e) => {
+                if (root.selectedFlat > 0) root.selectedFlat--
+                e.accepted = true
+            }
+            Keys.onDownPressed: (e) => {
+                var total = root.filteredWindows.length + root.filteredApps.length
+                if (root.selectedFlat < total - 1) root.selectedFlat++
+                e.accepted = true
+            }
+            Keys.onReturnPressed: (e) => { root._activateSelected(); e.accepted = true }
+            Keys.onEscapePressed: (e) => { root.dismissed(); e.accepted = true }
+        }
+    }
 
-                        property bool isHovered:   false
-                        readonly property bool isActivated: modelData.activated
-                        readonly property bool isSelected:  root.selectedFlat === index
+    // ── Scrollable list ────────────────────────────────────────────────────
 
-                        Layout.fillWidth: true
-                        implicitHeight:   Style.buttonHeight
+    Flickable {
+        anchors {
+            left: parent.left; right: parent.right
+            leftMargin: Style.panelCardVpadding; rightMargin: Style.panelCardVpadding
+            top: _filterBar.bottom; topMargin: Style.panelCardVpadding
+            bottom: parent.bottom; bottomMargin: Style.panelCardVpadding
+        }
+        contentHeight: _list.implicitHeight
+        clip:          true
 
-                        Rectangle {
-                            anchors.fill: parent
-                            color: winItem.isSelected ? Style.accentBgColor
-                                 : winItem.isHovered  ? Style.surfaceLowColor
-                                 :                      Style.transparent
-                        }
+        ColumnLayout {
+            id: _list
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            spacing: Style.panelCardVpadding
 
-                        HoverHandler {
-                            onHoveredChanged: {
-                                winItem.isHovered = hovered
-                                if (hovered) root.selectedFlat = winItem.index
-                            }
-                        }
-                        TapHandler {
-                            onTapped: { winItem.modelData.activate(); root.dismissed() }
-                        }
+            // ── Windows section ───────────────────────────────────────────
 
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
-                            spacing: 6
+            PanelCard {
+                Layout.fillWidth: true
+                SectionLabel {
+                    text: "Windows"
+                }
 
-                            Text {
-                                text:                root._glyphFor(winItem.modelData.appId)
-                                color:               winItem.isSelected  ? Style.textPrimary
-                                                  : winItem.isActivated  ? Style.textAccent
-                                                  :                        Style.textMuted
-                                font.family:         Style.fontNerd
-                                font.pixelSize:      Style.fontSizeBody
-                                horizontalAlignment: Text.AlignHCenter
-                                Layout.preferredWidth: 18
-                            }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Style.panelElementVpadding
 
-                            Text {
-                                text:                winItem.modelData.appId
-                                color:               winItem.isSelected  ? Style.textPrimary
-                                                  : winItem.isActivated  ? Style.textSecondary
-                                                  :                        Style.textNormal
-                                font.family:         Style.fontMono
-                                font.pixelSize:      Style.fontSizeBody
-                                elide:               Text.ElideRight
-                                Layout.preferredWidth: Math.round(_list.width * 0.25)
-                            }
+                    Repeater {
+                        model: root.filteredWindows
+                        delegate: SelectableRow {
+                            required property var modelData
+                            required property int index
 
-                            Text {
-                                text:           winItem.modelData.title
-                                color:          winItem.isSelected  ? Style.textSecondary
-                                             : winItem.isActivated  ? Style.textMuted
-                                             :                        Style.textMuted
-                                font.family:    Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                elide:          Text.ElideRight
-                                Layout.fillWidth: true
-                            }
+                            glyph:      root._glyphFor(modelData.appId)
+                            label1:     modelData.appId
+                            label2:     modelData.title
+                            isSelected: root.selectedFlat === index
+                            isActive:   modelData.activated
+
+                            onHovered:   root.selectedFlat = index
+                            onActivated: { modelData.activate(); root.dismissed() }
                         }
                     }
                 }
+            }
 
-                // ── Divider ───────────────────────────────────────────────────
-                PanelDivider { visible: root.filteredApps.length > 0 }
+            // ── App Launcher section ──────────────────────────────────────
 
-                // ── Desktop app rows ──────────────────────────────────────────
-                Repeater {
-                    model: root.filteredApps
-                    delegate: Item {
-                        id: appItem
-                        required property var modelData
-                        required property int index
+            PanelCard {
+                Layout.fillWidth: true
+                visible: root.filteredApps.length > 0
 
-                        property bool isHovered:  false
-                        readonly property bool isSelected:
-                            root.selectedFlat === (root.filteredWindows.length + index)
+                SectionLabel {
+                    text: "App Launcher"
+                }
 
-                        Layout.fillWidth: true
-                        implicitHeight:   Style.buttonHeight
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Style.panelElementVpadding
 
-                        Rectangle {
-                            anchors.fill: parent
-                            color: appItem.isSelected ? Style.accentBgColor
-                                 : appItem.isHovered  ? Style.surfaceLowColor
-                                 :                      Style.transparent
-                        }
+                    Repeater {
+                        model: root.filteredApps
+                        delegate: SelectableRow {
+                            required property var modelData
+                            required property int index
 
-                        HoverHandler {
-                            onHoveredChanged: {
-                                appItem.isHovered = hovered
-                                if (hovered) root.selectedFlat = root.filteredWindows.length + appItem.index
-                            }
-                        }
-                        TapHandler {
-                            onTapped: { appItem.modelData.execute(); root.dismissed() }
-                        }
+                            glyph:      root._glyphFor(modelData.id ?? "")
+                            label1:     modelData.name || ""
+                            label2:     ""
+                            isSelected: root.selectedFlat === (root.filteredWindows.length + index)
+                            isActive:   false
 
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
-                            spacing: 6
-
-                            Text {
-                                text:                root._glyphFor(appItem.modelData.id ?? "")
-                                color:               appItem.isSelected ? Style.textPrimary : Style.textMuted
-                                font.family:         Style.fontNerd
-                                font.pixelSize:      Style.fontSizeBody
-                                horizontalAlignment: Text.AlignHCenter
-                                Layout.preferredWidth: 18
-                            }
-
-                            Text {
-                                text:           appItem.modelData.name || ""
-                                color:          appItem.isSelected ? Style.textPrimary : Style.textNormal
-                                font.family:    Style.fontMono
-                                font.pixelSize: Style.fontSizeBody
-                                elide:          Text.ElideRight
-                                Layout.fillWidth: true
-                            }
+                            onHovered:   root.selectedFlat = root.filteredWindows.length + index
+                            onActivated: { modelData.execute(); root.dismissed() }
                         }
                     }
                 }

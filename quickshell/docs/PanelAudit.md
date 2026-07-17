@@ -17,8 +17,8 @@ Major architectural refactor. Work in this order — each step unblocks the next
 - [x] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
 - [x] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
 - [x] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
-- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel + MediaPlayerPanel done; Calendar, Wallpaper, Notification remain
-- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel + MediaPlayerPanel done; Calendar, Wallpaper, Notification remain
+- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel done; Wallpaper, Notification remain
+- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel done; Wallpaper, Notification remain
 
 ### Phase 2 — Reusable Elements Classification
 
@@ -206,7 +206,7 @@ RowLayout {
 
 ### ScrollingText.qml ✅
 
-`Item` root. No Layout issues.
+`Item` root. No Layout issues. Animation sequence updated: 500ms settle pause → `pauseDuration` hold → scroll left → `pauseDuration` hold → snap back → repeat.
 
 ---
 
@@ -232,7 +232,7 @@ Item {
 
 ### SectionLabel.qml ✅
 
-Simple `Text` root. Callers add `Layout.*` attached properties as needed. No issues.
+Simple `Text` root. Callers add `Layout.*` attached properties as needed. No issues. `font.pixelSize` updated to `Style.fontSizeHeading` (was `fontSizeSubtle`).
 
 ---
 
@@ -256,39 +256,9 @@ Simple `Text` root. Callers add `Layout.*` attached properties as needed. No iss
 
 ## Panel Modules
 
-### CalendarPanel.qml ⚠️
+### CalendarPanel.qml ✅
 
-Three Flickables (`glanceFlick`, `timerFlick`, `expandedFlick`) all follow the same pattern:
-
-```qml
-Flickable {
-    anchors.fill: parent
-    contentHeight: col.implicitHeight    // driven by layout
-
-    ColumnLayout {
-        id: col
-        anchors.fill: parent             // ← fills Flickable viewport, not content area
-        anchors.margins: 12
-    }
-}
-```
-
-`anchors.fill: parent` inside a Flickable sets the layout's size to the Flickable's *visible* height (viewport), not its content size. Qt resolves this because `implicitHeight` is independent of `height`, but it creates a circular sizing relationship. Also, if `contentWidth` is not set on the Flickable, the layout gets width = 0 in theory.
-
-**Fix:** Replace `anchors.fill: parent` with only horizontal+top anchoring, and set `contentWidth` explicitly:
-```qml
-Flickable {
-    anchors.fill: parent
-    contentWidth: width
-    contentHeight: col.implicitHeight
-
-    ColumnLayout {
-        id: col
-        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
-        // No height anchor — implicitHeight drives contentHeight above
-    }
-}
-```
+Rewritten. All three Flickables now use `anchors { left; right; top; margins }` on their ColumnLayout children (no `anchors.fill`). `contentWidth: width` set on each Flickable. NavBar stripped (phase 1d), background Rectangle stripped (phase 1e).
 
 ---
 
@@ -328,35 +298,9 @@ Inside a `ColumnLayout`, child height should be set via `implicitHeight` or `Lay
 
 ---
 
-### MediaPlayerPanel.qml 🔴
+### MediaPlayerPanel.qml ✅
 
-**Volume button `Item` with bare `width`/`height` inside `RowLayout` (line 228–287):**
-
-```qml
-RowLayout {
-    Layout.fillWidth: true
-    spacing: 4
-    ...
-    Item {
-        id: _volBtn
-        width: 40                  // ← bare width inside RowLayout
-        height: Style.buttonHeight // ← bare height inside RowLayout
-    }
-}
-```
-
-The RowLayout manages child widths via `implicitWidth` or `Layout.preferredWidth`. Bare `width` on a Layout child is overridden by the layout engine (or at minimum ignored). The volume button may collapse or stretch unexpectedly.
-
-**Fix:**
-```qml
-Item {
-    id: _volBtn
-    implicitWidth:  40
-    implicitHeight: Style.buttonHeight
-}
-```
-
-Also: `_marqueeClip` uses `height: Style.buttonHeight` inside the same RowLayout. Fix: `implicitHeight: Style.buttonHeight`.
+Rewritten. `_volBtn` uses `implicitWidth`/`implicitHeight`. `_marqueeClip` uses `implicitHeight`. NavBar stripped (phase 1d), background Rectangle stripped (phase 1e). Art 90% square centered, "No active player" row added.
 
 ---
 
@@ -368,48 +312,9 @@ Minor note: SysTrayBar is placed via anchors at the bottom — not inside a Layo
 
 ---
 
-### SettingsPanel.qml ⚠️
+### SettingsPanel.qml ✅
 
-**Issue 1 — filter display Row (line 190–207):**
-
-```qml
-Rectangle {
-    Row {
-        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter;
-                  leftMargin: 8; rightMargin: 8 }
-        spacing: 4
-        Text { ... anchors.verticalCenter: parent.verticalCenter }   // ← inside positioner
-        Text { ... anchors.verticalCenter: parent.verticalCenter }
-        Text { ... anchors.verticalCenter: parent.verticalCenter }
-    }
-}
-```
-
-Same pattern as ScrollChip: anchored positioner with anchored children inside it.
-
-**Fix:** Replace `Row` with `RowLayout`:
-```qml
-RowLayout {
-    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter;
-              leftMargin: 8; rightMargin: 8 }
-    spacing: 4
-    Text { ... }
-    Text { Layout.fillWidth: true }
-    Text { ... }
-}
-```
-
-**Issue 2 — wallpaper input Rectangle (line 663–693):**
-
-```qml
-Rectangle {
-    Layout.fillWidth: true
-    height: Style.buttonHeight     // ← bare height inside RowLayout
-    ...
-}
-```
-
-**Fix:** `implicitHeight: Style.buttonHeight`.
+Rewritten. Filter `Row` replaced with `RowLayout`. Wallpaper input `height` replaced with `implicitHeight`. NavBar stripped (phase 1d), background Rectangle stripped (phase 1e). All style tokens wired to Prefs.
 
 ---
 
@@ -445,6 +350,16 @@ ColumnLayout {
 **Fix:** Replace all `height: N` with `implicitHeight: N` (or `Layout.preferredHeight: N`) on every direct Layout child.
 
 The clock face `Row { anchors.horizontalCenter/verticalCenter }` inside a plain `Item` is fine — the Item is not a Layout.
+
+---
+
+### WindowSwitcher ✅ (standalone tier — `module-window-switcher/`)
+
+Extracted to its own `PanelWindow` tier outside the panel slot system. Rewritten from scratch:
+
+- **`WindowSwitcher.qml`** — chrome (`panelBgColor`, `panelRadius`, border), `Screen.height * 0.6` height cap, width wired to `Style.panelWidth`
+- **`WindowSwitcherView.qml`** — `FocusScope` root; filter bar height text-driven (`fontSizeHeading + panelElementHpadding`); Flickable with anchor-based layout; two `PanelCard` sections (Windows, App Launcher) each with `SectionLabel` + `ColumnLayout` of `SelectableRow` delegates; all spacing/insets wired to Prefs tokens
+- **`SelectableRow.qml`** (new reusable element) — `Item` root, `Layout.fillWidth`, `implicitHeight` text-driven; `Rectangle` highlight (4-state color chain, `panelElementRadius`); `HoverHandler` + `TapHandler`; `RowLayout` with glyph `Text` (10% width), `ScrollingText` label1 (25%/fillWidth conditional), `ScrollingText` label2 (fillWidth, hidden when empty); all spacing wired to `panelElementHpadding`
 
 ---
 

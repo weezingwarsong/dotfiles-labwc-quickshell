@@ -31,6 +31,7 @@ Item {
         id: _anim
         running: root.visible && _label.implicitWidth > root.width
         loops: Animation.Infinite
+        PauseAnimation { duration: 500 }
         PauseAnimation { duration: root.pauseDuration }
         NumberAnimation {
             target: _label; property: "x"

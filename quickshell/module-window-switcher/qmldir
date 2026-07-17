@@ -1,6 +1,10 @@
 singleton Style 1.0 ../Style.qml
 singleton Prefs 1.0 ../Prefs.qml
 singleton Colors 1.0 ../Colors.qml
+PanelCard 1.0 ../module-reusable-elements/PanelCard.qml
+SectionLabel 1.0 ../module-reusable-elements/SectionLabel.qml
 PanelDivider 1.0 ../module-reusable-elements/PanelDivider.qml
+ScrollingText 1.0 ../module-reusable-elements/ScrollingText.qml
 WindowSwitcher 1.0 WindowSwitcher.qml
 WindowSwitcherView 1.0 WindowSwitcherView.qml
+SelectableRow 1.0 SelectableRow.qml

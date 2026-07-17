@@ -41,7 +41,7 @@ PanelWindow {
         id: _container
         x:      Math.round((parent.width - width) / 2)
         y:      Math.round(Screen.width * (Style.panelOffsetY / 100.0))
-        width:  Math.round(Screen.width * 0.22)
+        width:  Math.round(Screen.width * (Style.panelWidth / 100.0))
         height: Math.min(_view.implicitHeight, root._maxH)
 
         MouseArea { anchors.fill: parent; z: 0 }
