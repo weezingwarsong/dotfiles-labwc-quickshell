@@ -16,3 +16,11 @@ output_path = "~/.local/share/themes/Pillbox/openbox-3/themerc"
 [templates.qt6ct]
 input_path  = "~/.config/matugen/templates/qt6ct.conf"
 output_path = "~/.config/qt6ct/colors/Pillbox.conf"
+
+[templates.kvantum]
+input_path  = "~/.config/matugen/templates/kvantum.kvconfig"
+output_path = "~/.config/Kvantum/Pillbox/Pillbox.kvconfig"
+
+[templates.kvantum-svg]
+input_path  = "~/.config/matugen/templates/kvantum.svg"
+output_path = "~/.config/Kvantum/Pillbox/Pillbox.svg"

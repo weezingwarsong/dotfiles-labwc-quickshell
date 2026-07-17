@@ -3,6 +3,9 @@
   <core>
     <decoration>server</decoration>
     <gap>0</gap>
+    <margin>
+      <top>0</top>
+    </margin>
   </core>
   <focus>
     <followMouse>no</followMouse>
@@ -331,7 +334,7 @@
   <!-- Window rules: replaces Openbox's <applications> block.
        Your blanket "no decorations on anything" rule, translated. -->
   <windowRules>
-    <windowRule identifier="*">
+    <windowRule identifier="*" ignoreExclusiveZone="yes">
       <action name="SetDecorations" decorations="border" />
     </windowRule>
     <windowRule identifier="Steam" serverDecoration="no" />

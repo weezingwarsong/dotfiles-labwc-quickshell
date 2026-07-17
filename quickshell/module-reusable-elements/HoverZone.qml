@@ -9,7 +9,7 @@ PanelWindow {
 
     screen: Quickshell.screens[0]
     anchors.top: true
-    exclusiveZone: 0
+    exclusiveZone: -1
     color: "transparent"
 
     implicitWidth: Screen.width * 0.10
