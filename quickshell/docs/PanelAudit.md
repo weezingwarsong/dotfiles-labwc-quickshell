@@ -84,13 +84,13 @@ Top-level `PanelWindow` — fullscreen overlay, not layout-managed. `Item _conta
 
 ### FontPicker.qml ✅
 
-`Item` root with `implicitHeight: 22`. No Layout issues.
+`Item` root with `implicitHeight: Style.fontSizeBody + Style.panelElementVpadding`. Caller sets `Layout.preferredWidth: parent.width * 0.6` — no Layout baked in. No Layout issues.
 
 ---
 
 ### IconButton.qml ✅
 
-`Rectangle` root with `implicitWidth: Style.buttonHeight` and `implicitHeight: Style.buttonHeight`. No Layout issues.
+`Rectangle` root. `implicitWidth/Height: Style.fontSizeBody + Style.panelElementVpadding` — scales with typography, fixed padding. Three variants: `default`, `critical`, `important`. md3 colour states: rest/hover/pressed. Tooltip support. No border. No Layout issues.
 
 ---
 

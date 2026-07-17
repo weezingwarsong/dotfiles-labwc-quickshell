@@ -1,27 +1,52 @@
 import QtQuick
+import QtQuick.Controls as QQC
 
 Rectangle {
     id: root
 
     property string label:      ""
-    property string fontFamily: Style.fontNerd  // Nerd Font covers regular text + glyph codepoints
+    property string fontFamily: Style.fontNerd
+    property string tooltip:    ""
+    property string variant:    "default"  // "default" | "critical" | "important"
+
     signal clicked()
 
-    implicitWidth:  Style.buttonHeight
-    implicitHeight: Style.buttonHeight
+    implicitWidth:  Style.fontSizeBody + Style.panelElementVpadding
+    implicitHeight: Style.fontSizeBody + Style.panelElementVpadding
     radius:         Style.panelElementRadius
-    border.width:   Style.elementBorderWidth
-    border.color:   Style.borderSoftColor
-    color:          _hover.hovered ? Style.surfaceLowColor : Style.transparent
+
+    color: {
+        if (variant === "important") return _tap.active    ? Style.accentColor
+                                          : _hover.hovered ? Style.accentBgHover
+                                          : Style.accentBgColor
+        if (variant === "critical")  return _tap.active    ? Style.criticalBgColor
+                                          : _hover.hovered ? Style.criticalHoverColor
+                                          : Style.transparent
+        return                              _tap.active    ? Style.accentBgColor
+                                          : _hover.hovered ? Style.surfaceHoverColor
+                                          : Style.transparent
+    }
 
     Text {
         anchors.centerIn: parent
         text:           root.label
         font.family:    root.fontFamily
         font.pixelSize: Style.fontSizeBody
-        color:          Style.textSecondary
+        color: {
+            if (root.variant === "important") return Style.textOnAccent
+            if (root.variant === "critical")  return Style.textCritical
+            return _tap.active    ? Style.textOnAccent
+                 : _hover.hovered ? Style.textNormal
+                 : Style.textSecondary
+        }
     }
 
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
-    TapHandler   { onTapped: root.clicked() }
+    TapHandler   { id: _tap;   onTapped: root.clicked() }
+
+    QQC.ToolTip {
+        visible: _hover.hovered && root.tooltip !== ""
+        text:    root.tooltip
+        delay:   500
+    }
 }
