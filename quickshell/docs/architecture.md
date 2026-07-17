@@ -8,7 +8,7 @@ Pillbox is a Quickshell/QML desktop shell for **labwc** (Wayland). It replaces W
 
 ### Pill
 
-A 24px rounded rectangle anchored top-center of the primary screen. Hidden by default. Context-aware — reveals automatically when relevant, hides when not. Only one pill is ever active at a time. The `PillWindow` is a dumb container; `PillController` decides what shows and when.
+A rounded rectangle anchored top-center of the primary screen. Hidden by default. Context-aware — reveals automatically when relevant, hides when not. Only one pill is ever active at a time. The `PillWindow` is a dumb container; `PillController` decides what shows and when.
 
 **Two-stage show/hide:**
 - **Stage 1 — Winner:** each pill exposes `priority: int`; highest wins. Pre-computed so display is instant on reveal.
@@ -25,7 +25,7 @@ A 24px rounded rectangle anchored top-center of the primary screen. Hidden by de
 | 6 | `NotificationPill` | Any notification, within 7 s of arrival | MPRIS playing |
 | 5 | `MprisPill` | A player is in Playing state with a non-empty track title | Idle clock |
 | 1 | `TimePill` (fallback) | Always — permanent floor so hover/latch always show something | — |
-| 0 | `MprisPill` / `WorkspacePill` / `NotificationPill` | When condition clears | — |
+| 0 | any pill | When condition clears | — |
 
 Key intent: critical notifications override everything. Normal notifications break through MPRIS but yield to workspace/window-switcher context. Imminent calendar events and active timers win over MPRIS (10 > 5). MPRIS playing wins over idle clock (5 > 1).
 
@@ -47,6 +47,8 @@ Panels are ordered in a navigation row matching their keybind positions. Left/ri
 | W-7 | Control | ✓ built |
 | W-Tab | Window Switcher | ✓ built (excluded from nav row) |
 
+**W-8** toggles the desktop visualizer overlay — not a panel; it is a `PanelWindow` at `WlrLayer.Bottom` managed directly in `shell.qml`.
+
 ---
 
 ## Target and Philosophy
@@ -66,13 +68,14 @@ labwc keybind
     → writes to ~/.local/share/pillbox/pillbox.fifo
         → FifoListener (SplitParser, always running)
             → signals dispatched to shell.qml
-                → processes called directly (e.g. timer.startTimer())
+                → processes called directly (e.g. timer.startTimer(), screenshot.takeRegion())
                 → panelController.toggle("calendar") etc.
 
 root-processes/ (instantiated in shell.qml)
     → ClockProcess, CalendarProcess, TasksProcess, TimerProcess,
       WeatherProcess, WorkspaceProcess, ToplevelProcess, MprisProcess,
-      WallpaperProcess, SettingsProcess
+      WallpaperProcess, SettingsProcess, NotificationServer,
+      AudioProcess, NetworkProcess, ScreenshotProcess, ScreenrecProcess, CavaProcess
     → injected via properties into pills and panels
 
 PillController (reads priority/shouldReveal from all pills)
@@ -80,7 +83,18 @@ PillController (reads priority/shouldReveal from all pills)
 
 PanelController (toggle / navigate)
     → PanelSurface (Loader, switches source by activePanel string)
-        → CalendarPanel / SettingsPanel / WallpaperPanel / etc.
+        → CalendarPanel / ControlPanel / SettingsPanel / WallpaperPanel / etc.
+
+WallpaperProcess (manages sourceType / currentPath / currentColor)
+    → shell.qml wallpaperWindow (PanelWindow at WlrLayer.Background)
+        → renders color rect / AnimatedImage / VideoOutput directly via Qt
+
+CavaProcess (runs cava, parses bars[])
+    → VisualizerSurface (PanelWindow at WlrLayer.Bottom)
+        → RadialVisualizer (Canvas, bar rendering)
+
+Colors.qml ← WallpaperProcess._readColorsProc (cat colors.json after matugen)
+    → Style.qml bindings (mat3* roles)
 ```
 
 ---
@@ -96,12 +110,14 @@ Write a command string (one per line) to trigger actions. `FifoListener.qml` tai
 | `showTime` | Latches the pill on (W-1 toggle); second call dismisses |
 | `refreshCalendar` | Tells CalendarProcess to fetch immediately |
 | `toggleCalendar` | Opens / dismisses the Calendar panel |
+| `openCalendarTimer` | Opens Calendar panel directly on the Timer view |
 | `toggleMediaPlayer` | Opens / dismisses the Media Player panel |
-| `toggleNotifications` | Opens / dismisses the Notification panel |
 | `toggleSettings` | Opens / dismisses the Settings panel |
 | `toggleWallpaper` | Opens / dismisses the Wallpaper panel |
+| `toggleNotifications` | Opens / dismisses the Notification panel |
 | `toggleControl` | Opens / dismisses the Control panel |
 | `toggleWindowSwitcher` | Opens / dismisses the Window Switcher panel |
+| `toggleVisualizer` | Toggles the desktop visualizer overlay on/off |
 | `setTimer:N` | Set countdown to N seconds |
 | `startTimer` | Start or resume countdown |
 | `pauseTimer` | Pause countdown |
@@ -109,11 +125,23 @@ Write a command string (one per line) to trigger actions. `FifoListener.qml` tai
 | `startStopwatch` | Start countup mode |
 | `stopStopwatch` | Stop the countup |
 | `resetStopwatch` | Reset countup to zero |
+| `screenshotScreen` | Take a full-screen screenshot |
+| `screenshotAll` | Take a screenshot of all outputs |
+| `screenshotRegion` | Launch slurp region selector then screenshot |
+| `screenshotUI` | Open Notifications panel on the Screenshots tab |
+| `screenshotNotify:<path>` | Register an externally saved screenshot (shows toast) |
+| `dismissToast:<id>` | Dismiss a specific toast by ID |
+| `screenrecToggle` | Toggle fullscreen recording (oneshot) or toggle recording-to-file (replay) |
+| `screenrecSaveReplay` | Save the current replay buffer |
+| `screenrecSaveReplay:<N>` | Save the last N seconds of the replay buffer |
+| `screenrecEmergencyStop` | Force-stop the recorder |
+| `screenrecStartRegionWith:<coords>` | Start a region recording with pre-selected slurp coords |
 
 **Test from terminal:**
 ```bash
 echo toggleCalendar > ~/.local/share/pillbox/pillbox.fifo
 echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/.local/share/pillbox/pillbox.fifo
+echo toggleVisualizer > ~/.local/share/pillbox/pillbox.fifo
 ```
 
 ---
@@ -124,7 +152,7 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 
 | File | Type | What it provides |
 |---|---|---|
-| `FifoListener.qml` | FIFO reader | External command bus; emits signals |
+| `FifoListener.qml` | FIFO reader | External command bus; emits signals dispatched in `shell.qml` |
 | `ClockProcess.qml` | Timer | `displayTime`, `displayTimeFull`, `now` (Date) |
 | `CalendarProcess.qml` | gcal-fetch subprocess | `events`, `nextEvent`, `todayEvents`, `weekEvents`, `eventsByDate`, `lastUpdated`, `lastError` |
 | `TasksProcess.qml` | gtask-fetch subprocess | `tasks`, `todayTasks`, `weekTasks`, `overdueTasks`, `tasksByDate`, `lastUpdated`, `lastError` |
@@ -133,43 +161,57 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 | `WorkspaceProcess.qml` | WindowManager binding | `current`, `list`, `currentIndex`, signal `workspaceChanged` |
 | `ToplevelProcess.qml` | ToplevelManager binding | `windows` (ObjectModel), `focused` (activeToplevel) |
 | `MprisProcess.qml` | Mpris binding | `players` (ObjectModel), `activePlayer`, signal `playerUpdated` |
-| `WallpaperProcess.qml` | find + ffmpeg subprocesses | `sourceType`, `currentPath`, `currentColor`, `imageFiles`, `videoFiles`, `thumbsReady`, slideshow control, `lastError` |
+| `WallpaperProcess.qml` | find + ffmpeg subprocesses | `sourceType`, `currentPath`, `currentColor`, `wallpaperDir`, `imageFiles`, `videoFiles`, `thumbsReady`, slideshow control, `lastError`; calls matugen for color extraction |
 | `SettingsProcess.qml` | QtCore.Settings | `googleConnected`, `googleEmail`, `locationMode`, `locationString`; setters; signal `googleDisconnected` |
 | `NotificationServer.qml` | D-Bus notification daemon | `notifications`, `countTotal`, `countCritical`; `clearAll()`; `getTimestamp(id)`; signal `newNotification` |
-| `AudioProcess.qml` | wpctl subprocess | `sinkVolume`, `sinkMuted`, `sinkName`, `sourceVolume`, `sourceMuted`, `sourceName`; set/mute methods |
-| `NetworkProcess.qml` | ip-route subprocess | `connected`, `localIp` |
+| `AudioProcess.qml` | PipeWire + wpctl | `sinkVolume`, `sinkMuted`, `sinkName`, `sourceVolume`, `sourceMuted`, `sourceName`; set/mute methods; polls every 3 s |
+| `NetworkProcess.qml` | ip-route subprocess | `connected`, `localIp`; `toggleNetworking()` |
+| `ScreenshotProcess.qml` | pillbox-screenshot script | `screenshots` (array), `lastPath`; `takeScreen()`, `takeAll()`, `takeRegion()`, `notifyExternalSave(path)`, `deleteScreenshot(path)`; signals `screenshotSaved`, `screenshotError` |
+| `ScreenrecProcess.qml` | pillbox-screenrec script | `active`, `recording`, `recMode` ("oneshot"\|"replay"), `lastRecordingPath`, `lastReplayPath`; `toggle()`, `startRegionWith(coords)`, `saveReplay()`, `saveReplaySeconds(n)`, `emergencyStop()`; signals `recordingStarted`, `recordingStopped`, `replaySaved`, `recordingError` |
+| `CavaProcess.qml` | cava subprocess | `bars[]` — array of normalized 0.0–1.0 amplitude values; exponentially smoothed (0.65 old + 0.35 new); `active` prop gates the process |
 
 ### Singletons (root)
 
 | File | Purpose |
 |---|---|
-| `Prefs.qml` | Persists user preferences to `~/.config/pillbox/pillbox.conf`. All adjustable values (font sizes, radius scale, border widths, wallpaper state). Source of truth for everything `Style.qml` derives. |
-| `Style.qml` | All visual tokens. Three sections: Variable (16-color Nord palette), Fixed (semantic mappings), Prefs-derived (live-updating tokens). Never reads data from processes. |
+| `Prefs.qml` | Persists user preferences to `~/.config/pillbox.conf` (shared key namespace with SettingsProcess). Covers: font families, font sizes, pill/panel/element radius, border widths, padding, panel geometry (width%, offsetY%), wallpaper state (sourceType, path, color, dir, slideshow interval), media dirs, recMode, extractColors flag. Source of truth for everything `Style.qml` derives. |
+| `Style.qml` | All visual tokens. Three sections: (1) Mat3 roles — live from `Colors.md3` (matugen-generated Material You roles, Nord fallbacks); (2) semantic mappings (`pillBgColor`, `accentColor`, `textNormal`, etc.); (3) Prefs-derived layout tokens (typography, radius, border widths, panel geometry). Never reads data from processes. |
+| `Colors.qml` | Singleton bridge between matugen output and Style. Loads `~/.local/state/quickshell/generated/colors.json` on startup. `WallpaperProcess` calls `Colors.apply(jsonText)` after each matugen run to push new Material You roles in. `Style.qml` reads `Colors.md3`. |
 
 ### Reusable Elements (`module-reusable-elements/`)
 
 | File | Role |
 |---|---|
-| `PillController.qml` | Stage 1+2 show/hide logic for pills. Pure `QtObject`. |
+| `PillController.qml` | Stage 1+2 show/hide logic for pills. Pure `QtObject`. `triggerPeek()` toggles user latch. |
 | `PillWindow.qml` | The pill's `PanelWindow`. Content-driven width. Dumb container. |
-| `HoverZone.qml` | Always-present 8px transparent strip that detects cursor entry. |
+| `HoverZone.qml` | Always-present 8px transparent strip (10% screen width, anchored top) that detects cursor entry. `exclusiveZone: -1` so it overlaps other surfaces. |
 | `PanelController.qml` | Manages which panel is open. `toggle(id)`, `navigate(dir)`, `panelOrder`. |
-| `PanelSurface.qml` | The panel's `PanelWindow`. Loader switches source by `activePanel`. Keyboard focus, ESC dismiss, click-outside dismiss, floating nav buttons. |
+| `PanelSurface.qml` | The panel's `PanelWindow`. Fullscreen overlay. Loader switches source by `activePanel`. Keyboard focus, ESC dismiss, click-outside dismiss, floating nav buttons. Owns panel geometry (width/position/height cap). |
 | `PanelNavBar.qml` | Standard first-row navigation bar for all panels (except WindowSwitcher). ‹/› buttons, right-aligned. |
-| `PanelButton.qml` | Action button, 3 variants: default / accent / critical. |
-| `PanelCard.qml` | Raised section container (`surfaceLowColor` bg, `radLg` corners). |
+| `PanelButton.qml` | Action button, 3 variants: default / accent / critical. Supports `icon` (Nerd Font glyph) or `label`. |
+| `PanelCard.qml` | Raised section container (`surfaceLowColor` bg, configurable radius). |
 | `PanelDivider.qml` | Full-width 1px horizontal rule. |
+| `PanelTabBar.qml` | Full-width tab strip for panels with multiple top-level tabs (e.g. Settings: Appearance / Services). |
+| `SectionHeader.qml` | Collapsible section header with tooltip; emits `onToggled`. |
 | `SectionLabel.qml` | Small all-caps tracking label for panel sections. |
+| `RowLabel.qml` | Label+value row layout helper used throughout Settings. |
 | `StatusDot.qml` | 8px status indicator circle. Green = active, red = inactive. |
-| `TogglePair.qml` | Two adjacent exclusive-select buttons. |
-| `IconButton.qml` | Nerd Font glyph button (used by PanelNavBar and media controls). |
-| `ScrollingText.qml` | Clipped text item that auto-scrolls when content overflows. Props: `text`, `color`, `maxWidth`, `pauseDuration`, `speed`, `font`. |
+| `TogglePair.qml` | Two adjacent exclusive-select buttons. Supports `variant: "yesno"`. |
+| `SegmentedControl.qml` | Multi-option exclusive selector (generalisation of TogglePair). |
+| `IconButton.qml` | Nerd Font glyph button. |
+| `ScrollingText.qml` | Clipped text that auto-scrolls when content overflows. Props: `text`, `color`, `maxWidth`, `pauseDuration`, `speed`, `font`. |
+| `ScrollChip.qml` | Inline value chip with scroll-wheel increment/decrement and optional bar variant. |
+| `FontPicker.qml` | Inline text input for font family names, committed on Return. |
+| `MediaThumbnail.qml` | Image/video thumbnail element used in the Wallpaper panel grid. |
+| `ToastWindow.qml` | `PanelWindow` that hosts `ScreenrecToast` and `ScreenshotPreview`. Positioned top-right. `dismiss(id)` dismisses a specific toast. |
+| `ToastController.qml` | Logic layer for queuing and expiring toasts. |
+| `ToastTimer.qml` | Auto-dismissing countdown used internally by ToastController. |
 
 ### Pills (`module-pills/`)
 
 | File | Priority | `shouldReveal` trigger | Status |
 |---|---|---|---|
-| `TimePill.qml` | 10 (urgent) / 1 (fallback) | Calendar event ≤ 10 min, or timer active | ✓ built |
+| `TimePill.qml` | 10 (urgent) / 1 (fallback) | Calendar event ≤ 10 min, or timer/stopwatch active | ✓ built |
 | `WorkspacePill.qml` | 100 | 1.5 s after workspace switch | ✓ built |
 | `WindowPill.qml` | 200 | While window switcher is open | ✓ built |
 | `MprisPill.qml` | 5 (playing) / 0 | 3 s after any track/state change | ✓ built |
@@ -178,24 +220,49 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 
 ### Panels (`module-panels/`)
 
-| File | Keybind | Status |
-|---|---|---|
-| `CalendarPanel.qml` | W-2 | ✓ built |
-| `MediaPlayerPanel.qml` | W-3 | ✓ built |
-| `SettingsPanel.qml` | W-4 | ✓ built |
-| `WallpaperPanel.qml` | W-5 | ✓ built |
-| `NotificationPanel.qml` | W-6 | ✓ built |
-| `ControlPanel.qml` | W-7 | ✓ built |
-| `WindowSwitcherPanel.qml` | W-Tab | ✓ built (excluded from nav row) |
+| File | Keybind | Contents | Status |
+|---|---|---|---|
+| `CalendarPanel.qml` | W-2 | Events list, tasks, 7-day weather, timer/stopwatch via `TimerWidget` | ✓ built |
+| `MediaPlayerPanel.qml` | W-3 | MPRIS album art, track info, play/pause/prev/next, volume, playlist | ✓ built |
+| `SettingsPanel.qml` | W-4 | Appearance tab (typography, padding, corners, borders, panel size, theme, wallpaper dir); Services tab (Google account, weather location) | ✓ built |
+| `WallpaperPanel.qml` | W-5 | Color picker, image/video grid browser, slideshow controls | ✓ built |
+| `NotificationPanel.qml` | W-6 | Scrollable notification cards; urgency tinting; actions; thumbnails; dismiss / clearAll; Screenshots tab | ✓ built |
+| `ControlPanel.qml` | W-7 | Audio source/sink volume+mute chips; network IP status; screen recorder (oneshot/replay, screen/region); session (reconfigure, exit, reboot, shutdown with 3 s countdown) | ✓ built |
+| `WindowSwitcherPanel.qml` | W-Tab | Wraps `WindowSwitcher`; excluded from nav row | ✓ built |
+| `SysTrayBar.qml` | — | System tray strip; used inside `NotificationPanel` | ✓ built |
+| `TimerWidget.qml` | — | Countdown/stopwatch widget; used inside `CalendarPanel` | ✓ built |
+
+### Visualizer (`module-visualizer/`)
+
+| File | Role |
+|---|---|
+| `VisualizerSurface.qml` | `PanelWindow` at `WlrLayer.Bottom` (behind all windows); 320×460; left-edge position; skewed canvas transform; hosts clock text + `RadialVisualizer`. Toggled by `shell.qml visualizerVisible` (W-8). |
+| `RadialVisualizer.qml` | Canvas item that draws radial bar chart from `bars[]`. |
+
+### Window Switcher (`module-window-switcher/`)
+
+| File | Role |
+|---|---|
+| `WindowSwitcher.qml` | `QtObject` controller; `toggle()` API; `isOpen` property consumed by `WindowPill`. |
+| `WindowSwitcherView.qml` | Full-screen panel view; filter input at top; keyed list of windows + apps. |
+| `SelectableRow.qml` | Single keyboard-navigable row in the window switcher list. |
+
+### Toasts (`module-toasts/`)
+
+| File | Role |
+|---|---|
+| `ScreenrecToast.qml` | Toast content for recording state: pulsing red dot + elapsed timer while recording; filename + duration + open/copy-path after save. |
+| `ScreenshotPreview.qml` | Toast content for screenshot save: thumbnail, filename, open/copy-path/delete. |
 
 ---
 
 ## Geometry
 
 - **Screen reference:** `Quickshell.screens[0]` — primary screen only.
-- **Pill:** `PanelWindow`, `anchors.top: true`, width content-driven (implicitWidth + 40), height 24px. `margins.top: Screen.height * 0.02`.
-- **Panel:** `PanelWindow`, width `Screen.width * 0.15`, height content-driven (capped at `Screen.height - 2 * panelY`). Top edge at `Screen.width * 0.10` from screen top.
-- **Color background (wallpaper):** fullscreen `PanelWindow` at `WlrLayer.Background`, `exclusiveZone: -1`. Visible only when `wallpaper.sourceType === "color"`.
+- **Pill:** `PanelWindow`, `anchors.top: true`, width content-driven, height `Style.fontSizePill + Style.pillPaddingV`. `margins.top: Screen.height * 0.02`.
+- **Panel:** `PanelWindow`, width `Screen.width * Prefs.panelWidth / 100` (default 15%), height content-driven (capped at `Screen.height - 2 * panelY`). Top edge at `Screen.width * Prefs.panelOffsetY / 100` from screen top (default 10%).
+- **Wallpaper window:** fullscreen `PanelWindow` at `WlrLayer.Background`, `exclusiveZone: -1`. Renders color rect / `AnimatedImage` / `VideoOutput` directly. No external wallpaper daemon. `WallpaperProcess` provides state; `shell.qml` owns rendering.
+- **Visualizer:** `PanelWindow` at `WlrLayer.Bottom`, `exclusiveZone: -1`, 320×460, left-edge + 20% margin, no top/bottom anchor (compositor centers vertically). Visible when `shell.qml visualizerVisible === true`.
 
 ---
 
@@ -203,17 +270,21 @@ echo "setTimer:30" > ~/.local/share/pillbox/pillbox.fifo && echo startTimer > ~/
 
 ```
 dotfiles-labwc-quickshell/          ← repo root
-├── helper/                         ← NOTE: currently at repo root, may contain old pre-rewrite scripts
-│   ├── calendar/gcal_fetch.py      (in use — symlinked to ~/.local/bin/gcal-fetch)
-│   ├── tasks/gtask_fetch.py        (in use — symlinked to ~/.local/bin/gtask-fetch)
-│   ├── weather/weather_fetch.py    (in use — symlinked to ~/.local/bin/weather-fetch)
-│   ├── google_auth_notify.sh       (in use — triggers re-auth desktop notification)
-│   └── watcher/                    (review before use — may be from old implementation)
-│
-│   INTENT: all helpers required for Pillbox to function should eventually live under quickshell/,
-│   so the shell is fully self-contained. helper/ at repo root is a migration target, not a home.
+├── helper/
+│   ├── calendar/gcal_fetch.py      (symlinked → ~/.local/bin/gcal-fetch)
+│   ├── tasks/gtask_fetch.py        (symlinked → ~/.local/bin/gtask-fetch)
+│   ├── weather/weather_fetch.py    (symlinked → ~/.local/bin/weather-fetch)
+│   ├── google_auth_notify.sh       (symlinked → ~/.local/bin/google-auth-notify)
+│   ├── screenshot/                 (pillbox-screenshot, pillbox-screenshot-region)
+│   ├── screenrec/                  (pillbox-screenrec, pillbox-screenrec-region, pillbox-screenrec-saved)
+│   └── kitty/kitty-theme.sh
 │
 ├── quickshell/                     ← Pillbox shell (canonical source)
+│   ├── CLAUDE.md                   ← session orientation; key invariants; dev workflow
+│   ├── Colors.qml                  ← singleton; matugen colors.json → md3 roles
+│   ├── Prefs.qml                   ← singleton; all user preferences persisted to pillbox.conf
+│   ├── Style.qml                   ← singleton; all visual tokens (Mat3 roles → semantic names)
+│   ├── shell.qml                   ← ShellRoot; instantiates everything; owns wallpaper window
 │   ├── docs/                       ← project documentation (you are here)
 │   ├── module-panels/
 │   │   ├── CalendarPanel.qml       ✓
@@ -236,13 +307,40 @@ dotfiles-labwc-quickshell/          ← repo root
 │   │   └── qmldir
 │   ├── module-reusable-elements/   ✓ all built
 │   │   └── qmldir
+│   ├── module-toasts/
+│   │   ├── ScreenrecToast.qml      ✓
+│   │   ├── ScreenshotPreview.qml   ✓
+│   │   └── qmldir
+│   ├── module-visualizer/
+│   │   ├── RadialVisualizer.qml    ✓
+│   │   ├── VisualizerSurface.qml   ✓
+│   │   └── qmldir
+│   ├── module-window-switcher/
+│   │   ├── SelectableRow.qml       ✓
+│   │   ├── WindowSwitcher.qml      ✓
+│   │   ├── WindowSwitcherView.qml  ✓
+│   │   └── qmldir
 │   ├── root-processes/             ✓ all built
 │   │   └── qmldir
-│   ├── Prefs.qml                   ✓
-│   ├── Style.qml                   ✓
-│   ├── qmldir
-│   └── shell.qml                   ← ShellRoot; instantiates everything
-└── scripts/                        ← legacy/system scripts (not Pillbox-specific)
+│   └── qmldir
+│
+├── matugen/
+│   ├── config.toml                 ← template list + post_hook
+│   └── templates/                  ← kvantum.kvconfig, kvantum.svg, colors.json, kitty, labwc/themerc
+│
+├── kvantum/
+│   └── kvantum.kvconfig            ← sets active theme = Pillbox
+│
+├── labwc/
+│   ├── rc.xml                      ← keybinds; window rules
+│   ├── autostart                   ← quickshell, blueman-applet, rofi-polkit-agent
+│   ├── environment                 ← PATH, QT_QPA_PLATFORMTHEME=qt6ct, TERMINAL
+│   ├── menu.xml                    ← right-click menus
+│   └── icons/                      ← white SVG icons for labwc menu
+│
+├── kitty/                          ← kitty config (theme generated by matugen)
+├── pillbox/                        ← cava.conf; media/ symlinks (Screenshots, Recordings, Replays)
+└── scripts/                        ← helper scripts (symlinked → ~/.config/scripts/)
 ```
 
 ---
@@ -257,39 +355,27 @@ pkill -x quickshell; quickshell -p ~/Projects/github/dotfiles-labwc-quickshell/q
 echo toggleCalendar   > ~/.local/share/pillbox/pillbox.fifo
 echo toggleSettings   > ~/.local/share/pillbox/pillbox.fifo
 echo toggleWallpaper  > ~/.local/share/pillbox/pillbox.fifo
+echo toggleControl    > ~/.local/share/pillbox/pillbox.fifo
+echo toggleVisualizer > ~/.local/share/pillbox/pillbox.fifo
 
 # Check quickshell logs (filter noise)
-# Use newest session file — multiple files accumulate across restarts
 ls -t /run/user/1000/quickshell/by-id/*/log.qslog | head -1 | xargs strings | grep -v "Cannot install"
-
-# Wallpaper — test yinctl directly
-yinctl --img /path/to/image.jpg
 ```
 
 ---
 
 ## External Dependencies
 
-| Tool | Role | Location |
-|---|---|---|
-| `yin` | Wayland wallpaper daemon (ffmpeg-backed, video support) | `/usr/bin/yin` (AUR: `yin`) |
-| `yinctl` | yin client CLI | `/usr/bin/yinctl` |
-
-Available `yinctl` commands (Pillbox currently only uses `--img`):
-```
-yinctl --img <FILE>                 set wallpaper (image, gif, video)
-yinctl --img <FILE> --output <NAME> target a specific monitor
-yinctl --play                       resume playback
-yinctl --pause                      pause playback
-yinctl --restore                    restore last cached wallpaper (unreliable — avoid; use --img with stored path instead)
-```
-
-yin caches pre-scaled renders in `~/.cache/yin/` keyed by `<width>x<height>_<filename>` — these are full-size output frames, not usable as panel thumbnails. The separate `~/.cache/pillbox/thumbs/` cache (v2, ffmpeg) is needed for that.
-| `gcal-fetch` | Google Calendar fetcher | `helper/calendar/gcal_fetch.py` → `~/.local/bin/` |
-| `gtask-fetch` | Google Tasks fetcher | `helper/tasks/gtask_fetch.py` → `~/.local/bin/` |
-| `weather-fetch` | Weather fetcher (Open-Meteo, keyless) | `helper/weather/weather_fetch.py` → `~/.local/bin/` |
-| `google-auth-notify` | Re-auth desktop notification + action button | `helper/google_auth_notify.sh` |
-| JetBrains Mono Nerd Font | All text + Nerd Font glyphs | `ttf-jetbrains-mono-nerd` |
-| Sarasa Mono SC | CJK font fallback | `ttf-sarasa-gothic` |
-
-yin must be running before Pillbox starts (labwc autostart — setup TBD). If yin is not running, `WallpaperProcess` logs the error and the panel shows `"yin not started"`.
+| Tool | Role |
+|---|---|
+| `matugen` | Material You color extraction from wallpaper images; generates `colors.json` and Kvantum/kitty/labwc theme files via templates |
+| `ffmpeg` | Video thumbnail extraction for the Wallpaper panel grid (first keyframe at t=1s per video) |
+| `gcal-fetch` | Google Calendar fetcher; `helper/calendar/gcal_fetch.py` → `~/.local/bin/` |
+| `gtask-fetch` | Google Tasks fetcher; `helper/tasks/gtask_fetch.py` → `~/.local/bin/` |
+| `weather-fetch` | Open-Meteo weather (no API key); `helper/weather/weather_fetch.py` → `~/.local/bin/` |
+| `google-auth-notify` | Re-auth desktop notification + action button; `helper/google_auth_notify.sh` |
+| `pillbox-screenshot` | Screenshot helper (grim + wl-copy); `helper/screenshot/` → `~/.local/bin/` |
+| `pillbox-screenrec` | Screen recorder wrapper (gpu-screen-recorder); `helper/screenrec/` → `~/.local/bin/` |
+| `cava` | Console audio visualizer; Pillbox reads its semicolon-delimited raw output |
+| `JetBrains Mono Nerd Font` | All text + Nerd Font glyphs in Pillbox |
+| `Sarasa Mono SC` | CJK font fallback (fontconfig) |
