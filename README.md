@@ -6,6 +6,18 @@ A Wayland desktop built on [labwc](https://github.com/labwc/labwc). The centrepi
 
 ---
 
+## Preview
+
+| Pill (MPRIS) | Calendar panel |
+|---|---|
+| ![Pill showing now-playing track](preview/pill.png) | ![Calendar panel with month view and tasks](preview/panel-calendar.png) |
+
+| Media Player panel | Wallpaper panel |
+|---|---|
+| ![Media Player panel with album art and controls](preview/panel-media.png) | ![Wallpaper panel with colour swatches](preview/panel-wallpaper.png) |
+
+---
+
 ## Stack
 
 | Layer | Tool | Notes |
