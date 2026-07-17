@@ -7,6 +7,7 @@ import "./module-pills"
 import "./module-panels"
 import "./module-reusable-elements"
 import "./module-visualizer"
+import "./module-window-switcher"
 
 ShellRoot {
     id: root
@@ -21,7 +22,7 @@ ShellRoot {
             panelSurface.calendarInitialView = "timer"
             panelController.toggle("calendar")
         }
-        onToggleWindowSwitcherRequested: panelController.toggle("windowSwitcher")
+        onToggleWindowSwitcherRequested: windowSwitcher.toggle()
         onToggleSettingsRequested:       panelController.toggle("settings")
         onToggleWallpaperRequested:      panelController.toggle("wallpaper")
         onToggleMediaPlayerRequested:    panelController.toggle("mediaPlayer")
@@ -192,10 +193,15 @@ ShellRoot {
         workspaceProcess: workspace
     }
 
+    WindowSwitcher {
+        id: windowSwitcher
+        toplevelProcess: toplevels
+    }
+
     WindowPill {
         id: windowPill
         toplevelProcess: toplevels
-        shouldShow: panelController.activePanel === "windowSwitcher"
+        shouldShow: windowSwitcher.isOpen
     }
 
     MprisPill {
@@ -227,6 +233,22 @@ ShellRoot {
 
     PanelController {
         id: panelController
+    }
+
+    // Mutual exclusion: window switcher and panels cannot be open simultaneously.
+    Connections {
+        target: windowSwitcher
+        function onIsOpenChanged() {
+            if (windowSwitcher.isOpen && panelController.activePanel !== "")
+                panelController.toggle(panelController.activePanel)
+        }
+    }
+    Connections {
+        target: panelController
+        function onActivePanelChanged() {
+            if (panelController.activePanel !== "" && windowSwitcher.isOpen)
+                windowSwitcher.isOpen = false
+        }
     }
 
     PanelSurface {
