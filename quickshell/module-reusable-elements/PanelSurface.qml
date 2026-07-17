@@ -28,7 +28,8 @@ PanelWindow {
     property var networkProcess:      null
     property var screenshotProcess:   null
     property var screenrecProcess:    null
-    property int notificationInitialTab: 0
+    property int    notificationInitialTab: 0
+    property string calendarInitialView:   ""
 
     signal dismissRequested()
     signal navigateRequested(int direction)
@@ -143,6 +144,10 @@ PanelWindow {
                                 it.calendarProcess = Qt.binding(() => root.calendarProcess)
                                 it.tasksProcess    = Qt.binding(() => root.tasksProcess)
                                 it.clockProcess    = Qt.binding(() => root.clockProcess)
+                                if (root.calendarInitialView !== "") {
+                                    it._view = root.calendarInitialView
+                                    root.calendarInitialView = ""
+                                }
                                 break
                             case "mediaPlayer":
                                 it.mprisProcess    = Qt.binding(() => root.mprisProcess)

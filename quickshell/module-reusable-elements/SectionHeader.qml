@@ -22,7 +22,6 @@ Item {
             color: Style.textMuted
             font.family: Style.fontMono
             font.pixelSize: Style.fontSizeBody
-            anchors.verticalCenter: parent.verticalCenter
         }
 
         Text {
@@ -31,7 +30,6 @@ Item {
             font.family: Style.fontMono
             font.pixelSize: Style.fontSizeHeading
             font.bold: true
-            anchors.verticalCenter: parent.verticalCenter
         }
     }
 

@@ -34,12 +34,12 @@ Apply the audit findings from the priority table below, one component at a time.
 
 - [x] **3a. ControlPanel** — fix conflicting anchors on network Text; fix bare `height` on network Rectangle
 - [x] **3b. MediaPlayerPanel** — fix bare `width`/`height` on `_volBtn` and `_marqueeClip`; layout rework: chrome stripped, art 90% square centered, "No active player" row with music IconButton (⚠️ hover interaction pending physical test)
-- [ ] **3c. TimerWidget** — fix bare `height` on all ColumnLayout children
+- [x] **3c. TimerWidget** — fix bare `height` on all ColumnLayout children; replaced Rectangle+MouseArea buttons with TogglePair (mode), IconButton (start/stop), ScrollChip (duration), PanelButton (reset) in 2×2 GridLayout
 - [ ] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
-- [ ] **3e. CalendarPanel** — fix `anchors.fill` in all three Flickables
-- [ ] **3f. PanelTabBar** — replace `Row { anchors.fill }` + manual widths with `RowLayout`
+- [x] **3e. CalendarPanel** — fix `anchors.fill` in all three Flickables; remove background Rectangle chrome (phase 1e); remove PanelNavBar (phase 1d)
+- [x] **3f. PanelTabBar** — replace `Row { anchors.fill }` + manual widths with `RowLayout`; add `glyphs` property with collapsible glyph row per tab
 - [x] **3g. ScrollChip** — replace `Row { anchors }` with `RowLayout`; remove anchors-in-positioner; fix `implicitHeight: Style.buttonHeight` → `Style.fontSizeBody + Style.panelElementVpadding`
-- [ ] **3h. SectionHeader** — remove redundant `anchors.verticalCenter` inside `Row`
+- [x] **3h. SectionHeader** — remove redundant `anchors.verticalCenter` inside `Row`
 - [x] **3i. PanelNavBar** — replace `Row` with `RowLayout` for dot indicators
 - [x] **3j. PanelCard** — replace `childrenRect.height` with layout-safe sizing
 
@@ -149,7 +149,7 @@ ColumnLayout {
 
 ---
 
-### PanelTabBar.qml ⚠️
+### PanelTabBar.qml ✅
 
 ```qml
 Item {
@@ -210,7 +210,7 @@ RowLayout {
 
 ---
 
-### SectionHeader.qml ⚠️
+### SectionHeader.qml ✅
 
 ```qml
 Item {
@@ -475,13 +475,13 @@ The image/video carousels use explicit item positioning for animation — intent
 | ~~1~~ | ~~`ControlPanel.qml`~~ | ~~Conflicting `anchors.centerIn` + `anchors.left/right` on network Text~~ | ✅ Fixed |
 | ~~2~~ | ~~`MediaPlayerPanel.qml`~~ | ~~`width`/`height` on `_volBtn` and `_marqueeClip` inside RowLayout~~ | ✅ Fixed |
 | ~~3~~ | ~~`ControlPanel.qml`~~ | ~~`height: Style.buttonHeight` on network Rectangle inside ColumnLayout~~ | ✅ Fixed |
-| 4 | `TimerWidget.qml` | `height: N` on all ColumnLayout children | ⚠️ |
+| ~~4~~ | ~~`TimerWidget.qml`~~ | ~~`height: N` on all ColumnLayout children~~ | ✅ Fixed |
 | 5 | `SettingsPanel.qml` | `height: Style.buttonHeight` on wallpaper input Rectangle | ⚠️ |
 | 6 | `SettingsPanel.qml` | Filter `Row` with anchors + anchors-inside-positioner children | ⚠️ |
-| 7 | `CalendarPanel.qml` | `anchors.fill` in Flickable (should be left+right+top only) | ⚠️ |
-| 8 | `PanelTabBar.qml` | `Row { anchors.fill }` + manual `width / labels.length` | ⚠️ |
+| ~~7~~ | ~~`CalendarPanel.qml`~~ | ~~`anchors.fill` in Flickable (should be left+right+top only)~~ | ✅ Fixed |
+| ~~8~~ | ~~`PanelTabBar.qml`~~ | ~~`Row { anchors.fill }` + manual `width / labels.length`~~ | ✅ Fixed |
 | ~~9~~ | ~~`ScrollChip.qml`~~ | ~~`Row { anchors { left, right } }` + anchors-in-Row children + `implicitHeight: Style.buttonHeight`~~ | ✅ Fixed |
-| 10 | `SectionHeader.qml` | `anchors.verticalCenter` on items inside `Row` | ⚠️ |
+| ~~10~~ | ~~`SectionHeader.qml`~~ | ~~`anchors.verticalCenter` on items inside `Row`~~ | ✅ Fixed |
 | ~~11~~ | ~~`PanelNavBar.qml`~~ | ~~`Row` inside `RowLayout` for dot indicators~~ | ✅ Fixed |
 | ~~12~~ | ~~`PanelCard.qml`~~ | ~~`height: childrenRect.height` — fragile with layouts~~ | ✅ Fixed |
 | 13 | `WallpaperPanel.qml` | `Layout.fillWidth: true` on `Grid` (no-op) | ⚠️ minor |

@@ -17,6 +17,10 @@ ShellRoot {
         onShowTimeRequested:             controller.triggerPeek()
         onRefreshCalendarRequested:      calendar.refresh()
         onToggleCalendarRequested:       panelController.toggle("calendar")
+        onOpenCalendarTimerRequested: {
+            panelSurface.calendarInitialView = "timer"
+            panelController.toggle("calendar")
+        }
         onToggleWindowSwitcherRequested: panelController.toggle("windowSwitcher")
         onToggleSettingsRequested:       panelController.toggle("settings")
         onToggleWallpaperRequested:      panelController.toggle("wallpaper")

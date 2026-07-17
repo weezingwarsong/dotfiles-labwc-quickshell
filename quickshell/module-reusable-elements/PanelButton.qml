@@ -10,6 +10,7 @@ Rectangle {
     property string variant: "default"  // "default" | "accent" | "critical" | "text"
 
     signal clicked()
+    signal rightClicked()
 
     implicitWidth:  Math.min(Math.max(_content.implicitWidth + Style.panelElementHpadding, 24), 300)
     implicitHeight: Math.max(Style.buttonHeight, _content.implicitHeight + Style.panelElementVpadding)
@@ -57,7 +58,13 @@ Rectangle {
     }
 
     TapHandler {
+        acceptedButtons: Qt.LeftButton
         onTapped: root.clicked()
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: root.rightClicked()
     }
 
     QQC.ToolTip {

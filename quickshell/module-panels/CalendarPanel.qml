@@ -16,6 +16,40 @@ Item {
 
     // ── View state ────────────────────────────────────────────────────────────
     property string _view: "glance"  // "glance" | "expanded" | "timer"
+    property bool _eventsCollapsed: false
+    property bool _tasksCollapsed:  false
+    property bool _timerCollapsed:  false
+    property bool _pickerOpen:      false
+
+    Keys.onPressed: (event) => {
+        switch (event.key) {
+        case Qt.Key_N:
+            if (root._navMonth === 11) { root._navYear++; root._navMonth = 0 }
+            else root._navMonth++
+            root._pickerOpen = false
+            event.accepted = true; break
+        case Qt.Key_B:
+            if (root._navMonth === 0) { root._navYear--; root._navMonth = 11 }
+            else root._navMonth--
+            root._pickerOpen = false
+            event.accepted = true; break
+        case Qt.Key_M:
+            root._pickerOpen = !root._pickerOpen
+            event.accepted = true; break
+        case Qt.Key_R:
+            if (root.calendarProcess) root.calendarProcess.refresh()
+            if (root.tasksProcess)    root.tasksProcess.refresh()
+            event.accepted = true; break
+        case Qt.Key_E:
+            Qt.openUrlExternally("https://calendar.google.com")
+            event.accepted = true; break
+        case Qt.Key_Tab:
+            root._view = root._view === "glance" ? "expanded" : root._view === "expanded" ? "timer" : "glance"
+            event.accepted = true; break
+        default:
+            event.accepted = false
+        }
+    }
 
     property string activePanel: ""
     signal navigateRequested(int direction)
@@ -23,13 +57,12 @@ Item {
     // Nav arrows and task bullets — fixed at 11px (between body and heading)
     readonly property int _navSize: 11
 
-    // Content height for the active view — PanelSurface reads this to size the window.
-    // +24 accounts for anchors.margins: 12 on each ColumnLayout (top + bottom).
     implicitHeight: {
-        if (_view === "glance")   return glanceFlick.contentHeight   + 24
-        if (_view === "expanded") return expandedFlick.contentHeight  + 24
-        if (_view === "timer")    return timerFlick.contentHeight     + 24
-        return 0
+        var tab = _tabBar ? _tabBar.implicitHeight : 0
+        if (_view === "glance")   return tab + glanceFlick.contentHeight
+        if (_view === "expanded") return tab + expandedFlick.contentHeight
+        if (_view === "timer")    return tab + timerFlick.contentHeight
+        return tab
     }
 
     // ── Month navigation ──────────────────────────────────────────────────────
@@ -118,33 +151,36 @@ Item {
         return items
     }
 
-    // ── Root visual container ─────────────────────────────────────────────────
-    Rectangle {
-        anchors.fill: parent
-        radius: Style.panelRadius
-        color: Style.panelBgColor
-        border.color: Style.panelBorderColor
-        border.width: 1
+    // ── Persistent tab bar ────────────────────────────────────────────────────
+    PanelTabBar {
+        id: _tabBar
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        labels:   ["Main", "Upcoming", "Timer"]
+        glyphs:   [String.fromCodePoint(0xf073), String.fromCodePoint(0xf0ae), String.fromCodePoint(0xf017)]
+        selected: root._view === "glance" ? 0 : root._view === "expanded" ? 1 : root._view === "timer" ? 2 : 0
+        onToggled: (i) => root._view = (i === 0 ? "glance" : i === 1 ? "expanded" : "timer")
+    }
+
+    // ── Glance view ───────────────────────────────────────────────────────────
+    Flickable {
+        id: glanceFlick
+        anchors { left: parent.left; right: parent.right; top: _tabBar.bottom; bottom: parent.bottom }
+        contentWidth:  width
+        contentHeight: glanceCol.implicitHeight + 24
+        visible: root._view === "glance"
+        flickableDirection: Flickable.VerticalFlick
         clip: true
 
-        // ── Glance view ───────────────────────────────────────────────────────
-        Flickable {
-            id: glanceFlick
-            anchors.fill: parent
-            contentHeight: glanceCol.implicitHeight
-            visible: root._view === "glance"
-            flickableDirection: Flickable.VerticalFlick
-            clip: true
+        ColumnLayout {
+            id: glanceCol
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors { leftMargin: 12; rightMargin: 12; topMargin: 12 }
+            spacing: 8
 
-            ColumnLayout {
-                id: glanceCol
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+            PanelCard {
+                Layout.fillWidth: true
 
-                PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
-
-                // Date + weather row
+                // Row 1: Date + weather
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
@@ -169,184 +205,355 @@ Item {
 
                 // Condition + high/low
                 Text {
+                    Layout.fillWidth: true
                     text: weatherProcess && weatherProcess.current ? weatherProcess.current.condition + "  " + weatherProcess.current.high + "° / " + weatherProcess.current.low + "°" : ""
                     color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle
-                    Layout.fillWidth: true
                 }
 
-                // Month navigation
+                // Row 2: Month section (left) | Action buttons (right)
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.topMargin: 4
-                    Text {
-                        text: "‹"; color: Style.textMuted; font.pixelSize: root._navSize; font.weight: Font.Bold
-                        MouseArea {
-                            anchors.fill: parent; anchors.margins: -4
-                            onClicked: {
-                                if (root._navMonth === 0) { root._navYear--; root._navMonth = 11 }
-                                else root._navMonth--
-                            }
-                        }
-                    }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        text: ["January","February","March","April","May","June","July","August","September","October","November","December"][root._navMonth] + " " + root._navYear
-                        color: Style.textNormal; font.pixelSize: Style.fontSizeBody; font.weight: Font.Medium
-                    }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        text: "›"; color: Style.textMuted; font.pixelSize: root._navSize; font.weight: Font.Bold
-                        MouseArea {
-                            anchors.fill: parent; anchors.margins: -4
-                            onClicked: {
-                                if (root._navMonth === 11) { root._navYear++; root._navMonth = 0 }
-                                else root._navMonth++
-                            }
-                        }
-                    }
-                }
+                    spacing: 8
 
-                // Day-of-week headers
-                Item {
-              		Layout.fillWidth: true
-    				implicitHeight: headerGrid.implicitHeight
-    				Layout.topMargin: 6
-                	
-                		GridLayout {
-                			id: headerGrid
-                			// 1. Center it horizontally to match the month grid
-    						anchors.horizontalCenter: parent.horizontalCenter
-    				
-    						width: 220 // This must be the same as monthGrid
-    				
-    						columns: 7
-    						columnSpacing: 0
-    				
-                    		Repeater {
-                        		model: ["M","T","W","T","F","S","S"]
-                        		Text {
-                            		text: modelData
-                            		color: index >= 5 ? Style.accentColor : Style.textMuted
-                            		font.pixelSize: Style.fontSizeSubtle
-                            		horizontalAlignment: Text.AlignHCenter
-                            		Layout.fillWidth: true
-                        		}	
-                    		}
-                		}
-                }
+                    // Column 1: month nav + combined grid
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
 
-                // Month grid + refresh overlay
-                Item {
-                    Layout.fillWidth: true
-                    implicitHeight: monthGrid.implicitHeight
-
-                    GridLayout {
-                        id: monthGrid
-                        anchors.horizontalCenter: parent.horizontalCenter // Center horizontally
-                        
-        				width: 220 // Fits 7 columns comfortably (e.g., 7 columns * ~24px = 168px + spacing)
-        				
-                        columns: 7
-                        columnSpacing: 0
-                        rowSpacing: 2
-
-                        Repeater {
-                            model: root._gridCells
-                            Item {
-                                id: cellItem
-                                property var cell: modelData
-                                Layout.fillWidth: true
-                                implicitHeight: 22
-
-                                Rectangle {
-                                    anchors.centerIn: parent; width: 20; height: 20; radius: Style.panelElementRadius
-                                    color: cellItem.cell.isToday ? Style.accentColor : "transparent"
-                                    visible: cellItem.cell.day > 0
+                        RowLayout {
+                            Layout.fillWidth: true
+                            IconButton {
+                                label:   String.fromCodePoint(0xf104)
+                                tooltip: root._pickerOpen ? "Previous year" : "Previous month"
+                                onClicked: {
+                                    if (root._pickerOpen) { root._navYear-- }
+                                    else if (root._navMonth === 0) { root._navYear--; root._navMonth = 11 }
+                                    else root._navMonth--
                                 }
+                            }
+                            Item { Layout.fillWidth: true }
+                            PanelButton {
+                                label:   ["January","February","March","April","May","June","July","August","September","October","November","December"][root._navMonth] + " " + root._navYear
+                                tooltip: "Right-click for today"
+                                variant: root._pickerOpen ? "accent" : "text"
+                                onClicked:      root._pickerOpen = !root._pickerOpen
+                                onRightClicked: { root._resetNav(); root._pickerOpen = false }
+                            }
+                            Item { Layout.fillWidth: true }
+                            IconButton {
+                                label:   String.fromCodePoint(0xf105)
+                                tooltip: root._pickerOpen ? "Next year" : "Next month"
+                                onClicked: {
+                                    if (root._pickerOpen) { root._navYear++ }
+                                    else if (root._navMonth === 11) { root._navYear++; root._navMonth = 0 }
+                                    else root._navMonth++
+                                }
+                            }
+                        }
+
+                        // Month/year picker — 3-col grid, shown when _pickerOpen
+                        GridLayout {
+                            Layout.fillWidth: true
+                            visible:      root._pickerOpen
+                            columns:      3
+                            rowSpacing:   4
+                            columnSpacing: 4
+
+                            Repeater {
+                                model: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+                                PanelButton {
+                                    Layout.fillWidth: true
+                                    label:   modelData
+                                    variant: index === root._navMonth ? "accent" : "default"
+                                    onClicked: { root._navMonth = index; root._pickerOpen = false }
+                                }
+                            }
+                        }
+
+                        // Day headers (row 0) + day cells (rows 1–N) — one GridLayout
+                        GridLayout {
+                            Layout.fillWidth: true
+                            visible:       !root._pickerOpen
+                            columns:       7
+                            columnSpacing: 0
+                            rowSpacing:    2
+
+                            Repeater {
+                                model: ["M","T","W","T","F","S","S"]
                                 Text {
-                                    anchors.centerIn: parent
-                                    text: cellItem.cell.day > 0 ? cellItem.cell.day : ""
-                                    color: cellItem.cell.isToday    ? Style.panelBgColor
-                                         : cellItem.cell.hasContent ? Style.accentColor
-                                         :                            Style.textSecondary
-                                    font.pixelSize: Style.fontSizeSubtle
-                                    font.weight: cellItem.cell.isToday ? Font.Bold : Font.Normal
+                                    Layout.fillWidth:    true
+                                    text:                modelData
+                                    color:               index >= 5 ? Style.accentColor : Style.textMuted
+                                    font.pixelSize:      Style.fontSizeSubtle
+                                    horizontalAlignment: Text.AlignHCenter
                                 }
+                            }
 
-                                HoverHandler { id: cellHover }
-                                ToolTip {
-                                    visible: cellHover.hovered && cellItem.cell.day > 0 && (cellItem.cell.events.length > 0 || cellItem.cell.tasks.length > 0)
-                                    delay: 300
-                                    contentItem: ColumnLayout {
-                                        spacing: 2
-                                        Repeater {
-                                            model: cellItem.cell.events.slice(0, 4)
-                                            Text { text: "• " + (modelData.summary || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
-                                        }
-                                        Repeater {
-                                            model: cellItem.cell.tasks.slice(0, 4)
-                                            Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
-                                        }
+                            Repeater {
+                                model: root._gridCells
+                                Item {
+                                    id: cellItem
+                                    property var cell: modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight:   22
+
+                                    Rectangle {
+                                        anchors.centerIn: parent; width: 20; height: 20; radius: Style.panelElementRadius
+                                        color:   cellItem.cell.isToday ? Style.accentColor : "transparent"
+                                        visible: cellItem.cell.day > 0
                                     }
-                                    background: Rectangle {
-                                        color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.panelElementRadius
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text:  cellItem.cell.day > 0 ? cellItem.cell.day : ""
+                                        color: cellItem.cell.isToday    ? Style.panelBgColor
+                                             : cellItem.cell.hasContent ? Style.accentColor
+                                             :                            Style.textSecondary
+                                        font.pixelSize: Style.fontSizeSubtle
+                                        font.weight:    cellItem.cell.isToday ? Font.Bold : Font.Normal
+                                    }
+
+                                    HoverHandler { id: cellHover }
+                                    ToolTip {
+                                        visible: cellHover.hovered && cellItem.cell.day > 0 && (cellItem.cell.events.length > 0 || cellItem.cell.tasks.length > 0)
+                                        delay: 300
+                                        contentItem: ColumnLayout {
+                                            spacing: 2
+                                            Repeater {
+                                                model: cellItem.cell.events.slice(0, 4)
+                                                Text { text: "• " + (modelData.summary || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
+                                            }
+                                            Repeater {
+                                                model: cellItem.cell.tasks.slice(0, 4)
+                                                Text { text: "○ " + (modelData.title || ""); color: Style.textMuted; font.pixelSize: Style.fontSizeBody }
+                                            }
+                                        }
+                                        background: Rectangle { color: Style.surfaceMidColor; border.color: Style.surfaceMidColor; radius: Style.panelElementRadius }
                                     }
                                 }
                             }
                         }
                     }
 
-                    Text {
-                        id: _refreshBtn
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 2
-                        text: ""
-                        color: _refreshHover.hovered ? Style.textNormal : Style.textMuted
-                        font.family: Style.fontNerd
-                        font.pixelSize: root._navSize
+                    // Column 2: action buttons (vertical sidebar)
+                    ColumnLayout {
+                        spacing: 4
+                        Layout.alignment: Qt.AlignTop
 
-                        HoverHandler { id: _refreshHover }
-                        MouseArea {
-                            anchors.fill: parent
-                            anchors.margins: -6
-                            cursorShape: Qt.PointingHandCursor
+                        IconButton {
+                            label:   String.fromCodePoint(0xf021)
+                            tooltip: "Refresh"
                             onClicked: {
                                 if (root.calendarProcess) root.calendarProcess.refresh()
                                 if (root.tasksProcess)    root.tasksProcess.refresh()
                             }
                         }
-                        ToolTip {
-                            visible: _refreshHover.hovered
-                            delay: 300
-                            text: "Refresh"
+
+                        IconButton {
+                            label:   String.fromCodePoint(0xf08e)
+                            tooltip: "Open Google Calendar"
+                            onClicked: Qt.openUrlExternally("https://calendar.google.com")
                         }
                     }
                 }
+            }
 
-                PanelDivider { Layout.topMargin: 4 }
-
-                // Events today
-                SectionLabel {
-                    text: "Events Today"
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                }
+            // Events today
+            PanelCard {
+                Layout.fillWidth: true
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 4
-                    Repeater {
-                        model: calendarProcess ? calendarProcess.todayEvents.slice(0, 3) : []
-                        RowLayout {
-                            Layout.fillWidth: true
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text:      "Events Today"
+                        collapsed: root._eventsCollapsed
+                        onToggled: root._eventsCollapsed = !root._eventsCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        clip: true
+                        Layout.preferredHeight: !root._eventsCollapsed ? _eventRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _eventRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
                             spacing: 6
+
+                            Repeater {
+                                model: calendarProcess ? calendarProcess.todayEvents.slice(0, 3) : []
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    Text {
+                                        text: root._eventTime(modelData.start, modelData.allDay)
+                                        color: Style.textMuted; font.pixelSize: Style.fontSizeBody
+                                        Layout.preferredWidth: 52
+                                    }
+                                    ScrollingText {
+                                        Layout.fillWidth: true
+                                        text: modelData.summary || ""; color: Style.textNormal; font.pixelSize: Style.fontSizeBody
+                                    }
+                                }
+                            }
+
+                            Text {
+                                visible: !calendarProcess || calendarProcess.todayEvents.length === 0
+                                text: "No events today"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tasks today
+            PanelCard {
+                Layout.fillWidth: true
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text:      "Tasks Today"
+                        collapsed: root._tasksCollapsed
+                        onToggled: root._tasksCollapsed = !root._tasksCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        clip: true
+                        Layout.preferredHeight: !root._tasksCollapsed ? _taskRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _taskRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 6
+
+                            Repeater {
+                                model: tasksProcess ? tasksProcess.todayTasks.slice(0, 3) : []
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
+                                    ScrollingText {
+                                        Layout.fillWidth: true
+                                        text: modelData.title || ""; color: Style.textNormal; font.pixelSize: Style.fontSizeBody
+                                    }
+                                }
+                            }
+
+                            Text {
+                                visible: !tasksProcess || tasksProcess.todayTasks.length === 0
+                                text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Timer view ────────────────────────────────────────────────────────────
+    Flickable {
+        id: timerFlick
+        anchors { left: parent.left; right: parent.right; top: _tabBar.bottom; bottom: parent.bottom }
+        contentWidth:  width
+        contentHeight: timerCol.implicitHeight + 24
+        visible: root._view === "timer"
+        flickableDirection: Flickable.VerticalFlick
+        clip: true
+
+        ColumnLayout {
+            id: timerCol
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors { leftMargin: 12; rightMargin: 12; topMargin: 12 }
+            spacing: 8
+
+            PanelCard {
+                Layout.fillWidth: true
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text:      root.timerProcess && root.timerProcess.mode === "stopwatch" ? "Countup" : "Countdown"
+                        collapsed: root._timerCollapsed
+                        onToggled: root._timerCollapsed = !root._timerCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        clip: true
+                        Layout.preferredHeight: !root._timerCollapsed ? _timerWidget.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        TimerWidget {
+                            id: _timerWidget
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            timerProcess: root.timerProcess
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Expanded view ─────────────────────────────────────────────────────────
+    Flickable {
+        id: expandedFlick
+        anchors { left: parent.left; right: parent.right; top: _tabBar.bottom; bottom: parent.bottom }
+        contentWidth:  width
+        contentHeight: expandedCol.implicitHeight + 24
+        visible: root._view === "expanded"
+        flickableDirection: Flickable.VerticalFlick
+        clip: true
+
+        ColumnLayout {
+            id: expandedCol
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors { leftMargin: 12; rightMargin: 12; topMargin: 12 }
+            spacing: 8
+
+            // This week — events
+            SectionLabel {
+                text: "This Week"
+                Layout.fillWidth: true; Layout.topMargin: 4
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: root._weekItems
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: modelData.type === "header" ? 18 : 16
+                        property bool isHeader: modelData.type === "header"
+
+                        Text {
+                            visible: parent.isHeader
+                            anchors.bottom: parent.bottom
+                            text: modelData.label || ""
+                            color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
+                        }
+                        RowLayout {
+                            visible: !parent.isHeader
+                            anchors.fill: parent; spacing: 6
                             Text {
                                 text: root._eventTime(modelData.start, modelData.allDay)
                                 color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                Layout.preferredWidth: 60
+                                horizontalAlignment: Text.AlignLeft
+                                Layout.preferredWidth: 90
                             }
                             ScrollingText {
                                 Layout.fillWidth: true
-                                Layout.rightMargin: 4
+                                height: parent.height
                                 text: modelData.summary || ""
                                 color: Style.textNormal
                                 font.pixelSize: Style.fontSizeBody
@@ -354,29 +561,41 @@ Item {
                         }
                     }
                 }
-                Text {
-                    visible: !calendarProcess || calendarProcess.todayEvents.length === 0
-                    text: "No events today"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
-                    Layout.fillWidth: true
-                }
+            }
+            Text {
+                visible: !calendarProcess || calendarProcess.weekEvents.length === 0
+                text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
+                Layout.fillWidth: true
+            }
 
-                // Tasks today
-                SectionLabel {
-                    text: "Tasks Today"
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Repeater {
-                        model: tasksProcess ? tasksProcess.todayTasks.slice(0, 3) : []
+            // This week — tasks
+            SectionLabel {
+                text: "Tasks This Week"
+                Layout.fillWidth: true; Layout.topMargin: 4
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: root._weekTaskItems
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: modelData.type === "header" ? 18 : 16
+                        property bool isHeader: modelData.type === "header"
+
+                        Text {
+                            visible: parent.isHeader
+                            anchors.bottom: parent.bottom
+                            text: modelData.label || ""
+                            color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
+                        }
                         RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
+                            visible: !parent.isHeader
+                            anchors.fill: parent; spacing: 6
                             Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
                             ScrollingText {
                                 Layout.fillWidth: true
-                                Layout.rightMargin: 4
+                                height: parent.height
                                 text: modelData.title || ""
                                 color: Style.textNormal
                                 font.pixelSize: Style.fontSizeBody
@@ -384,221 +603,50 @@ Item {
                         }
                     }
                 }
-                Text {
-                    visible: !tasksProcess || tasksProcess.todayTasks.length === 0
-                    text: "No tasks today"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
-                    Layout.fillWidth: true
-                }
-
-                PanelDivider { Layout.topMargin: 4 }
-
-                // Footer actions
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
-                    spacing: 6
-                    PanelButton {
-                        Layout.fillWidth: true
-                        label: "More ↓"
-                        onClicked: root._view = "expanded"
-                    }
-                    PanelButton {
-                        Layout.fillWidth: true
-                        label: "Timer"
-                        onClicked: root._view = "timer"
-                    }
-                    PanelButton {
-                        Layout.fillWidth: true
-                        label: "Edit ↗"
-                        onClicked: Qt.openUrlExternally("https://calendar.google.com")
-                    }
-                }
             }
-        }
-
-        // ── Timer view ───────────────────────────────────────────────────────
-        Flickable {
-            id: timerFlick
-            anchors.fill: parent
-            contentHeight: timerCol.implicitHeight
-            visible: root._view === "timer"
-            flickableDirection: Flickable.VerticalFlick
-            clip: true
-
-            ColumnLayout {
-                id: timerCol
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
-
-                PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
-
-                Text {
-                    text: "↑ Back"
-                    color: Style.accentColor; font.pixelSize: root._navSize
-                    Layout.fillWidth: true
-                    MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
-                }
-
-                TimerWidget {
-                    Layout.fillWidth: true
-                    timerProcess: root.timerProcess
-                }
+            Text {
+                visible: !tasksProcess || tasksProcess.weekTasks.length === 0
+                text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
+                Layout.fillWidth: true
             }
-        }
 
-        // ── Expanded view ─────────────────────────────────────────────────────
-        Flickable {
-            id: expandedFlick
-            anchors.fill: parent
-            contentHeight: expandedCol.implicitHeight
-            visible: root._view === "expanded"
-            flickableDirection: Flickable.VerticalFlick
-            clip: true
-
+            // 7-day forecast
+            SectionLabel {
+                text: "7-Day Forecast"
+                Layout.fillWidth: true; Layout.topMargin: 4
+            }
             ColumnLayout {
-                id: expandedCol
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
-
-                PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
-
-                Text {
-                    text: "↑ Back"
-                    color: Style.accentColor; font.pixelSize: root._navSize
-                    Layout.fillWidth: true
-                    MouseArea { anchors.fill: parent; onClicked: root._view = "glance" }
-                }
-
-                // This week — events
-                SectionLabel {
-                    text: "This Week"
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Repeater {
-                        model: root._weekItems
-                        Item {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: weatherProcess ? weatherProcess.forecast : []
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Text {
+                            text: root._dayLabel(modelData.date)
+                            color: Style.textMuted; font.pixelSize: Style.fontSizeBody
+                            Layout.preferredWidth: 70
+                        }
+                        Text {
+                            text: String.fromCharCode(parseInt(modelData.icon, 16))
+                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
+                            Layout.preferredWidth: 20; horizontalAlignment: Text.AlignHCenter
+                        }
+                        ScrollingText {
                             Layout.fillWidth: true
-                            implicitHeight: modelData.type === "header" ? 18 : 16
-                            property bool isHeader: modelData.type === "header"
-
-                            Text {
-                                visible: parent.isHeader
-                                anchors.bottom: parent.bottom
-                                text: modelData.label || ""
-                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
-                            }
-                            RowLayout {
-                                visible: !parent.isHeader
-                                anchors.fill: parent; spacing: 6
-                                Text {
-                                    text: root._eventTime(modelData.start, modelData.allDay)
-                                    color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                    horizontalAlignment: Text.AlignLeft
-                                    Layout.preferredWidth: 90
-                                }
-                                ScrollingText {
-                                    Layout.fillWidth: true
-                                    height: parent.height
-                                    text: modelData.summary || ""
-                                    color: Style.textNormal
-                                    font.pixelSize: Style.fontSizeBody
-                                }
-                            }
+                            Layout.preferredWidth: 0
+                            text: modelData.condition
+                            color: Style.textMuted
+                            font.pixelSize: Style.fontSizeBody
+                        }
+                        Text {
+                            text: modelData.high + "° / " + modelData.low + "°"
+                            color: Style.textNormal; font.pixelSize: Style.fontSizeBody
+                            Layout.alignment: Qt.AlignRight
                         }
                     }
                 }
-                Text {
-                    visible: !calendarProcess || calendarProcess.weekEvents.length === 0
-                    text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
-                    Layout.fillWidth: true
-                }
-
-                // This week — tasks
-                SectionLabel {
-                    text: "Tasks This Week"
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Repeater {
-                        model: root._weekTaskItems
-                        Item {
-                            Layout.fillWidth: true
-                            implicitHeight: modelData.type === "header" ? 18 : 16
-                            property bool isHeader: modelData.type === "header"
-
-                            Text {
-                                visible: parent.isHeader
-                                anchors.bottom: parent.bottom
-                                text: modelData.label || ""
-                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
-                            }
-                            RowLayout {
-                                visible: !parent.isHeader
-                                anchors.fill: parent; spacing: 6
-                                Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
-                                ScrollingText {
-                                    Layout.fillWidth: true
-                                    height: parent.height
-                                    text: modelData.title || ""
-                                    color: Style.textNormal
-                                    font.pixelSize: Style.fontSizeBody
-                                }
-                            }
-                        }
-                    }
-                }
-                Text {
-                    visible: !tasksProcess || tasksProcess.weekTasks.length === 0
-                    text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
-                    Layout.fillWidth: true
-                }
-
-                // 7-day forecast
-                SectionLabel {
-                    text: "7-Day Forecast"
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Repeater {
-                        model: weatherProcess ? weatherProcess.forecast : []
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            Text {
-                                text: root._dayLabel(modelData.date)
-                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                Layout.preferredWidth: 70
-                            }
-                            Text {
-                                text: String.fromCharCode(parseInt(modelData.icon, 16))
-                                color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
-                                Layout.preferredWidth: 20; horizontalAlignment: Text.AlignHCenter
-                            }
-                            ScrollingText {
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 0
-                                text: modelData.condition
-                                color: Style.textMuted
-                                font.pixelSize: Style.fontSizeBody
-                            }
-                            Text {
-                                text: modelData.high + "° / " + modelData.low + "°"
-                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody
-                                Layout.alignment: Qt.AlignRight
-                            }
-                        }
-                    }
-                }
-
             }
         }
     }

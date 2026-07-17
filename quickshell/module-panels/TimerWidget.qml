@@ -80,103 +80,72 @@ Item {
             }
         }
 
-        // Row 1: Mode toggle + Start/Stop
-        RowLayout {
+        // ── New 2×2 control grid ─────────────────────────────────────────────
+        GridLayout {
             Layout.fillWidth: true
-            spacing: 6
+            columns:       2
+            rowSpacing:    6
+            columnSpacing: 6
 
-            Rectangle {
+            // Cell 1 — Mode (TogglePair)
+            TogglePair {
                 Layout.fillWidth: true
-                height: 20; radius: Style.panelElementRadius
-                color: modeHover.containsMouse ? Style.surfaceLowColor : "transparent"
-                border.color: Style.borderFaintColor; border.width: 1
-                Text {
-                    anchors.centerIn: parent
-                    text: root.timerProcess && root.timerProcess.mode === "stopwatch" ? "Countup" : "Countdown"
-                    color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle
+                labelA:   "Countdown"
+                labelB:   "Countup"
+                selected: root.timerProcess && root.timerProcess.mode === "stopwatch" ? 1 : 0
+                onToggled: (i) => {
+                    if (!root.timerProcess) return
+                    root.timerProcess.setMode(i === 0 ? "timer" : "stopwatch")
                 }
-                MouseArea {
-                    id: modeHover; anchors.fill: parent; hoverEnabled: true
-                    onClicked: {
-                        if (!root.timerProcess) return
-                        if (root.timerProcess.mode === "stopwatch") root.timerProcess.setMode("timer")
-                        else                                         root.timerProcess.setMode("stopwatch")
+            }
+
+            // Cell 2 — Start/Stop (IconButton)
+            IconButton {
+                Layout.fillWidth: true
+                label:   root.timerProcess && root.timerProcess.active
+                         ? String.fromCodePoint(0xf04c)
+                         : String.fromCodePoint(0xf04b)
+                tooltip: root.timerProcess && root.timerProcess.active ? "Pause" : "Start"
+                variant: root.timerProcess && root.timerProcess.active ? "important" : "default"
+                onClicked: {
+                    if (!root.timerProcess) return
+                    if (root.timerProcess.mode === "stopwatch") {
+                        if (root.timerProcess.active) root.timerProcess.stopStopwatch()
+                        else                          root.timerProcess.startStopwatch()
+                    } else {
+                        if (root.timerProcess.active) root.timerProcess.pauseTimer()
+                        else                          root.timerProcess.startTimer()
                     }
                 }
             }
 
-            Rectangle {
+            // Cell 3 — Duration (ScrollChip, countdown only)
+            ScrollChip {
                 Layout.fillWidth: true
-                height: 20; radius: Style.panelElementRadius
-                color: startHover.containsMouse ? Style.accentBgHover : Style.accentBgColor
-                border.color: Style.accentColor; border.width: 1
-                Text {
-                    anchors.centerIn: parent
-                    text: root.timerProcess && root.timerProcess.active ? "Stop" : "Start"
-                    color: Style.textAccent; font.pixelSize: Style.fontSizeBody
+                variant: "bar"
+                value:   0
+                glyph:   ""
+                label:   root.timerProcess ? root._formatDuration(root.timerProcess.duration) : "1m:30s"
+                opacity: root.timerProcess && root.timerProcess.mode === "stopwatch" ? 0.35 : 1.0
+                onScrolled: (d) => {
+                    if (!root.timerProcess || root.timerProcess.mode === "stopwatch") return
+                    root.timerProcess.setTimer(Math.max(5, root.timerProcess.duration + d * 5))
                 }
-                MouseArea {
-                    id: startHover; anchors.fill: parent; hoverEnabled: true
-                    onClicked: {
-                        if (!root.timerProcess) return
-                        if (root.timerProcess.mode === "stopwatch") {
-                            if (root.timerProcess.active) root.timerProcess.stopStopwatch()
-                            else                          root.timerProcess.startStopwatch()
-                        } else {
-                            if (root.timerProcess.active) root.timerProcess.pauseTimer()
-                            else                          root.timerProcess.startTimer()
-                        }
-                    }
-                }
-            }
-        }
-
-        // Row 2: Duration button (countdown only) + Reset
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-
-            Rectangle {
-                id: durationBtn
-                Layout.fillWidth: true
-                height: 20; radius: Style.panelElementRadius
-                visible: !root.timerProcess || root.timerProcess.mode !== "stopwatch"
-                color: durationHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                border.color: root._inputExpanded ? Style.accentColor : Style.borderSoftColor
-                border.width: 1
-                Text {
-                    anchors.centerIn: parent
-                    text: root.timerProcess ? root._formatDuration(root.timerProcess.duration) : "1m:30s"
-                    color: Style.textSecondary; font.pixelSize: Style.fontSizeBody
-                }
-                MouseArea {
-                    id: durationHover; anchors.fill: parent; hoverEnabled: true
-                    onClicked: root._inputExpanded = !root._inputExpanded
-                }
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: function(event) {
-                        if (!root.timerProcess) return
-                        var delta = event.angleDelta.y > 0 ? 5 : -5
-                        root.timerProcess.setTimer(Math.max(5, root.timerProcess.duration + delta))
-                        event.accepted = true
-                    }
+                onClicked: {
+                    if (!root.timerProcess || root.timerProcess.mode === "stopwatch") return
+                    root._inputExpanded = !root._inputExpanded
                 }
             }
 
-            Rectangle {
+            // Cell 4 — Reset (PanelButton)
+            PanelButton {
                 Layout.fillWidth: true
-                height: 20; radius: Style.panelElementRadius
-                color: resetHover.containsMouse ? Style.surfaceMidColor : Style.surfaceLowColor
-                border.color: Style.borderSoftColor; border.width: 1
-                Text { anchors.centerIn: parent; text: "Reset"; color: Style.textSecondary; font.pixelSize: Style.fontSizeBody }
-                MouseArea {
-                    id: resetHover; anchors.fill: parent; hoverEnabled: true
-                    onClicked: {
-                        if (!root.timerProcess) return
-                        if (root.timerProcess.mode === "stopwatch") root.timerProcess.resetStopwatch()
-                        else                                         root.timerProcess.resetTimer()
-                    }
+                icon:    String.fromCodePoint(0xf0e2)
+                label:   "Reset"
+                onClicked: {
+                    if (!root.timerProcess) return
+                    if (root.timerProcess.mode === "stopwatch") root.timerProcess.resetStopwatch()
+                    else                                         root.timerProcess.resetTimer()
                 }
             }
         }
@@ -184,7 +153,7 @@ Item {
         // Expandable duration input (countdown mode only)
         Rectangle {
             Layout.fillWidth: true
-            height: 28; radius: Style.panelElementRadius
+            implicitHeight: 28; radius: Style.panelElementRadius
             visible: root._inputExpanded && (!root.timerProcess || root.timerProcess.mode !== "stopwatch")
             color: Style.surfaceLowColor
             border.color: Style.accentColor; border.width: 1
