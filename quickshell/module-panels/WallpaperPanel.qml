@@ -126,7 +126,7 @@ Item {
                         spacing: 8
 
                         Grid {
-                            columns: 6; spacing: root._spacing; Layout.fillWidth: true
+                            columns: 6; spacing: root._spacing
 
                             Repeater {
                                 model: root._swatches

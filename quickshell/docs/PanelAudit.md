@@ -484,7 +484,7 @@ The image/video carousels use explicit item positioning for animation — intent
 | ~~10~~ | ~~`SectionHeader.qml`~~ | ~~`anchors.verticalCenter` on items inside `Row`~~ | ✅ Fixed |
 | ~~11~~ | ~~`PanelNavBar.qml`~~ | ~~`Row` inside `RowLayout` for dot indicators~~ | ✅ Fixed |
 | ~~12~~ | ~~`PanelCard.qml`~~ | ~~`height: childrenRect.height` — fragile with layouts~~ | ✅ Fixed |
-| 13 | `WallpaperPanel.qml` | `Layout.fillWidth: true` on `Grid` (no-op) | ⚠️ minor |
+| ~~13~~ | ~~`WallpaperPanel.qml`~~ | ~~`Layout.fillWidth: true` on `Grid` (no-op)~~ | ✅ Fixed |
 
 ---
 
