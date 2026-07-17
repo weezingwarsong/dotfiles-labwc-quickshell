@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 
 Rectangle {
     id: root
@@ -14,6 +15,7 @@ Rectangle {
     property string label: ""          // text shown when not hovered
     property string glyph: ""          // optional prefix (emoji / nerd glyph)
     property bool   muted: false       // dims fill, accents border
+    property string glyphFontFamily: "" // override for nerd-font codepoints; empty = system default
 
     // ── Signals ───────────────────────────────────────────────────────────────
     signal scrolled(real delta)        // +1 or -1 from wheel direction
@@ -26,7 +28,7 @@ Rectangle {
     implicitWidth:  variant === "value"
         ? Math.min(Math.max(_valueText.implicitWidth + Style.panelElementHpadding, 24), 300)
         : 0
-    implicitHeight: Style.buttonHeight
+    implicitHeight: Style.fontSizeBody + Style.panelElementVpadding
 
     // ── Visuals ───────────────────────────────────────────────────────────────
     radius:       Style.panelElementRadius
@@ -53,7 +55,7 @@ Rectangle {
     }
 
     // ── Bar label ─────────────────────────────────────────────────────────────
-    Row {
+    RowLayout {
         anchors {
             left: parent.left; right: parent.right
             verticalCenter: parent.verticalCenter
@@ -62,23 +64,28 @@ Rectangle {
         spacing: 6
         visible: root.variant === "bar"
 
+        Item { Layout.fillWidth: true }
+
         Text {
-            visible:                root.glyph !== ""
-            text:                   root.glyph
-            font.pixelSize:         Style.fontSizeBody
-            color:                  root.muted ? Style.textMuted : Style.textSecondary
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignHCenter
+            visible:          root.glyph !== ""
+            text:             root.glyph
+            font.family:      root.glyphFontFamily
+            font.pixelSize:   Style.fontSizeBody
+            color:            root.muted ? Style.textMuted : Style.textSecondary
         }
 
         Text {
-            width:                  parent.width - (root.glyph !== "" ? 20 : 0)
-            text:                   root.muted ? "MUTED" : root.label
-            color:                  root.muted ? Style.textMuted : Style.textSecondary
-            font.family:            Style.fontMono
-            font.pixelSize:         Style.fontSizeBody
-            elide:                  Text.ElideRight
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignHCenter
+            visible:          root.label !== ""
+            text:             root.muted ? "MUTED" : root.label
+            color:            root.muted ? Style.textMuted : Style.textSecondary
+            font.family:      Style.fontMono
+            font.pixelSize:   Style.fontSizeBody
+            elide:            Text.ElideRight
         }
+
+        Item { Layout.fillWidth: true }
     }
 
     // ── Value text ────────────────────────────────────────────────────────────

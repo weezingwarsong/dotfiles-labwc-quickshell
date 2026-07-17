@@ -38,7 +38,7 @@ ColumnLayout {
 
         Item { Layout.fillWidth: true }
 
-        Row {
+        RowLayout {
             spacing: 4
             Repeater {
                 model: root._order.length

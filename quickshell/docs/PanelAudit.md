@@ -38,9 +38,9 @@ Apply the audit findings from the priority table below, one component at a time.
 - [ ] **3d. SettingsPanel** — fix filter Row positioner; fix wallpaper input bare `height`
 - [ ] **3e. CalendarPanel** — fix `anchors.fill` in all three Flickables
 - [ ] **3f. PanelTabBar** — replace `Row { anchors.fill }` + manual widths with `RowLayout`
-- [ ] **3g. ScrollChip** — replace `Row { anchors }` with `RowLayout`; remove anchors-in-positioner
+- [x] **3g. ScrollChip** — replace `Row { anchors }` with `RowLayout`; remove anchors-in-positioner; fix `implicitHeight: Style.buttonHeight` → `Style.fontSizeBody + Style.panelElementVpadding`
 - [ ] **3h. SectionHeader** — remove redundant `anchors.verticalCenter` inside `Row`
-- [ ] **3i. PanelNavBar** — replace `Row` with `RowLayout` for dot indicators
+- [x] **3i. PanelNavBar** — replace `Row` with `RowLayout` for dot indicators
 - [x] **3j. PanelCard** — replace `childrenRect.height` with layout-safe sizing
 
 ### Phase 4 — Panel Module Content Rework
@@ -126,7 +126,7 @@ Rectangle {
 
 ---
 
-### PanelNavBar.qml ⚠️
+### PanelNavBar.qml ✅
 
 ```qml
 ColumnLayout {
@@ -198,41 +198,9 @@ RowLayout {
 
 ---
 
-### ScrollChip.qml ⚠️
+### ScrollChip.qml ✅
 
-```qml
-Rectangle {
-    Row {
-        anchors {
-            left: parent.left; right: parent.right
-            verticalCenter: parent.verticalCenter
-            leftMargin: 8; rightMargin: 8
-        }
-        spacing: 6
-        Text { visible: root.glyph !== ""; anchors.verticalCenter: parent.verticalCenter }
-        Text {
-            width: parent.width - (root.glyph !== "" ? 20 : 0)   // ← manual
-            anchors.verticalCenter: parent.verticalCenter          // ← inside positioner
-        }
-    }
-}
-```
-
-Issues:
-1. `Row { anchors { left, right } }` — horizontally constraining a positioner with anchors. The Row's width comes from the anchors; children read `parent.width` which then cycles. Works because `left+right` anchors do set Row.width before children measure, but it's non-obvious.
-2. `anchors.verticalCenter: parent.verticalCenter` on items inside `Row` — Row already centers children vertically. These anchors are redundant and mix anchor/positioner systems.
-3. `width: parent.width - (glyph ? 20 : 0)` — manual width minus magic number instead of Layout-managed fill.
-
-**Fix:** Replace `Row` with `RowLayout`:
-```qml
-RowLayout {
-    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter;
-              leftMargin: 8; rightMargin: 8 }
-    spacing: 6
-    Text { visible: root.glyph !== ""; Layout.preferredWidth: 14 }
-    Text { Layout.fillWidth: true; elide: Text.ElideRight }
-}
-```
+`Rectangle` root. `implicitHeight: Style.fontSizeBody + Style.panelElementVpadding` — scales with typography. Bar variant label uses `RowLayout { anchors { left, right, verticalCenter } }` with glyph `Text` (auto-sized from `implicitWidth`) and label `Text { Layout.fillWidth: true }`. Value variant uses `Text { anchors.centerIn: parent }`. No Layout issues.
 
 ---
 
@@ -512,9 +480,9 @@ The image/video carousels use explicit item positioning for animation — intent
 | 6 | `SettingsPanel.qml` | Filter `Row` with anchors + anchors-inside-positioner children | ⚠️ |
 | 7 | `CalendarPanel.qml` | `anchors.fill` in Flickable (should be left+right+top only) | ⚠️ |
 | 8 | `PanelTabBar.qml` | `Row { anchors.fill }` + manual `width / labels.length` | ⚠️ |
-| 9 | `ScrollChip.qml` | `Row { anchors { left, right } }` + anchors-in-Row children | ⚠️ |
+| ~~9~~ | ~~`ScrollChip.qml`~~ | ~~`Row { anchors { left, right } }` + anchors-in-Row children + `implicitHeight: Style.buttonHeight`~~ | ✅ Fixed |
 | 10 | `SectionHeader.qml` | `anchors.verticalCenter` on items inside `Row` | ⚠️ |
-| 11 | `PanelNavBar.qml` | `Row` inside `RowLayout` for dot indicators | ⚠️ |
+| ~~11~~ | ~~`PanelNavBar.qml`~~ | ~~`Row` inside `RowLayout` for dot indicators~~ | ✅ Fixed |
 | ~~12~~ | ~~`PanelCard.qml`~~ | ~~`height: childrenRect.height` — fragile with layouts~~ | ✅ Fixed |
 | 13 | `WallpaperPanel.qml` | `Layout.fillWidth: true` on `Grid` (no-op) | ⚠️ minor |
 

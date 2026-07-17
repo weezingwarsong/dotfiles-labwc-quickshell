@@ -193,61 +193,29 @@ Item {
             }
 
             // ── Volume button ─────────────────────────────────────────────────
-            Item {
-                id:             _volBtn
-                implicitWidth:  40
-                implicitHeight: Style.buttonHeight
-
-                HoverHandler { id: _volHover }
-
-                Text {
-                    anchors.centerIn: parent
-                    visible:          !_volHover.hovered
-                    text:             root._muted
-                                      ? String.fromCodePoint(0xf026)
-                                      : String.fromCodePoint(0xf028)
-                    color:            root._muted ? Style.textMuted : Style.accentColor
-                    font.family:      Style.fontNerd
-                    font.pixelSize:   Style.fontSizeBody
+            ScrollChip {
+                Layout.preferredWidth: 70
+                variant:         "bar"
+                value:           root._player ? root._player.volume : 0
+                muted:           root._muted
+                glyph:           root._muted
+                                 ? String.fromCodePoint(0xf026)
+                                 : String.fromCodePoint(0xf028)
+                glyphFontFamily: Style.fontNerd
+                label:           ""
+                onScrolled: (d) => {
+                    if (!root._player) return
+                    var newVol = Math.max(0.0, Math.min(1.0, root._player.volume + d * 0.05))
+                    if (newVol > 0) root._savedVolume = newVol
+                    root._player.volume = newVol
                 }
-
-                Item {
-                    anchors.centerIn: parent
-                    width:            parent.width - 8
-                    height:           4
-                    visible:          _volHover.hovered
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius:       2
-                        color:        Style.surfaceMidColor
-                    }
-                    Rectangle {
-                        width:  parent.width * Math.max(0, Math.min(1, root._player ? root._player.volume : 0))
-                        height: parent.height
-                        radius: 2
-                        color:  root._muted ? Style.textMuted : Style.accentColor
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape:  Qt.PointingHandCursor
-                    onClicked: {
-                        if (!root._player) return
-                        if (root._muted) {
-                            root._player.volume = root._savedVolume > 0 ? root._savedVolume : 1.0
-                        } else {
-                            root._savedVolume   = root._player.volume
-                            root._player.volume = 0.0
-                        }
-                    }
-                    onWheel: (wheel) => {
-                        if (!root._player) return
-                        var delta  = wheel.angleDelta.y > 0 ? 0.05 : -0.05
-                        var newVol = Math.max(0.0, Math.min(1.0, root._player.volume + delta))
-                        if (newVol > 0) root._savedVolume = newVol
-                        root._player.volume = newVol
+                onClicked: {
+                    if (!root._player) return
+                    if (root._muted) {
+                        root._player.volume = root._savedVolume > 0 ? root._savedVolume : 1.0
+                    } else {
+                        root._savedVolume   = root._player.volume
+                        root._player.volume = 0.0
                     }
                 }
             }
