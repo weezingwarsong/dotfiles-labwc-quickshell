@@ -78,6 +78,20 @@ New panel in `module-panels/`:
 
 ---
 
+## Thumbnail Pipeline
+
+`WallpaperProcess` generates JPEG thumbnails for **both images and videos** via ffmpeg, cached at `~/.cache/pillbox/thumbs/`.
+
+- **Videos**: `ffmpeg -ss 00:00:01 -frames:v 1` — first keyframe at 1s
+- **Images**: `ffmpeg -vf scale=_thumbW:-1` — scaled to panel width (`Screen.width × Prefs.panelWidth / 100`), aspect ratio preserved
+- `thumbPath(path)` → `cacheDir/filename.jpg` (works for any path)
+- `thumbsReady` — reactive object map `path → true`; reassigned on each update so bindings re-evaluate
+- Both image and video scans append to a shared serial queue; `scanDirectory()` resets it
+
+**Carousel wiring**: pass `thumbsReady` and `thumbPath` as props; Carousel falls back to full path when thumb not ready yet.
+
+---
+
 ## Fix Candidates
 
 Several known issues are tracked in the docs as **fix candidates** and intentionally deferred. Do not fix them without being asked. Key ones:

@@ -202,3 +202,44 @@ ScrollingText {
     font.pixelSize: Style.fontSizeBody
 }
 ```
+
+---
+
+## Carousel
+
+Horizontal viewport-crop carousel for image/video selection. Three size tiers — HERO (current), NEAR (next/prev in travel direction), SMALL (further items) — animate width/height via `Behavior on Layout.preferredWidth/Height`. Each slot clips a horizontal strip of a single full-width image, producing a panorama-crop effect. Dim overlay (`#60000000`) fades in on inactive slots.
+
+**Props:**
+
+| Prop | Type | Notes |
+|---|---|---|
+| `model` | `var` | Array of `{path, name}` objects |
+| `currentIndex` | `int` | Currently selected index; caller owns and drives this |
+| `emptyText` | `string` | Shown centred when `model` is empty |
+| `thumbsReady` | `var` | `path → true` map from `WallpaperProcess`; when set, thumbnails are used |
+| `thumbPath` | `var` | `function(path) → string`; returns thumb JPEG path for a given source path |
+
+**Signals:** `activated(int index)` — emitted on tap or scroll-wheel change.
+
+**Sizing (from 16:9 wallpaper assumption):**
+- `_nearH = width * 9/16` — image height as if panel equals wallpaper width
+- `_nearW = _nearH * 9/16` — portrait 9:16 slot width for NEAR tier
+- `_smallW = _nearW / 2` — SMALL tier
+- `_heroH = _nearH` — HERO has equal height to NEAR (no zoom)
+- HERO width fills whatever NEAR and SMALL leave behind
+
+**Viewport crop model:** `Image` width = `root.width` (full carousel row), `x = -slot.x` (offsets to row origin), slot has `clip: true`. Each slot clips its horizontal strip. `fillMode` is default (`Stretch`) so the image scales to `root.width` before clipping — thumbnails at panel width make this accurate.
+
+**Interaction:** `TapHandler` on each slot; `WheelHandler` on the row. Direction (`_direction`) is tracked for the NEAR slot selection — NEAR always points in the last travel direction.
+
+```qml
+Carousel {
+    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+    model:       root.wallpaperProcess ? root.wallpaperProcess.imageFiles : []
+    emptyText:   "No images in dir"
+    thumbsReady: root.wallpaperProcess ? root.wallpaperProcess.thumbsReady : null
+    thumbPath:   root.wallpaperProcess ? root.wallpaperProcess.thumbPath : null
+    onActivated: (index) => root.wallpaperProcess.setImage(root.wallpaperProcess.imageFiles[index].path)
+    onVisibleChanged: if (visible) currentIndex = root._findImageIdx()
+}
+```

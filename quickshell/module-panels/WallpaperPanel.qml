@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC
-import QtQuick.Effects
 
 Item {
     id: root
@@ -28,6 +27,15 @@ Item {
                 _carousel._direction   = dir
                 _carousel.currentIndex = next
                 root.wallpaperProcess.setImage(root.wallpaperProcess.imageFiles[next].path)
+            } else if (root._tab === "video" && root.wallpaperProcess) {
+                const vcount = root.wallpaperProcess.videoFiles.length
+                if (vcount === 0) { event.accepted = false; break }
+                const vdir  = event.key === Qt.Key_N ? 1 : -1
+                const vnext = Math.max(0, Math.min(vcount - 1, _videoCarousel.currentIndex + vdir))
+                if (vnext === _videoCarousel.currentIndex) { event.accepted = false; break }
+                _videoCarousel._direction   = vdir
+                _videoCarousel.currentIndex = vnext
+                root.wallpaperProcess.setVideo(root.wallpaperProcess.videoFiles[vnext].path)
             }
             event.accepted = true; break
         default:
@@ -43,6 +51,7 @@ Item {
     property string _tab:            "color"
     property bool   _colorCollapsed: false
     property bool   _imageCollapsed: false
+    property bool   _videoCollapsed: false
 
     // ── Color swatches ────────────────────────────────────────────────────────
     readonly property var _swatches: [
@@ -227,164 +236,44 @@ Item {
         }
 
         // ── Video tab ─────────────────────────────────────────────────────────
-        Item {
-            id: _videoTab
+        PanelCard {
             visible: root._tab === "video"
             Layout.fillWidth: true
-            Layout.preferredHeight: _heroH + 4 + Style.fontSizeSubtle
 
-            property bool _ready:       false
-            property bool _animEnabled: false
-            property real _scrollPos:   0
-
-            readonly property int _heroW: Math.round(width * 0.55)
-            readonly property int _sideW: Math.round(width * 0.18)
-            readonly property int _heroH: Math.round(_heroW * 0.65)
-            readonly property int _step:  Math.round(_heroW / 2 + _sideW / 2 + 6)
-
-            Behavior on _scrollPos {
-                enabled: _videoTab._animEnabled
-                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            SectionHeader {
+                Layout.fillWidth: true
+                text:      "Videos"
+                collapsed: root._videoCollapsed
+                onToggled: root._videoCollapsed = !root._videoCollapsed
             }
 
-            function _reset() {
-                _animEnabled = false
-                _ready       = false
-                _scrollPos   = root._findVideoIdx()
-                Qt.callLater(function() { _animEnabled = true; _ready = true })
-            }
-
-            onVisibleChanged: { if (visible) _reset() }
-
-            // ── Carousel area ─────────────────────────────────────────────────
             Item {
-                id: _vidArea
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                height: _videoTab._heroH
+                Layout.fillWidth: true
+                clip: true
+                Layout.preferredHeight: !root._videoCollapsed ? _videoCarousel.implicitHeight + 8 : 0
+                Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                Text {
-                    visible: !root.wallpaperProcess || root.wallpaperProcess.videoFiles.length === 0
-                    anchors.centerIn: parent
-                    text:  root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
-                           ? "No videos found" : "Scan a directory in Settings"
-                    color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody
-                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
-                    width: parent.width
-                }
-
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: (event) => {
-                        event.accepted = true
-                        if (!_videoTab._ready) return
-                        var count = root.wallpaperProcess ? root.wallpaperProcess.videoFiles.length : 0
-                        if (count === 0) return
-                        var cur  = Math.round(_videoTab._scrollPos)
-                        var next = Math.max(0, Math.min(count - 1, cur + (event.angleDelta.y < 0 ? 1 : -1)))
-                        if (next === cur) return
-                        _videoTab._scrollPos = next
-                        root.wallpaperProcess.setVideo(root.wallpaperProcess.videoFiles[next].path)
+                Carousel {
+                    id: _videoCarousel
+                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                    model:       root.wallpaperProcess ? root.wallpaperProcess.videoFiles : []
+                    emptyText:   root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
+                                 ? "No videos in dir" : "Dir not set, see Settings"
+                    thumbsReady: root.wallpaperProcess ? root.wallpaperProcess.thumbsReady : null
+                    thumbPath:   root.wallpaperProcess ? root.wallpaperProcess.thumbPath : null
+                    onActivated: (index) => {
+                        if (root.wallpaperProcess)
+                            root.wallpaperProcess.setVideo(root.wallpaperProcess.videoFiles[index].path)
                     }
-                }
-
-                Repeater {
-                    model: root.wallpaperProcess ? root.wallpaperProcess.videoFiles : []
-
-                    Item {
-                        required property var modelData
-                        required property int index
-
-                        readonly property real _dist: index - _videoTab._scrollPos
-                        readonly property real _absD: Math.min(1.0, Math.abs(_dist))
-                        readonly property real _w:    _videoTab._heroW + (_videoTab._sideW - _videoTab._heroW) * _absD
-
-                        readonly property bool _active:
-                            root.wallpaperProcess
-                            && root.wallpaperProcess.sourceType === "video"
-                            && root.wallpaperProcess.currentPath === modelData.path
-
-                        readonly property bool _hasThumb:
-                            root.wallpaperProcess
-                            && !!root.wallpaperProcess.thumbsReady[modelData.path]
-
-                        x:       _vidArea.width / 2 + _dist * _videoTab._step - _w / 2
-                        y:       0
-                        width:   _w
-                        height:  _videoTab._heroH
-                        visible: Math.abs(index - Math.round(_videoTab._scrollPos)) <= 1
-                        opacity: Math.max(0.0, _absD <= 1.0 ? 1.0 - _absD * 0.3 : (1.5 - _absD) * 1.4)
-
-                        // Fallback background + placeholder icon (always present)
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Style.pillRadius; color: Style.surfaceMidColor
-
-                            Text {
-                                anchors.centerIn: parent
-                                visible:        !_hasThumb
-                                text:           String.fromCodePoint(0xf040a)
-                                font.family:    Style.fontNerd
-                                font.pixelSize: Math.round(_w * 0.38)
-                                color:          _active ? Style.accentColor : Style.textMuted
-                            }
-                        }
-                        // Thumbnail masked to rounded shape (overlays background)
-                        Image {
-                            id: _vidSrc
-                            anchors.fill: parent
-                            visible:      false; layer.enabled: true
-                            source:       _hasThumb
-                                          ? "file://" + root.wallpaperProcess.thumbPath(modelData.path)
-                                          : ""
-                            fillMode:     Image.PreserveAspectCrop
-                            asynchronous: true; smooth: true
-                        }
-                        Rectangle {
-                            id: _vidMask
-                            anchors.fill: parent
-                            radius: Style.pillRadius; color: "white"
-                            visible: false; layer.enabled: true
-                        }
-                        MultiEffect {
-                            anchors.fill:     parent
-                            visible:          _hasThumb
-                            source:           _vidSrc
-                            maskEnabled:      true
-                            maskSource:       _vidMask
-                            maskThresholdMin: 0.5
-                            maskSpreadAtMin:  1.0
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Style.pillRadius; color: "transparent"
-                            border.width: _active ? 2 : 0
-                            border.color: Style.accentColor
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape:  Qt.PointingHandCursor
-                            onClicked: {
-                                _videoTab._scrollPos = index
-                                if (root.wallpaperProcess)
-                                    root.wallpaperProcess.setVideo(modelData.path)
-                            }
-                        }
-                    }
+                    onVisibleChanged: if (visible) currentIndex = root._findVideoIdx()
                 }
             }
+        }
 
-            // Filename of centered item
-            Text {
-                anchors { left: parent.left; right: parent.right; top: _vidArea.bottom; topMargin: 4 }
-                property int _idx: Math.round(_videoTab._scrollPos)
-                text: (root.wallpaperProcess && _idx >= 0 && _idx < root.wallpaperProcess.videoFiles.length)
-                      ? root.wallpaperProcess.videoFiles[_idx].name : ""
-                color:               Style.textMuted
-                font.family:         Style.fontMono
-                font.pixelSize:      Style.fontSizeSubtle
-                horizontalAlignment: Text.AlignHCenter
-                elide:               Text.ElideRight
+        Connections {
+            target: root.wallpaperProcess
+            function onVideoFilesChanged() {
+                if (root._tab === "video") _videoCarousel.currentIndex = root._findVideoIdx()
             }
         }
 

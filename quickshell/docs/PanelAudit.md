@@ -50,7 +50,7 @@ Individual panel content rewrites. Order TBD based on priority.
 - [ ] **4a. ControlPanel** — screenrec section rewrite (was step 7 in screenrecDiscussion.md)
 - [ ] **4b. MediaPlayerPanel** — progress bar, track time, layout polish
 - [x] **4c. WallpaperPanel image tab** — replaced old absolute-positioned carousel with `PanelCard` + `SectionHeader` + new `Carousel` reusable element; `Carousel.qml` added to `module-reusable-elements/`
-- [ ] **4d. WallpaperPanel video tab** — same Carousel treatment as image tab (deferred)
+- [x] **4d. WallpaperPanel video tab** — same Carousel treatment as image tab; thumbnail wiring via `thumbsReady`/`thumbPath` identical to image tab
 - [ ] Other panels as needed
 
 ---
@@ -367,7 +367,7 @@ Extracted to its own `PanelWindow` tier outside the panel slot system. Rewritten
 
 ### WallpaperPanel.qml ✅
 
-NavBar stripped (phase 1d), background Rectangle stripped (phase 1e). `implicitHeight: _col.implicitHeight`. ColumnLayout anchors have no margins (PanelSurface handles outer padding). `_swatchW` formula updated to remove the old 24px margin compensation. Image/video carousels use explicit item positioning for animation — intentional, no fix needed.
+NavBar stripped (phase 1d), background Rectangle stripped (phase 1e). `implicitHeight: _col.implicitHeight`. ColumnLayout anchors have no margins (PanelSurface handles outer padding). `_swatchW` formula updated to remove the old 24px margin compensation. Both image and video tabs use `Carousel` — layout managed by the component, no explicit item positioning in WallpaperPanel.
 
 ---
 

@@ -354,7 +354,7 @@ A toggle `extractColors: bool` (default true) in the Appearance tab. **Implement
 
 **Data sources (injected):** `WallpaperProcess`
 
-Two tabs — `[ Color ] [ Media ]` — `PanelNavBar` as first row. Wallpaper is global (not per-workspace). Color extraction toggle lives in Settings → Appearance (implemented).
+Three tabs — `[ Color ] [ Image ] [ Video ]` — via `PanelTabBar`. Wallpaper is global (not per-workspace). Color extraction toggle lives in Settings → Appearance.
 
 #### Color tab
 
@@ -362,22 +362,24 @@ Two tabs — `[ Color ] [ Media ]` — `PanelNavBar` as first row. Wallpaper is 
 
 Preset palette: 24 swatches ranging from very dark near-blacks to muted mid-tones (Nord Dark Blue `#3B4252`, Catppuccin Mocha `#1E1E2E`, Gruvbox Dark `#3C3836`, etc.). Full list in `WallpaperPanel.qml` `_swatches` property.
 
-#### Media tab
+#### Image tab
 
-**Directory input:** `TextInput` + `[Scan]` button → calls `wallpaperProcess.scanDirectory(dir)`. Persisted to `Prefs.wallpaperDir`.
+`Carousel` component inside a `PanelCard` + `SectionHeader` (collapsible). Carousel gets `thumbsReady`/`thumbPath` from `WallpaperProcess` — shows scaled thumbnails as they complete, falls back to full image until ready.
 
-**Images section:**
-- `[ Single ] [ Slideshow ]` mode toggle
-- Slideshow controls (visible in slideshow mode): `[–]` interval `[+]` stepper (±5 s, min 5 s; persisted to `Prefs.slideshowInterval`) + `[Apply]` button — starts slideshow with selected tiles (or all images if none selected)
-- 3-column vertically-scrollable thumbnail grid (`Grid { columns: 3; flow: LeftToRight }` inside `Flickable { flickableDirection: VerticalFlick }`). Each tile: async image preview + truncated filename below. Active tile has accent border. Selected-for-slideshow tiles show a Nerd Font checkmark in the corner.
-- Extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`, `.gif` — GIF handled by `AnimatedImage` (same element as static images; no branching needed)
+- Extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`, `.gif`
+- `onActivated` → `wallpaperProcess.setImage(path)`
+- `n`/`b` keyboard shortcuts advance/step back in the carousel
+- `onVisibleChanged` syncs `currentIndex` to the currently-playing image
 
-**Videos section:**
-- Same 3-column vertical grid, single selection only (no slideshow)
-- Tiles show ffmpeg thumbnail when ready (`thumbsReady[path]`); play icon placeholder until then
-- Extensions: `.mp4`, `.webm`, `.mkv`, `.mov` (`.gif` stays in Images — handled by `AnimatedImage`)
+#### Video tab
 
-**Empty states:** `"Set a directory above"` when no dir configured; `"No images found"` / `"No videos found"` after a scan with no matches.
+Identical `Carousel` pattern as the image tab — same component, same `thumbsReady`/`thumbPath` wiring. Video thumbnails are ffmpeg first-frame JPEGs at t=1s.
+
+- Extensions: `.mp4`, `.webm`, `.mkv`, `.mov`
+- `onActivated` → `wallpaperProcess.setVideo(path)`
+- `n`/`b` keyboard shortcuts work the same as the image tab
+
+**Empty states:** `"Dir not set, see Settings"` when no dir configured; `"No images in dir"` / `"No videos in dir"` after a scan with no matches.
 
 **Error feedback:** Inline text when `WallpaperProcess.lastError` is set — e.g. scan returned no files, or matugen extraction failed.
 
@@ -393,14 +395,16 @@ Public API:
 - `setVideo(path)` — updates `sourceType`/`currentPath`, persists to Prefs. Triggers color extraction via thumbnail JPEG once thumb is ready (`_pendingVideoExtract` deferred path).
 - `startSlideshow(files)` / `nextSlide()` / `stopSlideshow()` — interval `Timer` cycles files sequentially; `nextSlide` does NOT trigger matugen (intentional — avoids extraction every N seconds)
 - `setSlideshowInterval(secs)` — updates `slideshowTimer.interval`, persists to Prefs
-- `scanDirectory(dir)` — runs two `find` commands in parallel. Clears file lists only when `dir` differs from current `wallpaperDir` (same-dir rescans update lists in-place, no grid flash). Called on startup and on every wallpaper panel open:
-  - `_scanImgProc`: `find <dir> -maxdepth 1 -type f -not ( -iname "*.gif" -size +50M )`, extension filter (`.jpg .jpeg .png .webp .avif .gif`), 200-item cap
-  - `_scanVidProc`: same with `-size -100M`, extension filter (`.mp4 .webm .mkv .mov`), 200-item cap; triggers `_startThumbQueue` on completion
-- `thumbPath(videoPath)` — returns `~/.cache/pillbox/thumbs/<name>.jpg`; public, used by panel tiles
+- `scanDirectory(dir)` — runs two `find` commands in parallel. Clears file lists only when `dir` differs from current `wallpaperDir` (same-dir rescans update lists in-place, no grid flash). Resets `_thumbQueue`/`_thumbQueueIdx` each call. Called on startup and on wallpaper panel open:
+  - `_scanImgProc`: `find <dir> -maxdepth 1 -type f -not ( -iname "*.gif" -size +50M )`, extension filter (`.jpg .jpeg .png .webp .avif .gif`), 200-item cap; appends to thumb queue on completion
+  - `_scanVidProc`: same with `-size -100M`, extension filter (`.mp4 .webm .mkv .mov`), 200-item cap; appends to thumb queue on completion
+- `thumbPath(path)` — returns `~/.cache/pillbox/thumbs/<name>.jpg`; works for any path (image or video); public, used by Carousel
 - `thumbsReady` — JS object (`path → true`), reassigned on each ffmpeg completion for QML reactivity. Persists for Quickshell session lifetime; thumbnail JPEGs persist on disk.
-- Startup restore: `Component.onCompleted` calls `scanDirectory` to populate grids and start thumb queue. Wallpaper auto-restores — `AnimatedImage`/`MediaPlayer` source binds to `wallpaper.currentPath`. No explicit restore call needed.
+- Startup restore: `Component.onCompleted` calls `scanDirectory` to populate carousels and start thumb queue. Wallpaper auto-restores — `AnimatedImage`/`MediaPlayer` source binds to `wallpaper.currentPath`.
 
-**Rendering surface:** `wallpaperWindow` in `shell.qml` — `PanelWindow` at `WlrLayer.Background` with `exclusiveZone: -1` covering the full screen. Three children, `visible` toggled by `sourceType`:
+**Thumbnail pipeline:** Both image and video scans append to a shared serial `_thumbQueue`. Images use `ffmpeg -vf scale=_thumbW:-1` (scaled to panel width, AR preserved); videos use `ffmpeg -ss 00:00:01 -frames:v 1` (first keyframe at 1s). `_thumbW = Screen.width × Prefs.panelWidth / 100`. See `quickshell/CLAUDE.md` → Thumbnail Pipeline for full details.
+
+**Rendering surface:** `wallpaperWindow` in `shell.qml` — `PanelWindow` at `WlrLayer.Background` with `exclusiveZone: -1`, `mask: Region {}` (input passthrough — required so right-click reaches labwc). Three children, `visible` toggled by `sourceType`:
 - `Rectangle` — `visible: wallpaper.sourceType === "color"`; `color: wallpaper.currentColor`
 - `AnimatedImage` — `visible: wallpaper.sourceType === "image"`; `fillMode: PreserveAspectCrop`; `cache: false`
 - `MediaPlayer` + `VideoOutput` — `visible: wallpaper.sourceType === "video"`; `loops: Infinite`; `AudioOutput { volume: 0 }`; `fillMode: PreserveAspectCrop`
