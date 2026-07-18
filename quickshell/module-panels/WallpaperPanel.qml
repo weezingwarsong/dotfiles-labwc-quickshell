@@ -5,25 +5,26 @@ import QtQuick.Effects
 
 Item {
     id: root
+    focus: true
+    Component.onCompleted: forceActiveFocus()
 
-    property var    wallpaperProcess: null
-    property string activePanel:      ""
-    signal navigateRequested(int direction)
+    property var wallpaperProcess: null
 
-    implicitHeight: _col.implicitHeight + 24
+    implicitHeight: _col.implicitHeight
 
-    Rectangle {
-        anchors.fill: parent
-        radius:       Style.panelRadius
-        color:        Style.panelBgColor
-        border.color: Style.panelBorderColor
-        border.width: 1
-        clip:         true
+    Keys.onPressed: (event) => {
+        switch (event.key) {
+        case Qt.Key_Tab:
+            root._tab = root._tab === "color" ? "image" : root._tab === "image" ? "video" : "color"
+            event.accepted = true; break
+        default:
+            event.accepted = false
+        }
     }
 
     // ── Constants ─────────────────────────────────────────────────────────────
     readonly property int _spacing: 4
-    readonly property int _swatchW: Math.floor((width - 24 - 2 * Style.panelCardHpadding - 5 * _spacing) / 6)
+    readonly property int _swatchW: Math.floor((width - 2 * Style.panelCardHpadding - 5 * _spacing) / 6)
 
     // ── Tabs ──────────────────────────────────────────────────────────────────
     property string _tab:            "color"
@@ -74,23 +75,11 @@ Item {
         return 0
     }
 
-    // Reset the active carousel when the panel opens
-    onActivePanelChanged: {
-        if (activePanel === "wallpaper") {
-            Qt.callLater(function() {
-                if (root._tab === "image")      _imageTab._reset()
-                else if (root._tab === "video") _videoTab._reset()
-            })
-        }
-    }
-
     // ── Layout ────────────────────────────────────────────────────────────────
     ColumnLayout {
         id: _col
-        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+        anchors { left: parent.left; right: parent.right; top: parent.top }
         spacing: 10
-
-        PanelNavBar { activePanel: root.activePanel; onNavigateRequested: (dir) => root.navigateRequested(dir) }
 
         PanelTabBar {
             labels:   ["Color", "Image", "Video"]

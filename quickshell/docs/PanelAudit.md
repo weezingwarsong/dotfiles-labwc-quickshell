@@ -17,8 +17,8 @@ Major architectural refactor. Work in this order — each step unblocks the next
 - [x] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
 - [x] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
 - [x] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
-- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel done; Wallpaper, Notification remain
-- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel done; Wallpaper, Notification remain
+- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel + WallpaperPanel done; Notification remains
+- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel + WallpaperPanel done; Notification remains
 
 ### Phase 2 — Reusable Elements Classification
 
@@ -363,23 +363,9 @@ Extracted to its own `PanelWindow` tier outside the panel slot system. Rewritten
 
 ---
 
-### WallpaperPanel.qml ⚠️ (minor)
+### WallpaperPanel.qml ✅
 
-```qml
-ColumnLayout {
-    Grid {
-        columns: 6; spacing: root._spacing
-        Layout.fillWidth: true    // ← Grid ignores this
-        Repeater { ... }
-    }
-}
-```
-
-`Grid` is a positioner inside a `ColumnLayout`. `Layout.fillWidth: true` on a Grid has no effect — Grid sizes itself from its children. The swatch widths are manually computed from `root.width` (the panel width), so the layout works correctly, but `Layout.fillWidth` is misleading.
-
-The image/video carousels use explicit item positioning for animation — intentional, no fix needed.
-
-**Fix for the Grid:** Remove `Layout.fillWidth: true` (it does nothing). The Grid is already manually sized via `_swatchW` calculation. Alternatively, compute swatch widths from the ColumnLayout's width using a binding once the Layout is standardized.
+NavBar stripped (phase 1d), background Rectangle stripped (phase 1e). `implicitHeight: _col.implicitHeight`. ColumnLayout anchors have no margins (PanelSurface handles outer padding). `_swatchW` formula updated to remove the old 24px margin compensation. Image/video carousels use explicit item positioning for animation — intentional, no fix needed.
 
 ---
 
