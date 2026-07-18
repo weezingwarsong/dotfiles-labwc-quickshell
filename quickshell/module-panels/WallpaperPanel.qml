@@ -29,6 +29,7 @@ Item {
     // ── Tabs ──────────────────────────────────────────────────────────────────
     property string _tab:            "color"
     property bool   _colorCollapsed: false
+    property bool   _imageCollapsed: false
 
     // ── Color swatches ────────────────────────────────────────────────────────
     readonly property var _swatches: [
@@ -171,146 +172,42 @@ Item {
         }
 
         // ── Image tab ─────────────────────────────────────────────────────────
-        Item {
-            id: _imageTab
+        PanelCard {
             visible: root._tab === "image"
             Layout.fillWidth: true
-            Layout.preferredHeight: _heroH + 4 + Style.fontSizeSubtle
 
-            property bool _ready:       false
-            property bool _animEnabled: false
-            property real _scrollPos:   0
-
-            // Ratios chosen so 2×sideW + heroW + 2×gap ≤ width (no container clip needed)
-            readonly property int _heroW: Math.round(width * 0.55)
-            readonly property int _sideW: Math.round(width * 0.18)
-            readonly property int _heroH: Math.round(_heroW * 0.65)
-            readonly property int _step:  Math.round(_heroW / 2 + _sideW / 2 + 6)
-
-            Behavior on _scrollPos {
-                enabled: _imageTab._animEnabled
-                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            SectionHeader {
+                Layout.fillWidth: true
+                text:      "Images"
+                collapsed: root._imageCollapsed
+                onToggled: root._imageCollapsed = !root._imageCollapsed
             }
 
-            // Reset scroll to current wallpaper index, no animation, then re-enable
-            function _reset() {
-                _animEnabled = false
-                _ready       = false
-                _scrollPos   = root._findImageIdx()
-                Qt.callLater(function() { _animEnabled = true; _ready = true })
-            }
-
-            onVisibleChanged: { if (visible) _reset() }
-
-            // ── Carousel area ─────────────────────────────────────────────────
             Item {
-                id: _imgArea
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                height: _imageTab._heroH
+                Layout.fillWidth: true
+                clip: true
+                Layout.preferredHeight: !root._imageCollapsed ? _carousel.implicitHeight + 8 : 0
+                Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                Text {
-                    visible: !root.wallpaperProcess || root.wallpaperProcess.imageFiles.length === 0
-                    anchors.centerIn: parent
-                    text:  root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
-                           ? "No images found" : "Scan a directory in Settings"
-                    color: Style.textMuted; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody
-                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
-                    width: parent.width
-                }
-
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: (event) => {
-                        event.accepted = true
-                        if (!_imageTab._ready) return
-                        var count = root.wallpaperProcess ? root.wallpaperProcess.imageFiles.length : 0
-                        if (count === 0) return
-                        var cur  = Math.round(_imageTab._scrollPos)
-                        var next = Math.max(0, Math.min(count - 1, cur + (event.angleDelta.y < 0 ? 1 : -1)))
-                        if (next === cur) return
-                        _imageTab._scrollPos = next
-                        root.wallpaperProcess.setImage(root.wallpaperProcess.imageFiles[next].path)
+                Carousel {
+                    id: _carousel
+                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                    model:     root.wallpaperProcess ? root.wallpaperProcess.imageFiles : []
+                    emptyText: root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
+                               ? "No images in dir" : "Dir not set, see Settings"
+                    onActivated: (index) => {
+                        if (root.wallpaperProcess)
+                            root.wallpaperProcess.setImage(root.wallpaperProcess.imageFiles[index].path)
                     }
-                }
-
-                Repeater {
-                    model: root.wallpaperProcess ? root.wallpaperProcess.imageFiles : []
-
-                    Item {
-                        required property var modelData
-                        required property int index
-
-                        // Continuous distance from center; drives width and x simultaneously
-                        readonly property real _dist: index - _imageTab._scrollPos
-                        readonly property real _absD: Math.min(1.0, Math.abs(_dist))
-                        readonly property real _w:    _imageTab._heroW + (_imageTab._sideW - _imageTab._heroW) * _absD
-
-                        readonly property bool _active:
-                            root.wallpaperProcess
-                            && root.wallpaperProcess.sourceType === "image"
-                            && root.wallpaperProcess.currentPath === modelData.path
-
-                        x:       _imgArea.width / 2 + _dist * _imageTab._step - _w / 2
-                        y:       0
-                        width:   _w
-                        height:  _imageTab._heroH
-                        visible: Math.abs(index - Math.round(_imageTab._scrollPos)) <= 1
-                        opacity: Math.max(0.0, _absD <= 1.0 ? 1.0 - _absD * 0.3 : (1.5 - _absD) * 1.4)
-
-                        // Source + mask are hidden; MultiEffect composites them
-                        Image {
-                            id: _imgSrc
-                            anchors.fill: parent
-                            visible:      false; layer.enabled: true
-                            source:       "file://" + modelData.path
-                            fillMode:     Image.PreserveAspectCrop
-                            asynchronous: true; smooth: true
-                        }
-                        Rectangle {
-                            id: _imgMask
-                            anchors.fill: parent
-                            radius: Style.pillRadius; color: "white"
-                            visible: false; layer.enabled: true
-                        }
-                        MultiEffect {
-                            anchors.fill:     parent
-                            source:           _imgSrc
-                            maskEnabled:      true
-                            maskSource:       _imgMask
-                            maskThresholdMin: 0.5
-                            maskSpreadAtMin:  1.0
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Style.pillRadius; color: "transparent"
-                            border.width: _active ? 2 : 0
-                            border.color: Style.accentColor
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape:  Qt.PointingHandCursor
-                            onClicked: {
-                                _imageTab._scrollPos = index
-                                if (root.wallpaperProcess)
-                                    root.wallpaperProcess.setImage(modelData.path)
-                            }
-                        }
-                    }
+                    onVisibleChanged: if (visible) currentIndex = root._findImageIdx()
                 }
             }
+        }
 
-            // Filename of centered item
-            Text {
-                anchors { left: parent.left; right: parent.right; top: _imgArea.bottom; topMargin: 4 }
-                property int _idx: Math.round(_imageTab._scrollPos)
-                text: (root.wallpaperProcess && _idx >= 0 && _idx < root.wallpaperProcess.imageFiles.length)
-                      ? root.wallpaperProcess.imageFiles[_idx].name : ""
-                color:               Style.textMuted
-                font.family:         Style.fontMono
-                font.pixelSize:      Style.fontSizeSubtle
-                horizontalAlignment: Text.AlignHCenter
-                elide:               Text.ElideRight
+        Connections {
+            target: root.wallpaperProcess
+            function onImageFilesChanged() {
+                if (root._tab === "image") _carousel.currentIndex = root._findImageIdx()
             }
         }
 

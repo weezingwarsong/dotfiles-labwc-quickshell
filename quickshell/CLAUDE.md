@@ -13,9 +13,9 @@ Pillbox is a Quickshell/QML desktop shell for **labwc** (Wayland). Two visual pr
 | `docs/style-system.md` | Token system, Prefs.qml, Style.qml, palette, v2 roadmap |
 | `docs/components.md` | Reusable visual elements in `module-reusable-elements/` |
 | `docs/completed.md` | Reverse-chronological log of completed work and key decisions |
-| `docs/CarouselDiscussion.md` | Full design + implementation spec for `Carousel.qml` (new reusable element) — viewport model, 3 size tiers, window rule, Phase 2 layout stack, Phase 3 steps |
-| `docs/WallpaperPanelImageDiscussion.md` | Spec for replacing WallpaperPanel's image tab with PanelCard + SectionHeader + Carousel |
-| `docs/screenshot_2026-07-18_20-43-18.png` | Reference sketch — hand-drawn viewport model for Carousel (container clipping, image spanning full row width, CON2→HERO transition) |
+| `docs/archive/CarouselDiscussion.md` | Design + implementation record for `Carousel.qml` — viewport model, 3 size tiers, window rule, layout stack (archived, work complete) |
+| `docs/archive/WallpaperPanelImageDiscussion.md` | Design record for WallpaperPanel image tab rewrite — PanelCard + SectionHeader + Carousel wiring (archived, work complete) |
+| `docs/archive/screenshot_2026-07-18_20-43-18.png` | Reference sketch for Carousel viewport model (archived with discussion) |
 
 ---
 

@@ -49,6 +49,8 @@ Individual panel content rewrites. Order TBD based on priority.
 
 - [ ] **4a. ControlPanel** — screenrec section rewrite (was step 7 in screenrecDiscussion.md)
 - [ ] **4b. MediaPlayerPanel** — progress bar, track time, layout polish
+- [x] **4c. WallpaperPanel image tab** — replaced old absolute-positioned carousel with `PanelCard` + `SectionHeader` + new `Carousel` reusable element; `Carousel.qml` added to `module-reusable-elements/`
+- [ ] **4d. WallpaperPanel video tab** — same Carousel treatment as image tab (deferred)
 - [ ] Other panels as needed
 
 ---
