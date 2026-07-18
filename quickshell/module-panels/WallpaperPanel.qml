@@ -17,6 +17,19 @@ Item {
         case Qt.Key_Tab:
             root._tab = root._tab === "color" ? "image" : root._tab === "image" ? "video" : "color"
             event.accepted = true; break
+        case Qt.Key_N:
+        case Qt.Key_B:
+            if (root._tab === "image" && root.wallpaperProcess) {
+                const count = root.wallpaperProcess.imageFiles.length
+                if (count === 0) { event.accepted = false; break }
+                const dir  = event.key === Qt.Key_N ? 1 : -1
+                const next = Math.max(0, Math.min(count - 1, _carousel.currentIndex + dir))
+                if (next === _carousel.currentIndex) { event.accepted = false; break }
+                _carousel._direction   = dir
+                _carousel.currentIndex = next
+                root.wallpaperProcess.setImage(root.wallpaperProcess.imageFiles[next].path)
+            }
+            event.accepted = true; break
         default:
             event.accepted = false
         }
@@ -192,9 +205,11 @@ Item {
                 Carousel {
                     id: _carousel
                     anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
-                    model:     root.wallpaperProcess ? root.wallpaperProcess.imageFiles : []
-                    emptyText: root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
-                               ? "No images in dir" : "Dir not set, see Settings"
+                    model:       root.wallpaperProcess ? root.wallpaperProcess.imageFiles : []
+                    emptyText:   root.wallpaperProcess && root.wallpaperProcess.wallpaperDir !== ""
+                                 ? "No images in dir" : "Dir not set, see Settings"
+                    thumbsReady: root.wallpaperProcess ? root.wallpaperProcess.thumbsReady : null
+                    thumbPath:   root.wallpaperProcess ? root.wallpaperProcess.thumbPath : null
                     onActivated: (index) => {
                         if (root.wallpaperProcess)
                             root.wallpaperProcess.setImage(root.wallpaperProcess.imageFiles[index].path)

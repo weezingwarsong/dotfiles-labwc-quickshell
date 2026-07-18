@@ -7,6 +7,8 @@ RowLayout {
     property var    model:        []
     property int    currentIndex: 0
     property string emptyText:    ""
+    property var    thumbsReady:  null   // path → true map; when set, carousel uses thumbnails
+    property var    thumbPath:    null   // function(path) → thumbPath string
 
     signal activated(int index)
 
@@ -16,10 +18,10 @@ RowLayout {
     property int _direction: 1
 
     // ── Sizing ────────────────────────────────────────────────────────────────
-    readonly property real _nearW: width * 0.20
+    readonly property real _nearH:  width * 9.0 / 16.0
+    readonly property real _nearW:  _nearH * 9.0 / 16.0
     readonly property real _smallW: _nearW / 2
-    readonly property real _nearH: _nearW * 16.0 / 9.0
-    readonly property real _heroH: _nearH * 1.02
+    readonly property real _heroH:  _nearH
 
     // ── Visible window ────────────────────────────────────────────────────────
     // Returns {hero, near, smalls[]} — which indices are visible and their roles.
@@ -97,14 +99,26 @@ RowLayout {
             // Image spans the full row width; each slot clips its positional strip.
             // x = -slot.x offsets left edge to row origin; y centers vertically.
             Image {
-                source:       "file://" + slot.modelData.path
+                source: {
+                    var p = slot.modelData.path
+                    if (root.thumbPath && root.thumbsReady && root.thumbsReady[p])
+                        return "file://" + root.thumbPath(p)
+                    return "file://" + p
+                }
                 width:        root.width
                 height:       implicitWidth > 0 ? width * (implicitHeight / implicitWidth) : root._heroH
                 x:            -slot.x
                 y:            -(height - slot.height) / 2
-                fillMode:     Image.Pad
                 asynchronous: true
                 smooth:       true
+            }
+
+            // Dim overlay on inactive slots
+            Rectangle {
+                anchors.fill: parent
+                color:        "#60000000"
+                opacity:      slot._isHero ? 0 : 1
+                Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
             }
 
             // Active border on HERO

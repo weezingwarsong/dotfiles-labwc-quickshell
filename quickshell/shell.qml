@@ -92,6 +92,7 @@ ShellRoot {
         anchors.top:    true
         anchors.bottom: true
         color: "transparent"
+        mask: Region {}
 
         // Freeze the current wallpaper into _transOverlay, then let new content
         // load underneath. Ready signals (Image.Ready / PlayingState / immediate

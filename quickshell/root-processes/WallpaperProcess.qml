@@ -1,5 +1,6 @@
 import QtQuick
 import QtCore
+import Quickshell
 import Quickshell.Io
 
 Item {
@@ -23,19 +24,26 @@ Item {
 
     // ── Thumbnail cache ───────────────────────────────────────────────────────
     property string _cacheDir:            ""
-    property var    thumbsReady:          ({})  // videoPath → true; reassigned each update
+    property var    thumbsReady:          ({})  // path → true; reassigned each update
     property var    _thumbQueue:          []
     property int    _thumbQueueIdx:       0
     property string _thumbActivePath:     ""
     property string _pendingVideoExtract: ""    // path to extract colors from once thumb ready
 
-    function thumbPath(videoPath) {
-        return root._cacheDir + "/" + videoPath.split("/").pop() + ".jpg"
+    // Thumbnail width derived from panel width setting so thumbs fit the carousel row.
+    readonly property int _thumbW: {
+        var screens = Quickshell.screens
+        var sw = screens.length > 0 ? screens[0].width : 1920
+        return Math.round(sw * Prefs.panelWidth / 100)
     }
 
-    function _startThumbQueue(videoFiles) {
-        root._thumbQueue    = videoFiles.map(function(v) { return v.path })
-        root._thumbQueueIdx = 0
+    function thumbPath(path) {
+        return root._cacheDir + "/" + path.split("/").pop() + ".jpg"
+    }
+
+    function _appendThumbQueue(files) {
+        var paths = files.map(function(f) { return f.path })
+        root._thumbQueue = root._thumbQueue.concat(paths)
         _startNextThumb()
     }
 
@@ -123,6 +131,8 @@ Item {
             root.imageFiles = []
             root.videoFiles = []
         }
+        root._thumbQueue    = []
+        root._thumbQueueIdx = 0
         Prefs.setWallpaperDir(dir)
         root.wallpaperDir    = dir
         _scanImgProc.running = true
@@ -162,6 +172,7 @@ Item {
                 })
                 imgs.sort(function(a, b) { return a.name.localeCompare(b.name) })
                 root.imageFiles = imgs
+                _appendThumbQueue(imgs)
                 console.log("[WallpaperProcess] images:", imgs.length, "in", root.wallpaperDir)
             }
         }
@@ -192,8 +203,8 @@ Item {
                 })
                 vids.sort(function(a, b) { return a.name.localeCompare(b.name) })
                 root.videoFiles = vids
+                _appendThumbQueue(vids)
                 console.log("[WallpaperProcess] videos:", vids.length, "in", root.wallpaperDir)
-                _startThumbQueue(vids)
             }
         }
         onExited: function(code, signal) {
@@ -213,10 +224,21 @@ Item {
 
     Process {
         id: _thumbProc
-        command: ["ffmpeg", "-y", "-loglevel", "quiet",
-                  "-ss", "00:00:01", "-i", root._thumbActivePath,
-                  "-frames:v", "1", "-q:v", "3",
-                  root.thumbPath(root._thumbActivePath)]
+        command: {
+            var p = root._thumbActivePath
+            var isVideo = [".mp4", ".webm", ".mkv", ".mov"].some(
+                function(e) { return p.toLowerCase().endsWith(e) })
+            if (isVideo)
+                return ["ffmpeg", "-y", "-loglevel", "quiet",
+                        "-ss", "00:00:01", "-i", p,
+                        "-frames:v", "1", "-q:v", "3",
+                        root.thumbPath(p)]
+            return ["ffmpeg", "-y", "-loglevel", "quiet",
+                    "-i", p,
+                    "-vf", "scale=" + root._thumbW + ":-1",
+                    "-frames:v", "1", "-q:v", "3",
+                    root.thumbPath(p)]
+        }
         onExited: function(code, signal) {
             if (code === 0 && root._thumbActivePath !== "") {
                 var updated = Object.assign({}, root.thumbsReady)
