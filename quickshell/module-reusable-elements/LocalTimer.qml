@@ -18,6 +18,18 @@ Item {
             root.localTimerProcess.kill(root.timerId)
     }
 
+    // Freezes the timer. Visual bar holds its current position.
+    function pause() {
+        if (root.localTimerProcess && root.timerId !== "")
+            root.localTimerProcess.pause(root.timerId)
+    }
+
+    // Resumes a paused timer from where it left off.
+    function resume() {
+        if (root.localTimerProcess && root.timerId !== "")
+            root.localTimerProcess.resume(root.timerId)
+    }
+
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
     Component.onCompleted: {
@@ -30,27 +42,39 @@ Item {
             return
         }
         root.localTimerProcess.register(root.timerId, root.duration)
+        _ticking = root.variant >= 2
     }
 
     Connections {
         target: root.localTimerProcess
         function onTimerCompleted(id) {
             if (id !== root.timerId) return
+            _ticking = false
             console.log("[LocalTimer] completed:", root.timerId)
             root.completed()
+        }
+        function onTimerPaused(id) {
+            if (id !== root.timerId) return
+            _ticking = false
+        }
+        function onTimerResumed(id) {
+            if (id !== root.timerId) return
+            _ticking = root.variant >= 2
         }
     }
 
     // ── Fill ratio ───────────────────────────────────────────────────────────
 
-    // Recomputed every 50ms when a bar variant is active.
-    property real _fillRatio: 0.0
+    // Controlled explicitly via signals rather than a status() binding,
+    // since JS object mutations on property var are not reactive in QML.
+    property bool _ticking:    false
+    property real _fillRatio:  0.0
 
     Timer {
         id: displayTick
         interval: 50
         repeat:   true
-        running:  root.variant >= 2 && root.localTimerProcess !== null && root.localTimerProcess.status(root.timerId) === "started"
+        running:  root._ticking
         onTriggered: {
             var rem = root.localTimerProcess.remaining(root.timerId)
             var el  = root.localTimerProcess.elapsed(root.timerId)

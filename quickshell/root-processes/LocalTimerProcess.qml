@@ -4,11 +4,14 @@ Item {
     id: root
 
     signal timerCompleted(string id)
+    signal timerPaused(string id)
+    signal timerResumed(string id)
 
-    // { id: { durationMs: int, startedAt: real } }
+    // { id: { durationMs: int, startedAt: real, pausedRemaining?: real } }
+    // pausedRemaining defined → timer is paused; absent → timer is running.
     property var _timers: ({})
 
-    // Register or restart a timer. Duplicate id resets startedAt and durationMs.
+    // Register or restart a timer. Duplicate id resets startedAt and durationMs, clears any paused state.
     function register(id, durationMs) {
         var restarted = _timers.hasOwnProperty(id)
         _timers[id] = { durationMs: durationMs, startedAt: Date.now() }
@@ -17,6 +20,34 @@ Item {
             console.log("[LocalTimerProcess] restarted:", id, durationMs + "ms")
         else
             console.log("[LocalTimerProcess] registered:", id, durationMs + "ms")
+    }
+
+    // Freeze a running timer. remaining() returns the frozen value while paused.
+    function pause(id) {
+        if (!_timers.hasOwnProperty(id)) {
+            console.warn("[LocalTimerProcess] pause: unknown id '" + id + "'")
+            return
+        }
+        var t = _timers[id]
+        if (t.pausedRemaining !== undefined) return
+        var rem = Math.max(0, t.durationMs - (Date.now() - t.startedAt))
+        _timers[id] = { durationMs: t.durationMs, startedAt: t.startedAt, pausedRemaining: rem }
+        console.log("[LocalTimerProcess] paused:", id, "remaining:", rem + "ms")
+        root.timerPaused(id)
+    }
+
+    // Resume a paused timer from where it left off.
+    function resume(id) {
+        if (!_timers.hasOwnProperty(id)) {
+            console.warn("[LocalTimerProcess] resume: unknown id '" + id + "'")
+            return
+        }
+        var t = _timers[id]
+        if (t.pausedRemaining === undefined) return
+        var newStartedAt = Date.now() - (t.durationMs - t.pausedRemaining)
+        _timers[id] = { durationMs: t.durationMs, startedAt: newStartedAt }
+        console.log("[LocalTimerProcess] resumed:", id, "remaining:", t.pausedRemaining + "ms")
+        root.timerResumed(id)
     }
 
     // Remove a timer immediately. No timerCompleted signal is emitted.
@@ -33,21 +64,26 @@ Item {
         }
     }
 
-    // Returns "started" if the timer is active, null if not found (completed or never registered).
+    // Returns "started" | "paused" | null (null = not found or completed).
     function status(id) {
-        return _timers.hasOwnProperty(id) ? "started" : null
+        if (!_timers.hasOwnProperty(id)) return null
+        return _timers[id].pausedRemaining !== undefined ? "paused" : "started"
     }
 
-    // Milliseconds elapsed since registration. Returns 0 if not found.
+    // Milliseconds elapsed. For paused timers: durationMs - pausedRemaining. Returns 0 if not found.
     function elapsed(id) {
         if (!_timers.hasOwnProperty(id)) return 0
-        return Date.now() - _timers[id].startedAt
+        var t = _timers[id]
+        if (t.pausedRemaining !== undefined) return t.durationMs - t.pausedRemaining
+        return Date.now() - t.startedAt
     }
 
-    // Milliseconds remaining, clamped to 0. Returns 0 if not found.
+    // Milliseconds remaining, clamped to 0. For paused timers: returns frozen pausedRemaining.
     function remaining(id) {
         if (!_timers.hasOwnProperty(id)) return 0
-        return Math.max(0, _timers[id].durationMs - (Date.now() - _timers[id].startedAt))
+        var t = _timers[id]
+        if (t.pausedRemaining !== undefined) return t.pausedRemaining
+        return Math.max(0, t.durationMs - (Date.now() - t.startedAt))
     }
 
     Timer {
@@ -57,9 +93,11 @@ Item {
         onTriggered: {
             var now = Date.now()
             // Collect expired ids first to avoid mutating _timers during iteration.
+            // Skip paused entries — they do not count down.
             var expired = []
             for (var id in root._timers) {
                 var t = root._timers[id]
+                if (t.pausedRemaining !== undefined) continue
                 if (now - t.startedAt >= t.durationMs)
                     expired.push(id)
             }
