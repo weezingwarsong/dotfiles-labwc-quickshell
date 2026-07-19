@@ -243,3 +243,61 @@ Carousel {
     onVisibleChanged: if (visible) currentIndex = root._findImageIdx()
 }
 ```
+
+---
+
+## LocalTimer
+
+Drop-in ephemeral timer backed by `LocalTimerProcess`. Registers itself on creation; fires `completed()` when done. Does **not** auto-kill on element destruction — call `kill()` explicitly if you need early termination.
+
+**Props:**
+
+| Prop | Type | Notes |
+|---|---|---|
+| `timerId` | `string` | Unique key. Required — empty string skips registration and logs an error. |
+| `duration` | `int` | Duration in **milliseconds**. |
+| `variant` | `int` | 1–5 (see below). Default 1. |
+| `color` | `color` | Bar fill color. Default `Style.accentColor`. Two intended values: `Style.accentColor` / `Style.criticalColor`. |
+| `localTimerProcess` | `var` | Injected reference to `LocalTimerProcess`. Required. |
+
+**Signal:** `completed()` — fires once at expiry. Not fired when `kill()` is called.
+
+**Function:** `kill()` — delegates to `localTimerProcess.kill(timerId)`.
+
+**Variants:**
+
+| Variant | Visual | Fill |
+|---|---|---|
+| 1 | None (zero implicit size) | — |
+| 2 | `RowLayout`, 2px height, `fillWidth` | Grows right as time elapses |
+| 3 | `ColumnLayout`, 2px width, `fillHeight` | Grows up from bottom as time elapses |
+| 4 | `RowLayout`, 2px height, `fillWidth` | Shrinks from right as time remaining drops |
+| 5 | `ColumnLayout`, 2px width, `fillHeight` | Shrinks from top as time remaining drops |
+
+All bars animate with `SmoothedAnimation` — no raw 50ms jumps.
+
+```qml
+// Variant 1 — signal only
+LocalTimer {
+    timerId:            "my-effect"
+    duration:           3000
+    variant:            1
+    localTimerProcess:  root.localTimerProcess
+    onCompleted:        doSomething()
+}
+
+// Variant 4 — horizontal remaining bar, accent color
+LocalTimer {
+    timerId:            "toast-bar"
+    duration:           5000
+    variant:            4
+    color:              Style.accentColor
+    localTimerProcess:  root.localTimerProcess
+    Layout.fillWidth:   true
+}
+```
+
+**Design notes:**
+- `timerId` must be unique across all active timers. Duplicate registration restarts the timer with the new `duration`.
+- Duration is in milliseconds throughout — callers working in seconds multiply by 1000 at the callsite.
+- The process tick runs only while timers are active (auto-stops when the map is empty).

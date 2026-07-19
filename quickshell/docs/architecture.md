@@ -72,7 +72,7 @@ labwc keybind
                 → panelController.toggle("calendar") etc.
 
 root-processes/ (instantiated in shell.qml)
-    → ClockProcess, CalendarProcess, TasksProcess, TimerProcess,
+    → ClockProcess, CalendarProcess, TasksProcess, TimerProcess, LocalTimerProcess,
       WeatherProcess, WorkspaceProcess, ToplevelProcess, MprisProcess,
       WallpaperProcess, SettingsProcess, NotificationServer,
       AudioProcess, NetworkProcess, ScreenshotProcess, ScreenrecProcess, CavaProcess
@@ -157,6 +157,7 @@ echo toggleVisualizer > ~/.local/share/pillbox/pillbox.fifo
 | `CalendarProcess.qml` | gcal-fetch subprocess | `events`, `nextEvent`, `todayEvents`, `weekEvents`, `eventsByDate`, `lastUpdated`, `lastError` |
 | `TasksProcess.qml` | gtask-fetch subprocess | `tasks`, `todayTasks`, `weekTasks`, `overdueTasks`, `tasksByDate`, `lastUpdated`, `lastError` |
 | `TimerProcess.qml` | Pure QML timer | `mode`, `active`, `duration`, `remaining`, `elapsed`, `displayText`, `displayCenti` |
+| `LocalTimerProcess.qml` | Multi-instance ephemeral timer | `register(id, durationMs)`, `kill(id)`, `status(id)`, `elapsed(id)`, `remaining(id)`; signal `timerCompleted(string id)`; tick auto-starts/stops with active timer count |
 | `WeatherProcess.qml` | weather-fetch subprocess | `current` `{icon,temp,condition,high,low}`, `forecast` (7-day array) |
 | `WorkspaceProcess.qml` | WindowManager binding | `current`, `list`, `currentIndex`, signal `workspaceChanged` |
 | `ToplevelProcess.qml` | ToplevelManager binding | `windows` (ObjectModel), `focused` (activeToplevel) |
@@ -206,6 +207,7 @@ echo toggleVisualizer > ~/.local/share/pillbox/pillbox.fifo
 | `ToastWindow.qml` | `PanelWindow` that hosts `ScreenrecToast` and `ScreenshotPreview`. Positioned top-right. `dismiss(id)` dismisses a specific toast. |
 | `ToastController.qml` | Logic layer for queuing and expiring toasts. |
 | `ToastTimer.qml` | Auto-dismissing countdown used internally by ToastController. |
+| `LocalTimer.qml` | Drop-in timer element backed by `LocalTimerProcess`. 5 variants: (1) process-only / no visual; (2) horizontal elapsed bar; (3) vertical elapsed bar; (4) horizontal remaining bar; (5) vertical remaining bar. Bars are 2px wide/tall, no borders or radius, smooth animation. `kill()` stops and removes the timer without emitting `completed()`. |
 
 ### Pills (`module-pills/`)
 
@@ -321,6 +323,7 @@ dotfiles-labwc-quickshell/          ← repo root
 │   │   ├── WindowSwitcherView.qml  ✓
 │   │   └── qmldir
 │   ├── root-processes/             ✓ all built
+│   │   ├── LocalTimerProcess.qml   ✓ (multi-instance ephemeral timers)
 │   │   └── qmldir
 │   └── qmldir
 │

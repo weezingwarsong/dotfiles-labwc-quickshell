@@ -63,6 +63,7 @@ ShellRoot {
     CalendarProcess   { id: calendar; settingsProcess: settings }
     TasksProcess      { id: tasks;    settingsProcess: settings }
     TimerProcess      { id: timer }
+    LocalTimerProcess { id: localTimer }
     WeatherProcess    { id: weather;  settingsProcess: settings }
     WorkspaceProcess  { id: workspace }
     ToplevelProcess   { id: toplevels }
