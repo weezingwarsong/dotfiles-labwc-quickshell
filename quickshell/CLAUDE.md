@@ -14,6 +14,7 @@ Pillbox is a Quickshell/QML desktop shell for **labwc** (Wayland). Two visual pr
 | `docs/components.md` | Reusable visual elements in `module-reusable-elements/` |
 | `docs/completed.md` | Reverse-chronological log of completed work and key decisions |
 | `docs/LocalTimerDiscussion.md` | Design record for `LocalTimerProcess` + `LocalTimer` — multi-instance ephemeral timers, 5 variants, resolved decisions (active, not archived) |
+| `docs/ToastWindowAudit.md` | Pre-build audit of ToastWindow stack for NotificationToast integration — current state, gaps, file-by-file change list |
 | `docs/archive/CarouselDiscussion.md` | Design + implementation record for `Carousel.qml` — viewport model, 3 size tiers, window rule, layout stack (archived, work complete) |
 | `docs/archive/WallpaperPanelImageDiscussion.md` | Design record for WallpaperPanel image tab rewrite — PanelCard + SectionHeader + Carousel wiring (archived, work complete) |
 | `docs/archive/screenshot_2026-07-18_20-43-18.png` | Reference sketch for Carousel viewport model (archived with discussion) |
