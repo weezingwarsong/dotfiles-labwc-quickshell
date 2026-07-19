@@ -17,6 +17,7 @@ Item {
 
     // ── View state ────────────────────────────────────────────────────────────
     property string _view: "glance"  // "glance" | "expanded" | "timer"
+    property bool _weatherCollapsed: false
     property bool _eventsCollapsed: false
     property bool _tasksCollapsed:  false
     property bool _timerCollapsed:  false
@@ -207,35 +208,52 @@ Item {
             PanelCard {
                 Layout.fillWidth: true
 
-                // Row 1: Date + weather
-                RowLayout {
+                SectionHeader {
                     Layout.fillWidth: true
-                    Text {
-                        text: clockProcess ? Qt.formatDate(clockProcess.now, "ddd, d MMM yyyy") : "--"
-                        color: Style.textPrimary; font.pixelSize: Style.fontSizeHeading; font.weight: Font.Medium
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-                    Item { Layout.fillWidth: true }
-                    RowLayout {
-                        spacing: 4
-                        Layout.alignment: Qt.AlignVCenter
-                        Text {
-                            text: weatherProcess && weatherProcess.current ? String.fromCharCode(parseInt(weatherProcess.current.icon, 16)) : ""
-                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
-                        }
-                        Text {
-                            text: weatherProcess && weatherProcess.current ? weatherProcess.current.temp + "°" : "--°"
-                            color: Style.textNormal; font.pixelSize: Style.fontSizeHeading
-                        }
-                    }
+                    text: clockProcess ? Qt.formatDateTime(clockProcess.now, "HH:mm, ddd, d MMM yyyy") : "--:--"
+                    collapsed: root._weatherCollapsed
+                    onToggled: root._weatherCollapsed = !root._weatherCollapsed
                 }
 
-                // Condition + high/low
-                Text {
+                Item {
                     Layout.fillWidth: true
-                    text: weatherProcess && weatherProcess.current ? weatherProcess.current.condition + "  " + weatherProcess.current.high + "° / " + weatherProcess.current.low + "°" : ""
-                    color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle
-                }
+                    clip: true
+                    Layout.preferredHeight: !root._weatherCollapsed ? _weatherContent.implicitHeight + 8 : 0
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                    ColumnLayout {
+                        id: _weatherContent
+                        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                        spacing: 8
+
+                        // Condition + glyph + temp
+                        RowLayout {
+                            id: _condRow
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: weatherProcess && weatherProcess.current
+                                      ? weatherProcess.current.condition + "  " + weatherProcess.current.high + "° / " + weatherProcess.current.low + "°"
+                                      : ""
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            Text {
+                                text: weatherProcess && weatherProcess.current
+                                      ? String.fromCharCode(parseInt(weatherProcess.current.icon, 16)) : ""
+                                color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
+                                Layout.preferredWidth: _condRow.width * 0.10
+                                horizontalAlignment: Text.AlignRight
+                            }
+                            Text {
+                                text: weatherProcess && weatherProcess.current ? weatherProcess.current.temp + "°" : "--°"
+                                color: Style.textNormal; font.pixelSize: Style.fontSizeHeading
+                                Layout.preferredWidth: _condRow.width * 0.10
+                                horizontalAlignment: Text.AlignLeft
+                            }
+                        }
 
                 // Row 2: Month section (left) | Action buttons (right)
                 RowLayout {
@@ -380,6 +398,8 @@ Item {
                             tooltip: "Open Google Calendar"
                             onClicked: Qt.openUrlExternally("https://calendar.google.com")
                         }
+                    }
+                }
                     }
                 }
             }
@@ -550,128 +570,131 @@ Item {
             spacing: 8
 
             // This week — events
-            SectionLabel {
-                text: "This Week"
-                Layout.fillWidth: true; Layout.topMargin: 4
-            }
-            ColumnLayout {
+            PanelCard {
                 Layout.fillWidth: true
-                spacing: 4
-                Repeater {
-                    model: root._weekItems
-                    Item {
-                        Layout.fillWidth: true
-                        implicitHeight: modelData.type === "header" ? 18 : 16
-                        property bool isHeader: modelData.type === "header"
+                SectionLabel { text: "This Week"; Layout.fillWidth: true }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 4
+                    Repeater {
+                        model: root._weekItems
+                        Item {
+                            Layout.fillWidth: true
+                            implicitHeight: modelData.type === "header" ? 18 : 16
+                            property bool isHeader: modelData.type === "header"
 
-                        Text {
-                            visible: parent.isHeader
-                            anchors.bottom: parent.bottom
-                            text: modelData.label || ""
-                            color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
-                        }
-                        RowLayout {
-                            visible: !parent.isHeader
-                            anchors.fill: parent; spacing: 6
                             Text {
-                                text: root._eventTime(modelData.start, modelData.allDay)
-                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                                horizontalAlignment: Text.AlignLeft
-                                Layout.preferredWidth: 90
+                                visible: parent.isHeader
+                                anchors.bottom: parent.bottom
+                                text: modelData.label || ""
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
                             }
-                            ScrollingText {
-                                Layout.fillWidth: true
-                                height: parent.height
-                                text: modelData.summary || ""
-                                color: Style.textNormal
-                                font.pixelSize: Style.fontSizeBody
+                            RowLayout {
+                                visible: !parent.isHeader
+                                anchors.fill: parent; spacing: 6
+                                Text {
+                                    text: root._eventTime(modelData.start, modelData.allDay)
+                                    color: Style.textMuted; font.pixelSize: Style.fontSizeBody
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.preferredWidth: 90
+                                }
+                                ScrollingText {
+                                    Layout.fillWidth: true
+                                    height: parent.height
+                                    text: modelData.summary || ""
+                                    color: Style.textNormal
+                                    font.pixelSize: Style.fontSizeBody
+                                }
                             }
                         }
                     }
+                    Text {
+                        visible: !calendarProcess || calendarProcess.weekEvents.length === 0
+                        text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
+                        Layout.fillWidth: true
+                    }
                 }
-            }
-            Text {
-                visible: !calendarProcess || calendarProcess.weekEvents.length === 0
-                text: "No events this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
-                Layout.fillWidth: true
             }
 
             // This week — tasks
-            SectionLabel {
-                text: "Tasks This Week"
-                Layout.fillWidth: true; Layout.topMargin: 4
-            }
-            ColumnLayout {
+            PanelCard {
                 Layout.fillWidth: true
-                spacing: 4
-                Repeater {
-                    model: root._weekTaskItems
-                    Item {
-                        Layout.fillWidth: true
-                        implicitHeight: modelData.type === "header" ? 18 : 16
-                        property bool isHeader: modelData.type === "header"
+                SectionLabel { text: "Tasks This Week"; Layout.fillWidth: true }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 4
+                    Repeater {
+                        model: root._weekTaskItems
+                        Item {
+                            Layout.fillWidth: true
+                            implicitHeight: modelData.type === "header" ? 18 : 16
+                            property bool isHeader: modelData.type === "header"
 
-                        Text {
-                            visible: parent.isHeader
-                            anchors.bottom: parent.bottom
-                            text: modelData.label || ""
-                            color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
-                        }
-                        RowLayout {
-                            visible: !parent.isHeader
-                            anchors.fill: parent; spacing: 6
-                            Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
-                            ScrollingText {
-                                Layout.fillWidth: true
-                                height: parent.height
-                                text: modelData.title || ""
-                                color: Style.textNormal
-                                font.pixelSize: Style.fontSizeBody
+                            Text {
+                                visible: parent.isHeader
+                                anchors.bottom: parent.bottom
+                                text: modelData.label || ""
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeSubtle; font.weight: Font.Medium
+                            }
+                            RowLayout {
+                                visible: !parent.isHeader
+                                anchors.fill: parent; spacing: 6
+                                Text { text: "○"; color: Style.textMuted; font.pixelSize: root._navSize }
+                                ScrollingText {
+                                    Layout.fillWidth: true
+                                    height: parent.height
+                                    text: modelData.title || ""
+                                    color: Style.textNormal
+                                    font.pixelSize: Style.fontSizeBody
+                                }
                             }
                         }
                     }
+                    Text {
+                        visible: !tasksProcess || tasksProcess.weekTasks.length === 0
+                        text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
+                        Layout.fillWidth: true
+                    }
                 }
-            }
-            Text {
-                visible: !tasksProcess || tasksProcess.weekTasks.length === 0
-                text: "No tasks this week"; color: Style.textFaint; font.pixelSize: Style.fontSizeBody
-                Layout.fillWidth: true
             }
 
             // 7-day forecast
-            SectionLabel {
-                text: "7-Day Forecast"
-                Layout.fillWidth: true; Layout.topMargin: 4
-            }
-            ColumnLayout {
+            PanelCard {
                 Layout.fillWidth: true
-                spacing: 4
-                Repeater {
-                    model: weatherProcess ? weatherProcess.forecast : []
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        Text {
-                            text: root._dayLabel(modelData.date)
-                            color: Style.textMuted; font.pixelSize: Style.fontSizeBody
-                            Layout.preferredWidth: 70
-                        }
-                        Text {
-                            text: String.fromCharCode(parseInt(modelData.icon, 16))
-                            color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
-                            Layout.preferredWidth: 20; horizontalAlignment: Text.AlignHCenter
-                        }
-                        ScrollingText {
+                SectionLabel { text: "7-Day Forecast"; Layout.fillWidth: true }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 4
+                    Repeater {
+                        model: weatherProcess ? weatherProcess.forecast : []
+                        RowLayout {
                             Layout.fillWidth: true
-                            Layout.preferredWidth: 0
-                            text: modelData.condition
-                            color: Style.textMuted
-                            font.pixelSize: Style.fontSizeBody
-                        }
-                        Text {
-                            text: modelData.high + "° / " + modelData.low + "°"
-                            color: Style.textNormal; font.pixelSize: Style.fontSizeBody
-                            Layout.alignment: Qt.AlignRight
+                            spacing: 8
+                            Text {
+                                text: root._dayLabel(modelData.date)
+                                color: Style.textMuted; font.pixelSize: Style.fontSizeBody
+                                Layout.preferredWidth: 70
+                            }
+                            Text {
+                                text: String.fromCharCode(parseInt(modelData.icon, 16))
+                                color: Style.textMuted; font.family: Style.fontNerd; font.pixelSize: Style.fontSizeHeading
+                                Layout.preferredWidth: 20; horizontalAlignment: Text.AlignHCenter
+                            }
+                            ScrollingText {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                text: modelData.condition
+                                color: Style.textMuted
+                                font.pixelSize: Style.fontSizeBody
+                            }
+                            Text {
+                                text: modelData.high + "° / " + modelData.low + "°"
+                                color: Style.textNormal; font.pixelSize: Style.fontSizeBody
+                                Layout.alignment: Qt.AlignRight
+                            }
                         }
                     }
                 }

@@ -43,12 +43,18 @@ Item {
     property real          _savedVolume: 1.0
     readonly property bool _muted:       !!_player && _player.volume < 0.01
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: _card.implicitHeight
 
-    ColumnLayout {
-        id: _col
+    PanelCard {
+        id: _card
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        spacing: 8
+
+        ColumnLayout {
+            id: _col
+            Layout.fillWidth: true
+            spacing: 8
+
+        SectionLabel { text: "Media Player"; Layout.fillWidth: true }
 
         // ── No active player ──────────────────────────────────────────────────
         RowLayout {
@@ -222,6 +228,7 @@ Item {
                 }
             }
         }
+    }
     }
 
     Process {

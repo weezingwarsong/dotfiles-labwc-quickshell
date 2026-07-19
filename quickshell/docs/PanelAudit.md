@@ -48,7 +48,7 @@ Apply the audit findings from the priority table below, one component at a time.
 Individual panel content rewrites. Order TBD based on priority.
 
 - [ ] **4a. ControlPanel** — screenrec section rewrite (was step 7 in screenrecDiscussion.md)
-- [ ] **4b. MediaPlayerPanel** — progress bar, track time, layout polish
+- [x] **4b. MediaPlayerPanel** — wrapped in `PanelCard`; `SectionLabel "Media Player"` added; progress bar/track time deferred (polling required); layout complete
 - [x] **4c. WallpaperPanel image tab** — replaced old absolute-positioned carousel with `PanelCard` + `SectionHeader` + new `Carousel` reusable element; `Carousel.qml` added to `module-reusable-elements/`
 - [x] **4d. WallpaperPanel video tab** — same Carousel treatment as image tab; thumbnail wiring via `thumbsReady`/`thumbPath` identical to image tab
 - [ ] Other panels as needed

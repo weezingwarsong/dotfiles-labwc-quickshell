@@ -9,9 +9,10 @@ PanelWindow {
     property bool shouldShow: false
 
     screen: Quickshell.screens[0]
+    WlrLayershell.layer: WlrLayer.Overlay
     anchors.top: true
     margins.top: Screen.height * 0.02
-    exclusiveZone: 0
+    exclusiveZone: -1
     color: "transparent"
 
     implicitWidth: (contentLoader.item ? contentLoader.item.implicitWidth : 0) + 40

@@ -141,10 +141,11 @@ PanelWindow {
                                 it.wallpaperProcess = Qt.binding(() => root.wallpaperProcess)
                                 break
                             case "calendar":
-                                it.calendarProcess = Qt.binding(() => root.calendarProcess)
-                                it.tasksProcess    = Qt.binding(() => root.tasksProcess)
-                                it.clockProcess    = Qt.binding(() => root.clockProcess)
-                                it.timerProcess    = Qt.binding(() => root.timerProcess)
+                                it.calendarProcess  = Qt.binding(() => root.calendarProcess)
+                                it.tasksProcess     = Qt.binding(() => root.tasksProcess)
+                                it.clockProcess     = Qt.binding(() => root.clockProcess)
+                                it.timerProcess     = Qt.binding(() => root.timerProcess)
+                                it.weatherProcess   = Qt.binding(() => root.weatherProcess)
                                 if (root.calendarInitialView !== "") {
                                     it._view = root.calendarInitialView
                                     root.calendarInitialView = ""
