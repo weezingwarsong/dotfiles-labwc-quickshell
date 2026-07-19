@@ -14,7 +14,7 @@ Item {
     property string _dir:      ""
 
     visible:        _visible
-    implicitHeight: _visible ? _bg.implicitHeight : 0
+    implicitHeight: _visible ? _card.implicitHeight : 0
 
     Connections {
         target: root.screenshotProcess
@@ -35,18 +35,13 @@ Item {
 
     TapHandler { acceptedButtons: Qt.RightButton; onTapped: root._dismiss() }
 
-    Rectangle {
-        id: _bg
-        anchors.fill:   parent
-        radius:         Style.pillRadius
-        color:          Style.pillBgColor
-        border.color:   Style.borderFaintColor
-        border.width:   Style.pillBorderWidth
-        implicitHeight: _row.implicitHeight + 16
+    PanelCard {
+        id: _card
+        anchors.fill: parent
 
         RowLayout {
             id: _row
-            anchors { fill: parent; margins: 8 }
+            Layout.fillWidth: true
             spacing: 8
 
             // Thumbnail — fills most of the width; height driven by aspect ratio

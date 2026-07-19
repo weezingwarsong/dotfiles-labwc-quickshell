@@ -77,8 +77,10 @@ ShellRoot {
 
     ToastWindow {
         id: toastWindow
-        screenshotProcess: screenshot
-        screenrecProcess:  screenrec
+        screenshotProcess:  screenshot
+        screenrecProcess:   screenrec
+        notificationServer: notifServer
+        localTimerProcess:  localTimer
     }
 
     // Wallpaper window — Background layer, always present, covers all workspaces.

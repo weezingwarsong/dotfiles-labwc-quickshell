@@ -50,6 +50,8 @@ Item {
 
         // Screen recorder mode — persists across restarts.
         property string recMode: "oneshot"   // "oneshot" | "replay"
+
+        property int notificationTimeout: 5000   // ms; shown in Settings as seconds
     }
 
     // ── Public (read) ─────────────────────────────────────────────────────────
@@ -85,6 +87,7 @@ Item {
     readonly property string recordingDir:  _store.recordingDir
     readonly property string replayDir:     _store.replayDir
     readonly property string recMode:       _store.recMode
+    readonly property int    notificationTimeout: _store.notificationTimeout
 
     // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
@@ -115,10 +118,11 @@ Item {
 
     function setExtractColors(v) { _store.extractColors = v }
 
-    function setScreenshotDir(v) { _store.screenshotDir = v }
-    function setRecordingDir(v)  { _store.recordingDir  = v }
-    function setReplayDir(v)     { _store.replayDir     = v }
-    function setRecMode(v)       { _store.recMode       = v }
+    function setScreenshotDir(v)        { _store.screenshotDir        = v }
+    function setRecordingDir(v)         { _store.recordingDir         = v }
+    function setReplayDir(v)            { _store.replayDir            = v }
+    function setRecMode(v)              { _store.recMode              = v }
+    function setNotificationTimeout(v)  { _store.notificationTimeout  = v }
 
     Component.onCompleted: console.log(
         "[Prefs] loaded | fontSizePill:", _store.fontSizePill,

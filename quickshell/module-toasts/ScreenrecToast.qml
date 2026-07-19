@@ -15,7 +15,7 @@ Item {
     property int    _savedSecs:    0
 
     visible:        shouldShow
-    implicitHeight: shouldShow ? _bg.implicitHeight : 0
+    implicitHeight: shouldShow ? _card.implicitHeight : 0
 
     Connections {
         target: root.screenrecProcess
@@ -50,20 +50,15 @@ Item {
         onTapped: root._dismiss()
     }
 
-    Rectangle {
-        id: _bg
-        anchors.fill:   parent
-        radius:         Style.pillRadius
-        border.color:   Style.borderFaintColor
-        border.width:   Style.pillBorderWidth
-        implicitHeight: Style.buttonHeight + 16
-        color:          root._recording ? Style.criticalBgColor : Style.pillBgColor
-
+    PanelCard {
+        id: _card
+        anchors.fill: parent
+        color: root._recording ? Style.criticalBgColor : Style.surfaceLowColor
         Behavior on color { ColorAnimation { duration: 200 } }
 
         // ── Recording state ───────────────────────────────────────────────────
         RowLayout {
-            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 8 }
+            Layout.fillWidth: true
             spacing: 8
             visible: root._recording
 
@@ -100,7 +95,7 @@ Item {
 
         // ── Saved state ───────────────────────────────────────────────────────
         RowLayout {
-            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 8 }
+            Layout.fillWidth: true
             spacing: 8
             visible: root._showingSaved && !root._recording
 

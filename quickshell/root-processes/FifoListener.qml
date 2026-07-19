@@ -83,6 +83,7 @@ Item {
 
                 else if (cmd.startsWith("screenshotNotify:"))          root.screenshotNotifyRequested(cmd.slice(17))
                 else if (cmd.startsWith("screenrecStartRegionWith:"))  root.screenrecStartRegionWithRequested(cmd.slice(25))
+                else if (cmd === "dismissNotification")               root.dismissToastRequested("notification")
                 else if (cmd.startsWith("dismissToast:"))              root.dismissToastRequested(cmd.slice(13))
                 else if (cmd.startsWith("screenrecSaveReplay:")) {
                     var n = parseInt(cmd.slice(20))

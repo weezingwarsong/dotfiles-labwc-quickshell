@@ -15,7 +15,7 @@ Item {
         persistenceSupported: false
 
         onNotification: function(notif) {
-            notif.tracked = true
+            if (!notif.transient) notif.tracked = true
             root._timestamps[notif.id] = new Date()
             root._tsVersion++
             Qt.callLater(root._recalc)

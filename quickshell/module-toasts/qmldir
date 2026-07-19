@@ -3,6 +3,11 @@ singleton Prefs 1.0 ../Prefs.qml
 singleton Colors 1.0 ../Colors.qml
 IconButton 1.0 ../module-reusable-elements/IconButton.qml
 MediaThumbnail 1.0 ../module-reusable-elements/MediaThumbnail.qml
-ToastTimer 1.0 ../module-reusable-elements/ToastTimer.qml
+PanelCard 1.0 ../module-reusable-elements/PanelCard.qml
+PanelButton 1.0 ../module-reusable-elements/PanelButton.qml
+PanelDivider 1.0 ../module-reusable-elements/PanelDivider.qml
+ScrollingText 1.0 ../module-reusable-elements/ScrollingText.qml
+AppIcon 1.0 ../module-reusable-elements/AppIcon.qml
 ScreenshotPreview 1.0 ScreenshotPreview.qml
 ScreenrecToast 1.0 ScreenrecToast.qml
+NotificationToast 1.0 NotificationToast.qml
