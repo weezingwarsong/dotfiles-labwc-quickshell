@@ -18,21 +18,24 @@ Lives in `root-processes/`. Instantiated once in `shell.qml`, injected into any 
 
 ### Internal model
 
-A JS object map: `_timers: { [id]: { durationMs, startedAt, status } }`
+A JS object map: `_timers: { [id]: { durationMs, startedAt, pausedRemaining, status } }`
 
-`status` is one of two values:
+`status` is one of three values:
 - `"started"` — timer is running
+- `"paused"` — timer is paused; `pausedRemaining` holds the ms left at the moment of pause
 - `"completed"` — timer has fired; entry is removed immediately after the signal
 
 ### API
 
 | Function | Description |
 |---|---|
-| `register(id, durationMs)` | Creates a new timer entry. If `id` already exists, restarts the timer with the new `durationMs` (resets `startedAt`). |
+| `register(id, durationMs)` | Creates a new timer entry. If `id` already exists, restarts the timer with the new `durationMs` (resets `startedAt`, clears `pausedRemaining`). |
 | `kill(id)` | Removes entry immediately. No `timerCompleted` signal is emitted. |
-| `status(id)` | Returns `"started"` \| `"completed"` \| `null` (null = not found). |
-| `elapsed(id)` | Returns ms elapsed since `startedAt`. |
-| `remaining(id)` | Returns ms remaining (`durationMs - elapsed`), clamped to 0. |
+| `pause(id)` | Saves `remaining(id)` into `pausedRemaining`, sets `status = "paused"`. Tick loop skips paused entries — they do not fire `timerCompleted`. No-op if not found or already paused. |
+| `resume(id)` | Resets `startedAt = Date.now() - (durationMs - pausedRemaining)` so elapsed computation resumes from the frozen point. Clears `pausedRemaining`, sets `status = "started"`. No-op if not found or not paused. |
+| `status(id)` | Returns `"started"` \| `"paused"` \| `"completed"` \| `null` (null = not found). |
+| `elapsed(id)` | Returns ms elapsed. For paused entries: `durationMs - pausedRemaining`. |
+| `remaining(id)` | Returns ms remaining, clamped to 0. For paused entries: returns `pausedRemaining` (frozen). This means visual bars naturally hold their position without any special-case logic. |
 
 ### Signals
 
@@ -42,7 +45,7 @@ A JS object map: `_timers: { [id]: { durationMs, startedAt, status } }`
 
 ### Tick loop
 
-A single `Timer { interval: 50; repeat: true }` drives all registered timers. Each tick walks `_timers`, computes remaining for each, fires `timerCompleted` and removes entries that have elapsed. The tick loop stops automatically when `_timers` is empty and restarts on the next `register()` call.
+A single `Timer { interval: 50; repeat: true }` drives all registered timers. Each tick walks `_timers`, skips paused entries, computes remaining for running entries, fires `timerCompleted` and removes entries that have elapsed. The tick loop stops automatically when `_timers` is empty and restarts on the next `register()` call.
 
 ---
 
@@ -71,6 +74,8 @@ Lives in `module-reusable-elements/`. Accepts a `localTimerProcess` property (in
 | Function | Description |
 |---|---|
 | `kill()` | Calls `localTimerProcess.kill(timerId)`. Stops and removes the timer with no `completed` signal. |
+| `pause()` | Calls `localTimerProcess.pause(timerId)`. Visual bar freezes at its current fill position automatically — `remaining()` returns the frozen value while paused. |
+| `resume()` | Calls `localTimerProcess.resume(timerId)`. Timer and visual bar resume from the frozen position. |
 
 ### Signal
 
@@ -151,6 +156,7 @@ Mirror of Variant 3, fill ratio = `remaining / duration` (bar shrinks as time pa
 |---|---|
 | Bar color | `Style.accentColor` default; caller overrides via `color` property. Two semantic values expected: `accentColor` and `criticalColor`. |
 | Animation | Smooth — `Behavior on width/height { SmoothedAnimation { } }` on all bar variants. |
-| Duplicate `timerId` | Restart: resets `startedAt` and updates `durationMs`. No warning. |
+| Duplicate `timerId` | Restart: resets `startedAt`, clears `pausedRemaining`, updates `durationMs`. No warning. |
 | Duration unit | Milliseconds throughout. |
 | Element destruction | Does **not** auto-kill. Timer outlives the element. Caller must call `kill()` explicitly if early termination is needed. |
+| Pause/resume | `pause(id)` freezes `remaining` at current value; tick loop skips the entry. `resume(id)` restores `startedAt` so elapsed computation picks up from the frozen point. Visual bars hold their fill position during pause with no special-case logic — `remaining()` returns the frozen value naturally. First callers: NotificationToast (hover) and CalendarPanel timer (rework, future). |
