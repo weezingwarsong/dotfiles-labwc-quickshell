@@ -17,8 +17,8 @@ Major architectural refactor. Work in this order — each step unblocks the next
 - [x] **1a. Rename `_container` id to `panelContainer`** in PanelSurface.qml
 - [x] **1b. Move panel chrome to PanelContainer** — add background `Rectangle` (color, radius, border) directly in PanelSurface around the Loader slot
 - [x] **1c. Build the unified ColumnLayout** — NavBar as first row, Loader as second row; PanelContainer owns both
-- [ ] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel + WallpaperPanel done; Notification remains
-- [ ] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — SettingsPanel + ControlPanel + MediaPlayerPanel + CalendarPanel + WallpaperPanel done; Notification remains
+- [x] **1d. Strip NavBar from all panel modules** — remove `PanelNavBar` instantiation and its `navigateRequested` wiring from every panel module (CalendarPanel, ControlPanel, MediaPlayerPanel, SettingsPanel, WallpaperPanel, NotificationPanel) — all done
+- [x] **1e. Strip background Rectangle from all panel modules** — each module becomes a pure content ColumnLayout with no chrome — all done
 
 ### Phase 2 — Reusable Elements Classification
 

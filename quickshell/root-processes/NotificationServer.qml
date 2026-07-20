@@ -23,7 +23,8 @@ Item {
             var actIds = []
             if (notif.actions) for (var i = 0; i < notif.actions.length; i++) actIds.push(notif.actions[i].identifier + "=" + notif.actions[i].text)
             console.log("[NotificationServer] received:", notif.appName, "|", notif.summary,
-                "| urgency:", notif.urgency, "| actions:", JSON.stringify(actIds))
+                "| urgency:", notif.urgency, "| expireTimeout:", notif.expireTimeout,
+                "| transient:", notif.transient, "| actions:", JSON.stringify(actIds))
         }
     }
 

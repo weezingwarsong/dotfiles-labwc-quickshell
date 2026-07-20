@@ -80,7 +80,6 @@ ShellRoot {
         screenshotProcess:  screenshot
         screenrecProcess:   screenrec
         notificationServer: notifServer
-        localTimerProcess:  localTimer
     }
 
     // Wallpaper window — Background layer, always present, covers all workspaces.

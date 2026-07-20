@@ -408,6 +408,70 @@ LocalTimerProcess replaces a standalone Qt `Timer`. It is both the authoritative
 
 ---
 
+### Phase 1.5 — Two-Surface Toast Architecture
+
+#### Decision
+
+Testing revealed a fundamental conflict: a single toast surface cannot cleanly serve both Critical and Normal notifications. If one surface handles both:
+- Critical can be displaced by a low-priority Normal or Transient notification that arrives while it is showing.
+- Preventing displacement requires priority-check logic inside `onNewNotification`, which creates a special-case path that grows over time.
+
+The solution is two independent toast surfaces — one per urgency tier — each following the same simple replacement rule within its tier.
+
+---
+
+#### Architecture
+
+**Two surfaces, two jobs:**
+
+| Surface | File | Urgency tier | Timer behaviour |
+|---|---|---|---|
+| `UrgentToast.qml` | `module-toasts/` | Critical (`urgency = 2`) | No timer unless app explicitly provides `expireTimeout > 0`. Stays until user acts. |
+| `NotificationToast.qml` | `module-toasts/` | Normal + Low + Transient (`urgency ≤ 1`) | Timer always runs. Duration: `expireTimeout > 0` → app value; otherwise `Prefs.notificationTimeout`. Transient uses the same path — no special case needed. |
+
+**Replacement rule — last win, within tier:**
+Each surface independently applies "new notification replaces current." A Critical arriving while another Critical is showing replaces it immediately — the urgent toast resets. Same for Normal. The two surfaces never interact with each other.
+
+**Routing in `NotificationServer`:**
+`newNotification(notif)` is emitted for all notifications as today. The two toasts each connect to this signal and filter by urgency:
+- `UrgentToast`: responds only when `notif.urgency === NotificationUrgency.Critical`
+- `NotificationToast`: responds only when `notif.urgency !== NotificationUrgency.Critical`
+
+No routing logic lives in NotificationServer. Each toast is self-selecting.
+
+**ToastWindow stacking order:**
+
+```
+ToastWindow (bottom-right, bottom-justified)
+│
+├─ ScreenshotPreview   index 3 — top, furthest from corner
+├─ NotificationToast   index 2
+├─ UrgentToast         index 1
+└─ ScreenrecToast      index 0 — bottom, nearest corner (persistent)
+```
+
+Urgent sits below Normal — closer to the screen edge — so it is spatially distinct and harder to miss. Both can be visible simultaneously.
+
+**Timer behaviour, fully specified:**
+
+*UrgentToast (Critical):*
+- `expireTimeout <= 0` (no explicit app timeout): no timer. Toast stays until user right-clicks, presses keybind, or clicks action/dismiss button.
+- `expireTimeout > 0` (app explicitly requested timeout): timer starts. App wins over the Critical-must-not-expire default. Timer bar is shown.
+
+*NotificationToast (Normal / Low / Transient):*
+- `expireTimeout > 0`: use app-provided duration. Timer bar shown.
+- `expireTimeout <= 0`: use `Prefs.notificationTimeout` (default 5s). Timer bar shown.
+- Transient flag: no effect on timer logic — transient notifications go to the Normal surface and auto-dismiss via the standard path. The `transient` flag only controls bank storage (never tracked), not display duration.
+
+**What stays the same:**
+- `LocalTimer` embedded directly in each toast — no process injection.
+- Hover pauses the timer (both surfaces, where applicable).
+- Right-click row1 = hide toast, keep in bank.
+- Dustbin / skip-bank button = `notif.dismiss()` + hide.
+- Action buttons invoke and hide (unless `resident = true`).
+
+---
+
 ### Phase 2 — The Bank
 
 The existing "Notification panel" is renamed the **Bank**. It is the persistent view — history, inbox, and media archive — and becomes relevant only after the toast (Phase 1) is complete.
@@ -452,4 +516,90 @@ The existing "Notification panel" is renamed the **Bank**. It is the persistent 
 
 ---
 
-*Full Bank UI design is out of scope until Phase 1 is complete.*
+---
+
+#### Phase 2.1 — Notifications Tab Layout Stack
+
+The Notifications tab follows the standard panel hierarchy and uses a flat list — no nested cards.
+
+**Panel hierarchy:**
+```
+PanelSurface (managed by PanelController)
+└─ NotificationPanel.qml
+   └─ TabBar (tabs: Notifications | Screenshots | Recordings)
+      └─ [Notifications tab]
+         └─ PanelCard  ← no margins (PanelSurface's PanelContainer already provides inset)
+            │           ← no extra padding (PanelCard has built-in content padding)
+            └─ ColumnLayout (the list)
+               │  Layout.fillWidth: true
+               │  no anchors (already inside PanelCard's ColumnLayout)
+               │  no margins (already padded by PanelCard)
+               │  height driven by content
+               │
+               ├─ NotifEntry (delegate 0)
+               ├─ PanelDivider
+               ├─ NotifEntry (delegate 1)
+               ├─ PanelDivider
+               └─ ...
+```
+
+No card inside card. Each `NotifEntry` is transparent — the section `PanelCard` is the only background surface. The delegate `ColumnLayout` follows the exact same layout rules as the toast — no extra padding or margins declared at any level.
+
+---
+
+**Repeater delegate — `NotifEntry`:**
+
+```
+Repeater (model: notificationServer.notifications)
+  delegate: ColumnLayout (variable height — driven by content)
+    │
+    ├─ PanelDivider (visible: index > 0)
+    │
+    ├─ RowLayout (main content — Row1, spacing: 8)
+    │  │   TapHandler (Right → notif.dismiss() — remove from bank)
+    │  │   TapHandler (Left → invoke default action)
+    │  │
+    │  ├─ Col1: AppIcon (same component as toast)
+    │  │
+    │  ├─ Col2: Text section (fillWidth, AlignTop)
+    │  │    ColumnLayout (spacing: 4)
+    │  │      Text (summary)
+    │  │        wrapMode: WordWrap, maximumLineCount: 8, elide: ElideRight
+    │  │        font.pixelSize: fontSizeHeading
+    │  │        HoverHandler + ToolTip (visible: truncated)
+    │  │      Text (body — plain) OR Text (body — RichText)
+    │  │        wrapMode: WordWrap, maximumLineCount: 8, elide: ElideRight
+    │  │        font.pixelSize: fontSizeBody, color: textSecondary
+    │  │        HoverHandler + ToolTip (visible: truncated)
+    │  │        visible: body !== ""
+    │  │
+    │  ├─ Col3: Thumbnail (same as toast — collapses to 0 when no image)
+    │  │
+    │  └─ Col4: IconButton (×)
+    │         onClicked: modelData.dismiss()
+    │
+    ├─ PanelDivider (visible: actions present)
+    │
+    └─ RowLayout (action row — same as toast, visible: actions.length > 0)
+         Repeater (model: filteredActions — default + up to 3 non-default)
+           PanelButton (label: action.text, onClicked: action.invoke())
+```
+
+---
+
+**Differences from the toast:**
+
+| Toast | Bank entry |
+|---|---|
+| `ScrollingText` (single-line, marquee) | `Text` (multiline, `wrapMode: WordWrap`, max 8 lines, tooltip on truncate) |
+| `LocalTimer` bar at bottom | Absent — no auto-dismiss in bank |
+| `HoverHandler` pauses timer | Absent — no timer to pause |
+| Right-click = hide toast, keep in bank | Right-click = `notif.dismiss()` — removes from bank |
+| `root._notif` | `modelData` |
+| urgency background color | No background — entry is transparent against section `PanelCard` |
+
+**Ordering:** newest at top. Reverse-insertion order via index mapping (`count - 1 - index`) or `ListView.verticalLayoutDirection: ListView.BottomToTop`. `NotificationServer._timestamps` holds arrival time per `notif.id` if explicit sort is needed later.
+
+**Empty state:** when `notificationServer.notifications` is empty, show a centered muted label ("No notifications") in place of the Repeater.
+
+**Clear all:** a button (top-right of the tab header or bottom of the list) calls `notificationServer.clearAll()`. Removes all entries from `trackedNotifications` in one pass.

@@ -25,6 +25,7 @@ FocusScope {
     property bool _themeCollapsed:      false
     property bool _wallpaperCollapsed:  false
     property bool _panelCollapsed:      false
+    property bool _bankCollapsed:       false
 
     // ── Filter ────────────────────────────────────────────────────────────────
     property string _filter: ""
@@ -36,6 +37,7 @@ FocusScope {
     readonly property var _tagTheme:      ["extract","colors","wallpaper","theme","palette"]
     readonly property var _tagWallpaper:  ["wallpaper","directory","scan","path","image","video","folder","pictures"]
     readonly property var _tagPanel:      ["panel","width","height","offset","position","size","layout"]
+    readonly property var _tagBank:       ["bank","notification","history","lines","thumb","thumbnail"]
 
     function _matches(name, tags) {
         if (_filter === "") return true
@@ -54,6 +56,7 @@ FocusScope {
     readonly property bool _themeVisible:    _matches("Theme",           _tagTheme)
     readonly property bool _wallpaperVisible: _matches("Wallpaper",      _tagWallpaper)
     readonly property bool _panelVisible:    _matches("Panel",           _tagPanel)
+    readonly property bool _bankVisible:     _matches("Bank",            _tagBank)
 
     // ── Height ────────────────────────────────────────────────────────────────
     implicitHeight: _pinnedCol.implicitHeight + 12 +
@@ -746,6 +749,55 @@ FocusScope {
                 }
             }
 
+            // ── Bank ──────────────────────────────────────────────────────────
+            PanelCard {
+                Layout.fillWidth: true
+                visible: _bankVisible
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    SectionHeader {
+                        Layout.fillWidth: true
+                        text: "Bank"; tooltip: "Notification bank display settings"
+                        collapsed: _bankCollapsed
+                        onToggled: _bankCollapsed = !_bankCollapsed
+                    }
+
+                    Item {
+                        Layout.fillWidth: true; clip: true
+                        Layout.preferredHeight: (_filter !== "" || !_bankCollapsed) ? _bankRows.implicitHeight + 8 : 0
+                        Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                        ColumnLayout {
+                            id: _bankRows
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                            spacing: 8
+
+                            RowLabel { label: "Max lines"
+                                ScrollChip {
+                                    text: Prefs.bankMaxLines + " lines"
+                                    onScrolled: (delta) => {
+                                        var next = Prefs.bankMaxLines + delta
+                                        if (next >= 1 && next <= 20) Prefs.setBankMaxLines(next)
+                                    }
+                                }
+                            }
+                            PanelDivider {}
+                            RowLabel { label: "Thumb width"
+                                ScrollChip {
+                                    text: Prefs.bankThumbWidth + "px"
+                                    onScrolled: (delta) => {
+                                        var next = Prefs.bankThumbWidth + delta * 4
+                                        if (next >= 32 && next <= 160) Prefs.setBankThumbWidth(next)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Reset ─────────────────────────────────────────────────────────
             PanelButton {
                 label: "Reset to defaults"
@@ -770,6 +822,8 @@ FocusScope {
                     Prefs.setExtractColors(false)
                     Prefs.setPanelWidth(15)
                     Prefs.setPanelOffsetY(10)
+                    Prefs.setBankMaxLines(8)
+                    Prefs.setBankThumbWidth(72)
                 }
             }
         }

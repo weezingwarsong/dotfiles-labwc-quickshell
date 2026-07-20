@@ -18,7 +18,7 @@ Item {
     Connections {
         target: root.notificationServer
         function onNewNotification(notif) {
-            if (notif.urgency === NotificationUrgency.Critical) return
+            if (notif.urgency !== NotificationUrgency.Critical) return
             _toastTimer.kill()
             root._notif = notif
             root._startTimer()
@@ -30,16 +30,9 @@ Item {
     function _startTimer() {
         var notif = root._notif
         if (!notif) return
-        // Transient: always flash and go, ignore caller's expireTimeout
-        if (notif.transient) {
-            _toastTimer.start(Prefs.notificationTimeout)
-            return
-        }
-        // expireTimeout === 0: app explicitly requests no auto-dismiss
-        if (notif.expireTimeout === 0) return
-        var durMs = notif.expireTimeout > 0 ? Math.round(notif.expireTimeout)
-                                            : Prefs.notificationTimeout
-        _toastTimer.start(durMs)
+        // Critical with no app-provided timeout: spec says must not auto-dismiss
+        if (notif.expireTimeout <= 0) return
+        _toastTimer.start(Math.round(notif.expireTimeout))
     }
 
     // ── Actions ───────────────────────────────────────────────────────────────
@@ -87,13 +80,6 @@ Item {
 
     // ── Computed ──────────────────────────────────────────────────────────────
 
-    readonly property color _urgencyBg: {
-        if (!root._notif) return Style.surfaceLowColor
-        return root._notif.urgency === NotificationUrgency.Low ? Style.surfaceLowColor : Style.surfaceMidColor
-    }
-
-    readonly property color _bodyTextColor: Style.textSecondary
-
     readonly property bool _bodyIsRich: root._notif !== null
         && root._notif.body !== ""
         && root._notif.body.includes("<")
@@ -115,7 +101,7 @@ Item {
     PanelCard {
         id: _card
         anchors.fill: parent
-        color: root._urgencyBg
+        color: Style.criticalBgColor
 
         ColumnLayout {
             spacing: 8
@@ -222,7 +208,7 @@ Item {
                 }
             }
 
-            // ── Timer bar ─────────────────────────────────────────────────────
+            // ── Timer bar (only active when app specifies expireTimeout > 0) ──
 
             LocalTimer {
                 id: _toastTimer
@@ -241,7 +227,7 @@ Item {
         id: _richBodyComp
         Text {
             text:             root._notif ? root._notif.body : ""
-            color:            root._bodyTextColor
+            color:            Style.textCritical
             font.family:      Style.fontMono
             font.pixelSize:   Style.fontSizeBody
             textFormat:       Text.RichText
@@ -256,7 +242,7 @@ Item {
         id: _plainBodyComp
         ScrollingText {
             text:           root._notif ? root._notif.body : ""
-            color:          root._bodyTextColor
+            color:          Style.textCritical
             font.pixelSize: Style.fontSizeBody
         }
     }

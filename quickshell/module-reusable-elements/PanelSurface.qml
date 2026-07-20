@@ -161,6 +161,7 @@ PanelWindow {
                             case "notifications":
                                 it.notificationServer     = Qt.binding(() => root.notificationServer)
                                 it.notificationInitialTab = Qt.binding(() => root.notificationInitialTab)
+                                it.screenshotProcess      = Qt.binding(() => root.screenshotProcess)
                                 break
                             case "control":
                                 it.audioProcess     = Qt.binding(() => root.audioProcess)

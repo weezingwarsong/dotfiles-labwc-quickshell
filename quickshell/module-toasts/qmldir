@@ -8,6 +8,8 @@ PanelButton 1.0 ../module-reusable-elements/PanelButton.qml
 PanelDivider 1.0 ../module-reusable-elements/PanelDivider.qml
 ScrollingText 1.0 ../module-reusable-elements/ScrollingText.qml
 AppIcon 1.0 ../module-reusable-elements/AppIcon.qml
+LocalTimer 1.0 ../module-reusable-elements/LocalTimer.qml
 ScreenshotPreview 1.0 ScreenshotPreview.qml
 ScreenrecToast 1.0 ScreenrecToast.qml
 NotificationToast 1.0 NotificationToast.qml
+CriticalNotificationToast 1.0 CriticalNotificationToast.qml

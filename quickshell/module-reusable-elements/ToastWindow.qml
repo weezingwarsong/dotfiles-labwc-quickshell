@@ -9,7 +9,6 @@ PanelWindow {
     property var screenshotProcess:  null
     property var screenrecProcess:   null
     property var notificationServer: null
-    property var localTimerProcess:  null
 
     screen:         Quickshell.screens[0]
     anchors.bottom: true
@@ -25,11 +24,13 @@ PanelWindow {
 
     visible: (_ssLoader.item ? _ssLoader.item.shouldShow : false) ||
              (_ntLoader.item ? _ntLoader.item.shouldShow : false) ||
+             (_utLoader.item ? _utLoader.item.shouldShow : false) ||
              (_srLoader.item ? _srLoader.item.shouldShow : false)
 
     function dismiss(id) {
         if (id === "screenshot"   && _ssLoader.item) _ssLoader.item._dismiss()
         if (id === "notification" && _ntLoader.item) _ntLoader.item._dismiss()
+        if (id === "critical"     && _utLoader.item) _utLoader.item._dismiss()
         if (id === "screenrec"    && _srLoader.item) _srLoader.item._dismiss()
     }
 
@@ -46,15 +47,22 @@ PanelWindow {
             onLoaded: item.screenshotProcess = Qt.binding(function() { return root.screenshotProcess })
         }
 
-        // NotificationToast — index 1, above screenrec
+        // NotificationToast — Normal/Low/Transient, index 2
         Loader {
             id: _ntLoader
             Layout.fillWidth: true
             source: Qt.resolvedUrl("../module-toasts/NotificationToast.qml")
             onLoaded: {
                 item.notificationServer = Qt.binding(function() { return root.notificationServer })
-                item.localTimerProcess  = Qt.binding(function() { return root.localTimerProcess })
             }
+        }
+
+        // CriticalNotificationToast — Critical urgency only, index 1, closer to corner
+        Loader {
+            id: _utLoader
+            Layout.fillWidth: true
+            source: Qt.resolvedUrl("../module-toasts/CriticalNotificationToast.qml")
+            onLoaded: item.notificationServer = Qt.binding(function() { return root.notificationServer })
         }
 
         // ScreenrecToast — index 0, closest to screen corner

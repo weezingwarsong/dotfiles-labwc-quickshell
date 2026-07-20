@@ -52,6 +52,10 @@ Item {
         property string recMode: "oneshot"   // "oneshot" | "replay"
 
         property int notificationTimeout: 5000   // ms; shown in Settings as seconds
+
+        // Bank
+        property int bankMaxLines:   8    // max visible lines for summary/body text in bank
+        property int bankThumbWidth: 72   // screenshot thumbnail width (px) in bank
     }
 
     // ── Public (read) ─────────────────────────────────────────────────────────
@@ -88,6 +92,8 @@ Item {
     readonly property string replayDir:     _store.replayDir
     readonly property string recMode:       _store.recMode
     readonly property int    notificationTimeout: _store.notificationTimeout
+    readonly property int    bankMaxLines:        _store.bankMaxLines
+    readonly property int    bankThumbWidth:      _store.bankThumbWidth
 
     // ── Setters (called by Appearance tab + WallpaperProcess) ────────────────
     function setFontMono(v)           { _store.fontMono           = v }
@@ -123,6 +129,8 @@ Item {
     function setReplayDir(v)            { _store.replayDir            = v }
     function setRecMode(v)              { _store.recMode              = v }
     function setNotificationTimeout(v)  { _store.notificationTimeout  = v }
+    function setBankMaxLines(v)         { _store.bankMaxLines         = v }
+    function setBankThumbWidth(v)       { _store.bankThumbWidth       = v }
 
     Component.onCompleted: console.log(
         "[Prefs] loaded | fontSizePill:", _store.fontSizePill,

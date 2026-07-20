@@ -8,61 +8,33 @@ Item {
     id: root
     focus: true
 
-    property var    notificationServer: null
-    property var    screenshotProcess:  null
-    property string activePanel:        ""
-    signal navigateRequested(int direction)
+    property var notificationServer:     null
+    property var screenshotProcess:      null
+    property int notificationInitialTab: 0
 
-    property int _tab: 0   // 0 = Notifications, 1 = Screenshots
+    property int _tab: notificationInitialTab
 
-    Keys.onPressed: (event) => {
-        switch (event.key) {
-        case Qt.Key_Tab:
-            root._tab = root._tab === 0 ? 1 : 0
-            event.accepted = true; break
-        default:
-            event.accepted = false
-        }
+    Keys.onTabPressed: (event) => {
+        root._tab = root._tab === 0 ? 1 : 0
+        event.accepted = true
     }
 
     readonly property bool _hasNotifs: notificationServer && notificationServer.countTotal > 0
-    readonly property var  _shots:     screenshotProcess  ? screenshotProcess.screenshots  : []
+    readonly property var  _shots:     screenshotProcess  ? screenshotProcess.screenshots : []
 
     implicitHeight: _topFixed.implicitHeight
-                  + _body.implicitHeight
-                  + (_trayBar.count > 0 ? (1 + 24 + Style.panelMargin) : 0)
-                  + Style.panelMargin * 3 + 24
-
-    // ── Background ────────────────────────────────────────────────────────────
-
-    Rectangle {
-        anchors.fill:  parent
-        radius:        Style.panelRadius
-        color:         Style.panelBgColor
-        border.color:  Style.panelBorderColor
-        border.width:  1
-        clip:          true
-    }
+                  + Style.panelCardVpadding
+                  + _flickCol.implicitHeight
+                  + (_trayBar.count > 0
+                      ? Style.panelElementVpadding + 1 + Style.panelElementVpadding + 24 + Style.panelMargin
+                      : 0)
 
     // ── Fixed top section ─────────────────────────────────────────────────────
 
     ColumnLayout {
         id: _topFixed
-        anchors {
-            top:         parent.top
-            left:        parent.left
-            right:       parent.right
-            topMargin:   Style.panelMargin
-            leftMargin:  Style.panelMargin
-            rightMargin: Style.panelMargin
-        }
-        spacing: 8
-
-        PanelNavBar {
-            Layout.fillWidth: true
-            activePanel: root.activePanel
-            onNavigateRequested: (dir) => root.navigateRequested(dir)
-        }
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        spacing: Style.panelCardVpadding
 
         PanelTabBar {
             Layout.fillWidth: true
@@ -71,7 +43,6 @@ Item {
             onToggled: (idx) => root._tab = idx
         }
 
-        // Clear all — only on notifications tab and only when there are notifs
         PanelButton {
             Layout.alignment: Qt.AlignRight
             visible:   root._tab === 0 && root._hasNotifs
@@ -81,136 +52,128 @@ Item {
         }
     }
 
-    // ── Body — swaps between notification list and screenshots list ───────────
+    // ── Scrollable body ───────────────────────────────────────────────────────
 
-    Item {
-        id: _body
+    Flickable {
+        id: _flickable
         anchors {
-            top:          _topFixed.bottom
-            left:         parent.left
-            right:        parent.right
-            bottom:       _sysDivider.top
-            topMargin:    8
-            leftMargin:   Style.panelMargin
-            rightMargin:  Style.panelMargin
-            bottomMargin: Style.panelMargin
+            left: parent.left; right: parent.right
+            top: _topFixed.bottom; bottom: _sysDivider.top
+            topMargin: Style.panelCardVpadding
         }
-        implicitHeight: Math.max(_notifFlick.implicitHeight, _shotFlick.implicitHeight)
+        clip:          true
+        contentHeight: _flickCol.implicitHeight
 
-        // ── Notifications ─────────────────────────────────────────────────────
+        ColumnLayout {
+            id: _flickCol
+            width:   parent.width
+            spacing: 0
 
-        Item {
-            anchors.fill: parent
-            visible: root._tab === 0
+            // ── Notifications tab ─────────────────────────────────────────────
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top:              parent.top
-                anchors.topMargin:        16
-                visible:                  !root._hasNotifs
-                text:                     "No notifications"
-                color:                    Style.textMuted
-                font.family:              Style.fontMono
-                font.pixelSize:           Style.fontSizeBody
-            }
+            PanelCard {
+                Layout.fillWidth: true
+                visible: root._tab === 0
 
-            Flickable {
-                id: _notifFlick
-                anchors.fill:  parent
-                visible:       root._hasNotifs
-                contentHeight: _cardCol.implicitHeight
-                clip:          true
-                implicitHeight: _cardCol.implicitHeight
+                // Empty state
+                Text {
+                    Layout.fillWidth:    true
+                    Layout.topMargin:    Style.panelElementVpadding
+                    Layout.bottomMargin: Style.panelElementVpadding
+                    horizontalAlignment: Text.AlignHCenter
+                    visible:         !root._hasNotifs
+                    text:            "No notifications"
+                    color:           Style.textMuted
+                    font.family:     Style.fontMono
+                    font.pixelSize:  Style.fontSizeBody
+                }
 
-                ColumnLayout {
-                    id:      _cardCol
-                    width:   parent.width
-                    spacing: 6
-
-                    Repeater {
+                Repeater {
                         model: root.notificationServer ? root.notificationServer.notifications : null
 
-                        delegate: Rectangle {
-                            id: _card
-
+                        delegate: ColumnLayout {
+                            id: _entry
                             required property var modelData
-
+                            required property int index
                             Layout.fillWidth: true
-                            implicitHeight:   _cardRow.implicitHeight + 16
+                            spacing: 0
 
-                            radius:       Style.panelElementRadius
-                            border.width: Style.elementBorderWidth
-                            border.color: Style.borderFaintColor
+                            // ── Actions filtering ─────────────────────────────
 
-                            color: {
-                                var u = _card.modelData.urgency
-                                if (u === NotificationUrgency.Critical)
-                                    return Qt.rgba(Style.mat3Error.r, Style.mat3Error.g, Style.mat3Error.b, 0.15)
-                                if (u === NotificationUrgency.Low)
-                                    return Style.surfaceLowColor
-                                return Style.surfaceMidColor
-                            }
-
-                            property bool _expanded: false
-
-                            readonly property var _labeledActions: {
-                                var acts = _card.modelData.actions
-                                if (!acts) return []
-                                var result = []
+                            readonly property var _filteredActions: {
+                                if (!_entry.modelData || !_entry.modelData.actions) return []
+                                var acts = _entry.modelData.actions, def = null, others = []
                                 for (var i = 0; i < acts.length; i++) {
-                                    if (acts[i].identifier !== "default") result.push(acts[i])
+                                    if (acts[i].identifier === "default") def = acts[i]
+                                    else others.push(acts[i])
                                 }
-                                return result
+                                var res = def ? [def] : []
+                                for (var j = 0; j < Math.min(3, others.length); j++) res.push(others[j])
+                                return res
                             }
+                            readonly property bool _hasActions: _filteredActions.length > 0
 
-                            TapHandler {
-                                acceptedButtons: Qt.RightButton
-                                onTapped: _card.modelData.dismiss()
-                            }
-
-                            RowLayout {
-                                id:      _cardRow
-                                anchors { top: parent.top; left: parent.left; right: parent.right; margins: 8 }
-                                spacing: 8
-
-                                Rectangle {
-                                    visible:                _card.modelData.image !== ""
-                                    Layout.preferredWidth:  56
-                                    Layout.preferredHeight: 56
-                                    Layout.alignment:       Qt.AlignTop
-                                    radius:                 Style.panelElementRadius
-                                    color:                  Style.surfaceLowColor
-                                    clip:                   true
-
-                                    Image {
-                                        anchors.fill: parent
-                                        source:       _card.modelData.image || ""
-                                        fillMode:     Image.PreserveAspectCrop
-                                        visible:      status === Image.Ready
+                            function _invokeDefault() {
+                                var notif = _entry.modelData
+                                if (!notif || !notif.actions) return
+                                for (var i = 0; i < notif.actions.length; i++) {
+                                    if (notif.actions[i].identifier === "default") {
+                                        notif.actions[i].invoke(); break
                                     }
                                 }
+                                if (!notif.resident) notif.dismiss()
+                            }
 
+                            // Divider between entries
+                            PanelDivider {
+                                visible: _entry.index > 0
+                                Layout.fillWidth: true
+                                Layout.topMargin:    Style.panelElementVpadding
+                                Layout.bottomMargin: Style.panelElementVpadding
+                            }
+
+                            // ── Row 1: main content ───────────────────────────
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Style.panelCardHpadding
+
+                                TapHandler { acceptedButtons: Qt.RightButton; onTapped: _entry.modelData.dismiss() }
+
+                                // Col1: App icon
+                                AppIcon {
+                                    iconName: _entry.modelData.appIcon || ""
+                                    category: _entry.modelData.hints
+                                        ? (_entry.modelData.hints["category"] || "") : ""
+                                    Layout.preferredWidth:  Style.buttonHeight + 8
+                                    Layout.preferredHeight: Style.buttonHeight + 8
+                                    Layout.alignment: Qt.AlignTop
+                                    TapHandler { acceptedButtons: Qt.LeftButton; onTapped: _entry._invokeDefault() }
+                                }
+
+                                // Col2: Summary + body + meta
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 3
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: Style.panelElementHpadding
 
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        spacing: 4
+                                        spacing: Style.panelElementHpadding
 
                                         Text {
-                                            text:           _card.modelData.appName || ""
-                                            color:          Style.textMuted
-                                            font.family:    Style.fontMono
-                                            font.pixelSize: Style.fontSizeSubtle
-                                            elide:          Text.ElideRight
+                                            text:             _entry.modelData.appName || ""
+                                            color:            Style.textMuted
+                                            font.family:      Style.fontMono
+                                            font.pixelSize:   Style.fontSizeSubtle
+                                            elide:            Text.ElideRight
                                             Layout.fillWidth: true
-                                            visible: text !== ""
+                                            visible:          text !== ""
                                         }
 
                                         Text {
                                             property var _ts: root.notificationServer
-                                                ? root.notificationServer.getTimestamp(_card.modelData.id)
+                                                ? root.notificationServer.getTimestamp(_entry.modelData.id)
                                                 : null
                                             text:           _ts ? Qt.formatTime(_ts, "hh:mm") : ""
                                             color:          Style.textMuted
@@ -218,200 +181,202 @@ Item {
                                             font.pixelSize: Style.fontSizeSubtle
                                             visible:        text !== ""
                                         }
-
-                                        Rectangle {
-                                            width:  Style.buttonHeight - 4
-                                            height: Style.buttonHeight - 4
-                                            radius: Style.panelElementRadius
-                                            color:  _xHover.hovered ? Style.surfaceLowColor : Style.transparent
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text:           "×"
-                                                color:          Style.textMuted
-                                                font.family:    Style.fontMono
-                                                font.pixelSize: Style.fontSizeBody
-                                            }
-
-                                            HoverHandler { id: _xHover; cursorShape: Qt.PointingHandCursor }
-                                            TapHandler   { onTapped: _card.modelData.dismiss() }
-                                        }
                                     }
 
                                     Text {
+                                        id: _summaryText
                                         Layout.fillWidth: true
-                                        text:           _card.modelData.summary || ""
-                                        color:          Style.textNormal
-                                        font.family:    Style.fontMono
-                                        font.pixelSize: Style.fontSizeBody
-                                        wrapMode:       Text.WordWrap
-                                        visible:        text !== ""
+                                        text:             _entry.modelData.summary || ""
+                                        color:            Style.textNormal
+                                        font.family:      Style.fontMono
+                                        font.pixelSize:   Style.fontSizeHeading
+                                        wrapMode:         Text.WordWrap
+                                        maximumLineCount: Prefs.bankMaxLines
+                                        elide:            Text.ElideRight
+                                        visible:          text !== ""
+
+                                        HoverHandler { id: _summaryHover }
+                                        QQC.ToolTip.visible: truncated && _summaryHover.hovered
+                                        QQC.ToolTip.text:    _entry.modelData.summary || ""
+                                        QQC.ToolTip.delay:   500
                                     }
 
-                                    Text {
+                                    Loader {
                                         Layout.fillWidth: true
-                                        text:           _card.modelData.body || ""
-                                        color:          Style.textSecondary
-                                        font.family:    Style.fontMono
-                                        font.pixelSize: Style.fontSizeSubtle
-                                        wrapMode:       Text.WordWrap
-                                        visible:        text !== ""
+                                        visible: (_entry.modelData.body || "") !== ""
+                                        active:  visible
+                                        sourceComponent: (_entry.modelData.body || "").includes("<")
+                                            ? _richBodyComp : _plainBodyComp
                                     }
 
-                                    RowLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 4
-                                        visible: _card._labeledActions.length > 0
+                                    TapHandler { acceptedButtons: Qt.LeftButton; onTapped: _entry._invokeDefault() }
+                                }
 
-                                        Repeater {
-                                            model: Math.min(_card._labeledActions.length, 2)
-                                            delegate: PanelButton {
-                                                required property int index
-                                                property var _action: _card._labeledActions[index]
-
-                                                Layout.fillWidth:  true
-                                                label:             _action ? _action.text : ""
-                                                QQC.ToolTip.text:  _action ? _action.text : ""
-                                                QQC.ToolTip.visible: _hover2.hovered && implicitWidth > width + 4
-                                                QQC.ToolTip.delay: 600
-
-                                                HoverHandler { id: _hover2 }
-
-                                                onClicked: {
-                                                    if (_action) _action.invoke()
-                                                    _card.modelData.dismiss()
-                                                }
-                                            }
-                                        }
-
-                                        IconButton {
-                                            visible:   _card._labeledActions.length > 2
-                                            label:     "⋮"
-                                            fontFamily: Style.fontMono
-                                            onClicked: _card._expanded = !_card._expanded
-                                        }
+                                // Col3: Thumbnail
+                                Item {
+                                    readonly property int _sz: Style.buttonHeight * 2
+                                    Layout.preferredWidth:  (_entry.modelData.image !== "") ? _sz : 0
+                                    Layout.preferredHeight: _sz
+                                    Layout.alignment: Qt.AlignTop
+                                    clip: true
+                                    Behavior on Layout.preferredWidth {
+                                        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                                     }
 
-                                    RowLayout {
+                                    Image {
+                                        anchors.fill: parent
+                                        source:       _entry.modelData.image || ""
+                                        fillMode:     Image.PreserveAspectCrop
+                                    }
+
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        enabled: _entry.modelData.image !== ""
+                                        onTapped: _entry._invokeDefault()
+                                    }
+                                }
+
+                                // Col4: Dismiss
+                                ColumnLayout {
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: 0
+                                    IconButton { label: "×"; onClicked: _entry.modelData.dismiss() }
+                                }
+                            }
+
+                            // Divider + action row
+                            PanelDivider { visible: _entry._hasActions; Layout.fillWidth: true }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Style.panelElementHpadding
+                                visible: _entry._hasActions
+
+                                Repeater {
+                                    model: _entry._filteredActions
+                                    delegate: PanelButton {
+                                        required property var modelData
+                                        label:            modelData.text
                                         Layout.fillWidth: true
-                                        spacing: 4
-                                        visible: _card._expanded && _card._labeledActions.length > 2
-
-                                        Repeater {
-                                            model: Math.min(_card._labeledActions.length - 2, 2)
-                                            delegate: PanelButton {
-                                                required property int index
-                                                property var _action: _card._labeledActions[index + 2]
-
-                                                Layout.fillWidth:  true
-                                                label:             _action ? _action.text : ""
-                                                QQC.ToolTip.text:  _action ? _action.text : ""
-                                                QQC.ToolTip.visible: _hover3.hovered && implicitWidth > width + 4
-                                                QQC.ToolTip.delay: 600
-
-                                                HoverHandler { id: _hover3 }
-
-                                                onClicked: {
-                                                    if (_action) _action.invoke()
-                                                    _card.modelData.dismiss()
-                                                }
-                                            }
+                                        onClicked: {
+                                            modelData.invoke()
+                                            _entry.modelData.dismiss()
                                         }
                                     }
                                 }
                             }
+
+                            // Body text components — defined in delegate scope to access modelData
+                            Component {
+                                id: _richBodyComp
+                                Text {
+                                    text:             _entry.modelData.body || ""
+                                    color:            Style.textSecondary
+                                    font.family:      Style.fontMono
+                                    font.pixelSize:   Style.fontSizeBody
+                                    textFormat:       Text.RichText
+                                    wrapMode:         Text.WordWrap
+                                    maximumLineCount: Prefs.bankMaxLines
+                                    elide:            Text.ElideRight
+                                    onLinkActivated:  (link) => Qt.openUrlExternally(link)
+                                }
+                            }
+
+                            Component {
+                                id: _plainBodyComp
+                                Text {
+                                    text:             _entry.modelData.body || ""
+                                    color:            Style.textSecondary
+                                    font.family:      Style.fontMono
+                                    font.pixelSize:   Style.fontSizeBody
+                                    wrapMode:         Text.WordWrap
+                                    maximumLineCount: Prefs.bankMaxLines
+                                    elide:            Text.ElideRight
+
+                                    HoverHandler { id: _bodyHover }
+                                    QQC.ToolTip.visible: truncated && _bodyHover.hovered
+                                    QQC.ToolTip.text:    _entry.modelData.body || ""
+                                    QQC.ToolTip.delay:   500
+                                }
+                            }
                         }
                     }
+            }
+
+            // ── Screenshots tab ───────────────────────────────────────────────
+
+            PanelCard {
+                Layout.fillWidth: true
+                visible: root._tab === 1
+
+                Text {
+                    Layout.fillWidth:    true
+                    Layout.topMargin:    Style.panelElementVpadding
+                    Layout.bottomMargin: Style.panelElementVpadding
+                    horizontalAlignment: Text.AlignHCenter
+                    visible:         root._shots.length === 0
+                    text:            "No screenshots"
+                    color:           Style.textMuted
+                    font.family:     Style.fontMono
+                    font.pixelSize:  Style.fontSizeBody
                 }
-            }
-        }
 
-        // ── Screenshots ───────────────────────────────────────────────────────
-
-        Item {
-            anchors.fill: parent
-            visible: root._tab === 1
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top:              parent.top
-                anchors.topMargin:        16
-                visible:                  root._shots.length === 0
-                text:                     "No screenshots"
-                color:                    Style.textMuted
-                font.family:              Style.fontMono
-                font.pixelSize:           Style.fontSizeBody
-            }
-
-            Flickable {
-                id: _shotFlick
-                anchors.fill:  parent
-                visible:       root._shots.length > 0
-                contentHeight: _shotCol.implicitHeight
-                clip:          true
-                implicitHeight: _shotCol.implicitHeight
-
-                ColumnLayout {
-                    id:      _shotCol
-                    width:   parent.width
-                    spacing: 6
-
-                    Repeater {
+                Repeater {
                         model: root._shots
 
-                        delegate: Rectangle {
-                            id: _shotCard
-
+                        delegate: ColumnLayout {
+                            id: _shotEntry
                             required property var modelData
-
+                            required property int index
                             Layout.fillWidth: true
-                            implicitHeight:   _shotRow.implicitHeight + 16
+                            spacing: 0
 
-                            radius:       Style.panelElementRadius
-                            border.width: Style.elementBorderWidth
-                            border.color: Style.borderFaintColor
-                            color:        Style.surfaceLowColor
+                            PanelDivider {
+                                visible: _shotEntry.index > 0
+                                Layout.fillWidth: true
+                                Layout.topMargin:    Style.panelElementVpadding
+                                Layout.bottomMargin: Style.panelElementVpadding
+                            }
 
                             RowLayout {
-                                id: _shotRow
-                                anchors { top: parent.top; left: parent.left; right: parent.right; margins: 8 }
-                                spacing: 8
+                                Layout.fillWidth: true
+                                spacing: Style.panelCardHpadding
 
                                 MediaThumbnail {
-                                    source:   _shotCard.modelData.path
+                                    source:   _shotEntry.modelData.path
                                     filename: ""
-                                    Layout.preferredWidth: 72
+                                    Layout.preferredWidth: Prefs.bankThumbWidth
                                     onThumbnailClicked: _xdgOpen.running = true
 
                                     Process {
                                         id: _xdgOpen
-                                        command: ["xdg-open", _shotCard.modelData.path]
+                                        command: ["xdg-open", _shotEntry.modelData.path]
                                     }
                                 }
 
                                 ColumnLayout {
-                                    Layout.fillWidth:  true
-                                    Layout.alignment:  Qt.AlignTop
-                                    spacing: 3
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: Style.panelElementHpadding
 
                                     Text {
-                                        text:           _shotCard.modelData.name
-                                        color:          Style.textNormal
-                                        font.family:    Style.fontMono
-                                        font.pixelSize: Style.fontSizeSubtle
-                                        elide:          Text.ElideMiddle
+                                        text:             _shotEntry.modelData.name
+                                        color:            Style.textNormal
+                                        font.family:      Style.fontMono
+                                        font.pixelSize:   Style.fontSizeSubtle
+                                        elide:            Text.ElideMiddle
                                         Layout.fillWidth: true
                                     }
 
                                     Text {
-                                        text:           Qt.formatTime(new Date(_shotCard.modelData.timestamp), "hh:mm:ss")
+                                        text:           Qt.formatTime(new Date(_shotEntry.modelData.timestamp), "hh:mm:ss")
                                         color:          Style.textMuted
                                         font.family:    Style.fontMono
                                         font.pixelSize: Style.fontSizeSubtle
                                     }
 
                                     RowLayout {
-                                        spacing: 4
+                                        spacing: Style.panelElementHpadding
 
                                         PanelButton {
                                             label: "Open"
@@ -419,35 +384,40 @@ Item {
                                         }
 
                                         PanelButton {
-                                            label: "Copy"
+                                            label:    "Copy"
                                             onClicked: _copyImg.running = true
 
                                             Process {
                                                 id: _copyImg
-                                                command: ["sh", "-c", "wl-copy -t image/png < \"$1\"", "sh", _shotCard.modelData.path]
+                                                command: ["sh", "-c", "wl-copy -t image/png < \"$1\"", "sh", _shotEntry.modelData.path]
                                             }
                                         }
 
                                         PanelButton {
                                             label:    "Delete"
                                             variant:  "critical"
-                                            onClicked: root.screenshotProcess && root.screenshotProcess.deleteScreenshot(_shotCard.modelData.path)
+                                            onClicked: root.screenshotProcess
+                                                && root.screenshotProcess.deleteScreenshot(_shotEntry.modelData.path)
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
             }
         }
     }
 
-    // ── Systray footer ────────────────────────────────────────────────────────
+    // ── SysTray footer ────────────────────────────────────────────────────────
 
     Rectangle {
         id: _sysDivider
-        anchors { bottom: _trayBar.top; left: parent.left; right: parent.right }
+        anchors {
+            bottom:       _trayBar.top
+            left:         parent.left
+            right:        parent.right
+            bottomMargin: _trayBar.count > 0 ? Style.panelElementVpadding : 0
+        }
         height: _trayBar.count > 0 ? 1 : 0
         color:  Style.panelBorderColor
     }
@@ -458,7 +428,6 @@ Item {
             bottom:       parent.bottom
             bottomMargin: _trayBar.count > 0 ? Style.panelMargin : 0
             right:        parent.right
-            rightMargin:  Style.panelMargin
         }
         height: _trayBar.count > 0 ? 24 : 0
     }

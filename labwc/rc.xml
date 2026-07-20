@@ -59,7 +59,8 @@
       <name>1</name>
       <name>2</name>
     </names>
-    <popupTime>200</popupTime>
+    <!-- <popupTime>200</popupTime> -->
+    <popupTime>0</popupTime>
   </desktops>
 
   <resize>
