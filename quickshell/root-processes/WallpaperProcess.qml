@@ -37,8 +37,14 @@ Item {
         return Math.round(sw * Prefs.panelWidth / 100)
     }
 
+    function _isVideo(path) {
+        return [".mp4", ".webm", ".mkv", ".mov"].some(
+            function(e) { return path.toLowerCase().endsWith(e) })
+    }
+
     function thumbPath(path) {
-        return root._cacheDir + "/" + path.split("/").pop() + ".jpg"
+        var sub = root._isVideo(path) ? "videoWallpaper" : "staticWallpaper"
+        return root._cacheDir + "/" + sub + "/" + path.split("/").pop() + ".jpg"
     }
 
     function _appendThumbQueue(files) {
@@ -48,10 +54,10 @@ Item {
     }
 
     function _startNextThumb() {
-        if (_thumbProc.running) return
+        if (_thumbProc.running || _checkProc.running) return
         if (_thumbQueueIdx >= _thumbQueue.length) return
         root._thumbActivePath = _thumbQueue[_thumbQueueIdx]
-        _thumbProc.running = true
+        _checkProc.running = true
     }
 
     // ── Error ─────────────────────────────────────────────────────────────────
@@ -219,16 +225,36 @@ Item {
     // Queue processes one file at a time; onExited kicks off the next.
     Process {
         id: _mkdirProc
-        command: ["mkdir", "-p", root._cacheDir]
+        command: ["mkdir", "-p",
+                  root._cacheDir + "/staticWallpaper",
+                  root._cacheDir + "/videoWallpaper"]
+    }
+
+    Process {
+        id: _checkProc
+        command: ["test", "-f", root.thumbPath(root._thumbActivePath)]
+        onExited: function(code, signal) {
+            if (code === 0) {
+                var updated = Object.assign({}, root.thumbsReady)
+                updated[root._thumbActivePath] = true
+                root.thumbsReady = updated
+                if (root._pendingVideoExtract === root._thumbActivePath) {
+                    root._maybeExtract(root.thumbPath(root._thumbActivePath))
+                    root._pendingVideoExtract = ""
+                }
+                root._thumbQueueIdx++
+                root._startNextThumb()
+            } else {
+                _thumbProc.running = true
+            }
+        }
     }
 
     Process {
         id: _thumbProc
         command: {
             var p = root._thumbActivePath
-            var isVideo = [".mp4", ".webm", ".mkv", ".mov"].some(
-                function(e) { return p.toLowerCase().endsWith(e) })
-            if (isVideo)
+            if (root._isVideo(p))
                 return ["ffmpeg", "-y", "-loglevel", "quiet",
                         "-ss", "00:00:01", "-i", p,
                         "-frames:v", "1", "-q:v", "3",
@@ -307,7 +333,7 @@ Item {
         _mkdirStateProc.running = true
         _mkdirThemeProc.running = true
         console.log("[WallpaperProcess] started | sourceType:", root.sourceType,
-            "| dir:", root.wallpaperDir, "| thumbCache:", root._cacheDir)
+            "| dir:", root.wallpaperDir, "| thumbCache:", root._cacheDir + "/{staticWallpaper,videoWallpaper}")
         if (root.wallpaperDir !== "")
             scanDirectory(root.wallpaperDir)
     }

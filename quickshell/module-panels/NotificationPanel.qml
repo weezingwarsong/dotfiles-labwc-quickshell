@@ -349,7 +349,9 @@ Item {
 
                                 MediaThumbnail {
                                     id: _thumb
-                                    source:    _shotEntry.modelData.path
+                                    source: root.screenshotProcess && root.screenshotProcess.thumbsReady[_shotEntry.modelData.path]
+                                        ? root.screenshotProcess.thumbPath(_shotEntry.modelData.path)
+                                        : _shotEntry.modelData.path
                                     filename:  ""
                                     fillMode:  Image.PreserveAspectCrop
                                     anchors.left: parent.left
