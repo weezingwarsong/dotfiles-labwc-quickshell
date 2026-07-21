@@ -620,7 +620,7 @@ In one-shot mode: gsr spawns on first `toggle()` call.
 **`FifoListener.qml`** — update commands:
 - Remove: `screenrecStartScreen`, `screenrecStartRegion`, `screenrecStop`, `screenrecSaveReplay`, `screenrecToggleScreen`
 - Keep: `screenrecStartRegionWith:COORDS` (from `pillbox-screenrec-region` wrapper)
-- Add: `screenrecToggle`, `screenrecSaveReplay`, `screenrecSaveReplay:N`, `screenrecEmergencyStop`
+- Add: `screenrecToggle`, `screenrecSaveReplay`, `screenrecSaveReplay:N`, `screenrecEmergencyStop`, `screenrecSetMode:oneshot|replay`
 
 **`shell.qml`** — update handlers to match new API.
 
@@ -720,17 +720,24 @@ PanelCard {
         }
 
         // Col 4 — Start / Stop
-        // implicitWidth: square, fontSizeBody + panelElementVpadding (~28px)
-        IconButton {
-            label:   (root.screenrecProcess && root.screenrecProcess.recording) ? "■" : "▶"
-            variant: (root.screenrecProcess && root.screenrecProcess.recording) ? "critical" : "default"
-            onClicked: if (root.screenrecProcess) root.screenrecProcess.toggle()
+        // FIFO: writes screenrecToggle. State read from screenrecProcess.recording.
+        TogglePair {
+            readonly property bool _rec:
+                root.screenrecProcess && root.screenrecProcess.recording
+            labelA:     "■"
+            labelB:     "󰑊"
+            fontFamily: Style.fontNerd
+            colorA:     _rec ? Style.textSuccess : Style.textMuted
+            colorB:     Style.textCritical
+            selected:   _rec ? 1 : 0
+            onToggled:  (idx) => root._fifo("screenrecToggle")
         }
     }
 
-    // Row 3 — Audio source (SegmentedControl — not yet built; see step 7a)
+    // Row 3 — Audio source (SegmentedControl — not yet built; see step 13)
     // SegmentedControl {
     //     Layout.fillWidth: true
+    //     visible: !(root._modeIsReplay && root.screenrecProcess && root.screenrecProcess.active)
     //     model:    ["None", "System", "Mic", "Both"]
     //     selected: root._audioIdx
     //     onToggled: (idx) => root._audioIdx = idx
@@ -738,16 +745,28 @@ PanelCard {
 }
 ```
 
+**FIFO as single source of truth:**
+
+All ControlPanel write actions go through `_fifo(cmd)` — a helper that spawns `sh -c 'echo CMD > FIFO'`. This is the same mechanism rc.xml uses for W-S-r. Every control path (keybind, panel, toast) therefore goes through the same FIFO → FifoListener → ScreenrecProcess chain. Reading state still comes from `screenrecProcess` and `Prefs` directly.
+
+```qml
+// In ControlPanel
+function _fifo(cmd) {
+    _fifoProc.command = ["sh", "-c", "echo '" + cmd + "' > \"$HOME/.local/share/pillbox/pillbox.fifo\""]
+    _fifoProc.running = true
+}
+Process { id: _fifoProc }
+```
+
 **Behavior:**
 - **SectionHeader**: tapping collapses/expands Row 2. State in `_recCollapsed: bool`.
-- **Mode TogglePair** (`Single | Replay`): `_modeIdx = 0` → oneshot, `_modeIdx = 1` → replay. Blocked (disabled) while recording. Does not call ScreenrecProcess directly — mode switch takes effect on next `toggle()` call.
-- **Col 2 — Single mode** (`PanelButton "Region Pick"`): launches `pillbox-screenrec-region` as a direct process (slurp needs pointer grab as labwc child). Disabled while recording.
+- **Mode TogglePair** (`Single | Replay`): writes `screenrecSetMode:oneshot` or `screenrecSetMode:replay` to FIFO. `selected` driven by `Prefs.recMode` (reactive — updates when FifoListener processes the command). Blocked (disabled) while `screenrecProcess.active` — covers both "oneshot recording in progress" and "replay daemon is running".
+- **Col 2 — Single mode** (`PanelButton "Region Pick"`): launches `pillbox-screenrec-region` directly (slurp needs pointer grab as labwc child). Disabled while `screenrecProcess.active`.
 - **Col 2 — Replay mode** (`Text`): static hint only. No interaction.
 - **Col 3 — ScrollChip** (Replay only): shows current replay save duration. Scroll to cycle through `[5, 10, 30, 60, 120, 300]` seconds. Stubbed for now — wire to `Prefs.replaySaveDefaultSecs` in a follow-up pass.
-- **IconButton ▶/■**:
-  - Single mode: `▶` → `toggle()` starts gsr; `■` → `toggle()` stops + saves
-  - Replay mode: `▶/■` → `toggle()` sends `SIGRTMIN` (toggles recording-to-file; gsr daemon stays alive)
-  - Label and variant driven by `screenrecProcess.recording` — reflects real state, not intent
+- **Start/Stop TogglePair**: writes `screenrecToggle` to FIFO. `selected` driven by `screenrecProcess.recording`.
+
+`screenrecSetMode` chain: FIFO → `FifoListener.screenrecSetModeRequested(mode)` → `shell.qml` → `screenrec.setMode(mode)` → `Prefs.setRecMode(mode)` + start/stop daemon.
 
 ---
 
@@ -854,6 +873,7 @@ SegmentedControl {
 - [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
 - [ ] **11. Fix toast** — both `ScreenshotPreview.qml` and `ScreenrecToast.qml` need review and repair to work with current state.
 - [x] **12. W-S-e mode-aware keybind** — `pillbox-screenrec-e` reads `recMode` + `replaySaveDefaultSecs` from `pillbox.conf`. Single: slurp → `screenrecStartRegionWith`. Replay: `screenrecSaveReplay:N`. rc.xml updated; symlinked to `~/.local/bin`. See 2D.
+- [x] **14. Wire ControlPanel TogglePairs through FIFO** — Mode TogglePair: writes `screenrecSetMode:oneshot|replay`, `selected` from `Prefs.recMode`, `enabled` from `!screenrecProcess.active`. Start/Stop: writes `screenrecToggle`. `_fifo(cmd)` helper + `_fifoProc` Process added. `screenrecSetMode` wired in FifoListener, shell.qml; `setMode(mode)` added to ScreenrecProcess.
 - [ ] **13. Wire audio SegmentedControl in ControlPanel** — uncomment Row 3; add `_audioIdx` property; hide row when Replay daemon is active (`_modeIdx === 1 && screenrecProcess.active`); add `recAudio` Prefs entry (default `"none"`); wire ScreenrecProcess to pass `--audio <mode>` to script on each invocation. See section 4.
 
 > **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.

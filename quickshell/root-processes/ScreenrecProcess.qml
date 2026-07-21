@@ -49,6 +49,19 @@ Item {
         _proc.running = true
     }
 
+    // Switch mode. Blocked while active — caller (UI/FIFO) must ensure daemon/recording
+    // is stopped first. Switching TO replay starts the daemon immediately.
+    function setMode(mode) {
+        if (mode !== "oneshot" && mode !== "replay") return
+        if (mode === root.recMode) return
+        if (root.active) {
+            console.log("[ScreenrecProcess] setMode blocked: process active")
+            return
+        }
+        Prefs.setRecMode(mode)
+        if (mode === "replay") _proc.running = true
+    }
+
     function saveReplay()         { _sendCtl("saveReplay") }
     function saveReplaySeconds(n) { _sendCtl("saveReplay:" + n) }
     function pause()              { _sendCtl("pause") }

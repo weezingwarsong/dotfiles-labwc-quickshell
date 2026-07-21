@@ -209,26 +209,26 @@ Item {
                         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
                         spacing: Style.panelElementHpadding
 
-                        // Col 1 — Mode picker
+                        // Col 1 — Mode picker (writes screenrecSetMode:* to FIFO)
                         TogglePair {
                             labelA:   "Single"
                             labelB:   "Replay"
-                            selected: root._modeIdx
-                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
-                            onToggled: (idx) => root._modeIdx = idx
+                            selected: Prefs.recMode === "replay" ? 1 : 0
+                            enabled:  !(root.screenrecProcess && root.screenrecProcess.active)
+                            onToggled: (idx) => root._fifo("screenrecSetMode:" + (idx === 1 ? "replay" : "oneshot"))
                         }
 
                         // Col 2 — mode-dependent context (fills remaining space)
                         PanelButton {
                             Layout.fillWidth: true
-                            visible:  root._modeIdx === 0
+                            visible:  Prefs.recMode !== "replay"
                             label:    "Region Pick"
-                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
+                            enabled:  !(root.screenrecProcess && root.screenrecProcess.active)
                             onClicked: _regionProc.running = true
                         }
                         Text {
                             Layout.fillWidth: true
-                            visible:        root._modeIdx === 1
+                            visible:        Prefs.recMode === "replay"
                             text:           "W-S-e: capture replay"
                             color:          Style.textMuted
                             font.family:    Style.fontMono
@@ -238,13 +238,13 @@ Item {
 
                         // Col 3 — replay save duration (stub — wire to Prefs.replaySaveDefaultSecs later)
                         ScrollChip {
-                            visible: root._modeIdx === 1
+                            visible: Prefs.recMode === "replay"
                             variant: "value"
                             text:    "30s"
                             onScrolled: (delta) => { /* stub */ }
                         }
 
-                        // Col 4 — Start / Stop
+                        // Col 4 — Start / Stop (writes screenrecToggle to FIFO)
                         TogglePair {
                             readonly property bool _rec:
                                 root.screenrecProcess && root.screenrecProcess.recording
@@ -254,7 +254,7 @@ Item {
                             colorA:     _rec ? Style.textSuccess : Style.textMuted
                             colorB:     Style.textCritical
                             selected:   _rec ? 1 : 0
-                            onToggled:  (idx) => { if (root.screenrecProcess) root.screenrecProcess.toggle() }
+                            onToggled:  (idx) => root._fifo("screenrecToggle")
                         }
                     }
                 }
@@ -306,7 +306,13 @@ Item {
 
     // ── Screenrec state ───────────────────────────────────────────────────────
     property bool _recCollapsed: false
-    property int  _modeIdx:      0       // 0 = single/oneshot, 1 = replay
+
+    // ── FIFO writer ───────────────────────────────────────────────────────────
+    function _fifo(cmd) {
+        _fifoProc.command = ["sh", "-c", "echo '" + cmd + "' > \"$HOME/.local/share/pillbox/pillbox.fifo\""]
+        _fifoProc.running = true
+    }
+    Process { id: _fifoProc }
 
     // ── Session state ─────────────────────────────────────────────────────────
     property string _pendingAction:    ""

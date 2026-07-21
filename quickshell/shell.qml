@@ -49,6 +49,7 @@ ShellRoot {
         onDismissToastRequested:       (id)     => toastWindow.dismiss(id)
 
         onScreenrecToggleRequested:              screenrec.toggle()
+        onScreenrecSetModeRequested:             (mode)   => screenrec.setMode(mode)
         onScreenrecSaveReplayRequested:          screenrec.saveReplay()
         onScreenrecSaveReplaySecondsRequested:   (n)      => screenrec.saveReplaySeconds(n)
         onScreenrecEmergencyStopRequested:       screenrec.emergencyStop()
