@@ -13,7 +13,10 @@ Item {
     property string labelA:  ""
     property string labelB:  ""
     property int    selected: 0
-    property string variant: "normal"
+    property string variant:    "normal"
+    property string fontFamily: Style.fontMono
+    property color  colorA:     Style.textNormal
+    property color  colorB:     Style.textSecondary
 
     signal toggled(int index)
 
@@ -38,8 +41,8 @@ Item {
     }
 
     // ── Hidden measurers (drive implicitWidth without affecting layout) ────────
-    Text { id: _mA; visible: false; text: labelA; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
-    Text { id: _mB; visible: false; text: labelB; font.family: Style.fontMono; font.pixelSize: Style.fontSizeBody }
+    Text { id: _mA; visible: false; text: labelA; font.family: root.fontFamily; font.pixelSize: Style.fontSizeBody }
+    Text { id: _mB; visible: false; text: labelB; font.family: root.fontFamily; font.pixelSize: Style.fontSizeBody }
 
     // ── Label A ───────────────────────────────────────────────────────────────
     // active (selected=0): shows at x=0, slides out left on hover
@@ -50,11 +53,11 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         elide:               Text.ElideRight
         text:                labelA
-        font.family:         Style.fontMono
+        font.family:         root.fontFamily
         font.pixelSize:      Style.fontSizeBody
         color: (variant === "yesno")
                ? (selected === 0 ? Style.textOnAccent : Style.textAccent)
-               : (selected === 0 ? Style.textNormal   : Style.textSecondary)
+               : root.colorA
 
         x: selected === 0
            ? (_hover.hovered ? -parent.width : 0)
@@ -69,9 +72,11 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         elide:               Text.ElideRight
         text:                labelB
-        font.family:         Style.fontMono
+        font.family:         root.fontFamily
         font.pixelSize:      Style.fontSizeBody
-        color: selected === 1 ? Style.textNormal : Style.textSecondary
+        color: (variant === "yesno")
+               ? (selected === 1 ? Style.textNormal : Style.textSecondary)
+               : root.colorB
 
         x: selected === 1
            ? (_hover.hovered ? -parent.width : 0)

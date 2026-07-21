@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as QQC
 import Quickshell.Io
 
 Item {
@@ -186,71 +185,77 @@ Item {
             }
         }
 
-        // ── Screenrec section ─────────────────────────────────────────────────
-        PanelDivider {}
-
-        ColumnLayout {
+        // ── Screenrec ─────────────────────────────────────────────────────────
+        PanelCard {
             Layout.fillWidth: true
-            spacing: 6
-
-            SectionLabel { text: "Screen Recorder" }
-
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: 0
 
-                PanelButton {
+                SectionHeader {
                     Layout.fillWidth: true
-                    label: "Screen"
-                    variant: root._recMode === "screen" ? "accent" : "default"
-                    enabled: !(root.screenrecProcess && root.screenrecProcess.recording)
-                    onClicked: root._recMode = "screen"
+                    text:      "Screen Recorder"
+                    collapsed: root._recCollapsed
+                    onToggled: root._recCollapsed = !root._recCollapsed
                 }
-                PanelButton {
-                    Layout.fillWidth: true
-                    label: "Region"
-                    variant: root._recMode === "region" ? "accent" : "default"
-                    enabled: !(root.screenrecProcess && root.screenrecProcess.recording)
-                    onClicked: root._recMode = "region"
-                }
-                PanelButton {
-                    Layout.fillWidth: true
-                    label: "Window"
-                    variant: "default"
-                    enabled: false
-                    QQC.ToolTip.text: "Not available on Wayland (TBD)"
-                    QQC.ToolTip.visible: _winHover.hovered
-                    QQC.ToolTip.delay: 400
-                    HoverHandler { id: _winHover }
-                }
-            }
 
-            // Region start is disabled here — slurp can't get pointer grab as a QML child.
-            // Use W+Shift+E keybind instead (calls pillbox-screenrec-region as labwc child).
-            PanelButton {
-                id: _startBtn
-                Layout.fillWidth: true
-                variant: (root.screenrecProcess && root.screenrecProcess.recording) ? "critical" : "accent"
-                label: {
-                    if (root.screenrecProcess && root.screenrecProcess.recording) return "Recording..."
-                    if (root._recMode === "region") return "Pick Region & Start"
-                    return "Start — Screen"
-                }
-                enabled: root.screenrecProcess !== null &&
-                         ((root.screenrecProcess && root.screenrecProcess.recording) ||
-                          root._recMode !== "region")
-                QQC.ToolTip.text: "Use W+Shift+E to pick region"
-                QQC.ToolTip.visible: root._recMode === "region" &&
-                                     !(root.screenrecProcess && root.screenrecProcess.recording) &&
-                                     _startBtnHover.hovered
-                QQC.ToolTip.delay: 300
-                HoverHandler { id: _startBtnHover }
-                onClicked: {
-                    if (!root.screenrecProcess) return
-                    if (root.screenrecProcess.recording) {
-                        root.screenrecProcess.stop()
-                    } else {
-                        root.screenrecProcess.startScreen()
+                Item {
+                    Layout.fillWidth: true; clip: true
+                    Layout.preferredHeight: !root._recCollapsed ? _recRow.implicitHeight + 8 : 0
+                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                    RowLayout {
+                        id: _recRow
+                        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
+                        spacing: Style.panelElementHpadding
+
+                        // Col 1 — Mode picker
+                        TogglePair {
+                            labelA:   "Single"
+                            labelB:   "Replay"
+                            selected: root._modeIdx
+                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
+                            onToggled: (idx) => root._modeIdx = idx
+                        }
+
+                        // Col 2 — mode-dependent context (fills remaining space)
+                        PanelButton {
+                            Layout.fillWidth: true
+                            visible:  root._modeIdx === 0
+                            label:    "Region Pick"
+                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
+                            onClicked: _regionProc.running = true
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible:        root._modeIdx === 1
+                            text:           "W-S-e: capture replay"
+                            color:          Style.textMuted
+                            font.family:    Style.fontMono
+                            font.pixelSize: Style.fontSizeSubtle
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        // Col 3 — replay save duration (stub — wire to Prefs.replaySaveDefaultSecs later)
+                        ScrollChip {
+                            visible: root._modeIdx === 1
+                            variant: "value"
+                            text:    "30s"
+                            onScrolled: (delta) => { /* stub */ }
+                        }
+
+                        // Col 4 — Start / Stop
+                        TogglePair {
+                            readonly property bool _rec:
+                                root.screenrecProcess && root.screenrecProcess.recording
+                            labelA:     "■"
+                            labelB:     "󰑊"
+                            fontFamily: Style.fontNerd
+                            colorA:     _rec ? Style.textSuccess : Style.textMuted
+                            colorB:     Style.textCritical
+                            selected:   _rec ? 1 : 0
+                            onToggled:  (idx) => { if (root.screenrecProcess) root.screenrecProcess.toggle() }
+                        }
                     }
                 }
             }
@@ -300,7 +305,8 @@ Item {
     }
 
     // ── Screenrec state ───────────────────────────────────────────────────────
-    property string _recMode: "screen"   // "screen" | "region"
+    property bool _recCollapsed: false
+    property int  _modeIdx:      0       // 0 = single/oneshot, 1 = replay
 
     // ── Session state ─────────────────────────────────────────────────────────
     property string _pendingAction:    ""
@@ -335,6 +341,7 @@ Item {
     // ── Processes ─────────────────────────────────────────────────────────────
     Process { id: _pavuProc;      command: ["pavucontrol-qt"] }
     Process { id: _nmConnProc;    command: ["nm-connection-editor"] }
+    Process { id: _regionProc;    command: ["pillbox-screenrec-region"] }
     Process { id: _reconfigProc;  command: ["labwc", "--reconfigure"] }
     Process { id: _exitProc;      command: ["labwc", "--exit"] }
     Process { id: _rebootProc;    command: ["systemctl", "reboot"] }

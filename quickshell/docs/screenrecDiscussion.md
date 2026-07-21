@@ -648,44 +648,100 @@ The toast receives its data from `ScreenrecProcess` signals — these signals ar
 
 ---
 
-### 2H. ControlPanel UI (redesigned — compact two-row layout)
+### 2H. ControlPanel UI (redesigned — PanelCard single-row layout)
 
-Old layout (PanelButton grid) is superseded by the design below.
+Old layout (PanelButton grid + two RowLayouts) is superseded by the design below.
 
 ```qml
-ColumnLayout {
-    PanelDivider {}
+PanelCard {
+    Layout.fillWidth: true
 
-    RowLayout {                                            // Row 1 — mode + start/stop
-        SectionLabel { text: "Rec. Mode" }
-        // spacer
-        TogglePair { labelA: "Single"; labelB: "Replay"  // switches recMode; blocked while recording
-                     selected: _modeIdx }
-        TogglePair { labelA: "▶"; labelB: "■"            // Start / Stop
-                     selected: _recording ? 1 : 0 }
+    // Row 1 — SectionHeader (collapsible)
+    SectionHeader {
+        Layout.fillWidth: true          // tap target spans full card width
+        // implicitWidth: content-driven (arrow + label text)
+        text:      "Screen Recorder"
+        collapsed: root._recCollapsed
+        onToggled: root._recCollapsed = !root._recCollapsed
     }
 
-    RowLayout {                                            // Row 2 — context (mode-dependent)
-        Text { text: _modeIdx === 0 ? "Region" : "W-S-e: save" }
-        IconButton { visible: _modeIdx === 0 }            // crosshair glyph — region pick (Single only)
+    // Row 2 — controls (hidden when collapsed)
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.topMargin: Style.panelElementVpadding  // PanelCard spacing: 0; add manually
+        visible: !root._recCollapsed
+        spacing: Style.panelElementHpadding
+
+        // Col 1 — Mode picker
+        // implicitWidth: content-driven, max(labelA, labelB) + hpadding ≤ 250px (~70–80px)
+        TogglePair {
+            labelA:   "Single"
+            labelB:   "Replay"
+            selected: root._modeIdx          // 0 = single/oneshot, 1 = replay
+            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
+            onToggled: (idx) => root._modeIdx = idx
+        }
+
+        // Col 2 — mode-dependent context (Layout.fillWidth: true — consumes remaining space)
+        PanelButton {
+            // Single mode: region pick trigger
+            // implicitWidth: content-driven; fillWidth expands it
+            Layout.fillWidth: true
+            visible:  root._modeIdx === 0
+            label:    "Region Pick"
+            onClicked: _regionProc.running = true
+        }
+        Text {
+            // Replay mode: static hint — plain Text, not ScrollingText
+            // (ScrollingText only scrolls when text overflows its width; hint is always short)
+            Layout.fillWidth: true
+            visible:        root._modeIdx === 1
+            text:           "W-S-e: capture replay"
+            color:          Style.textMuted
+            font.family:    Style.fontMono
+            font.pixelSize: Style.fontSizeSubtle
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        // Col 3 — replay duration picker (Replay mode only)
+        // implicitWidth: content-driven, valueText + hpadding ≥ 24px ≤ 300px (~40–50px for "30s")
+        // STUB — wire to Prefs.replaySaveDefaultSecs later
+        ScrollChip {
+            visible: root._modeIdx === 1
+            variant: "value"
+            text:    "30s"
+            onScrolled: (delta) => { /* stub */ }
+        }
+
+        // Col 4 — Start / Stop
+        // implicitWidth: square, fontSizeBody + panelElementVpadding (~28px)
+        IconButton {
+            label:   (root.screenrecProcess && root.screenrecProcess.recording) ? "■" : "▶"
+            variant: (root.screenrecProcess && root.screenrecProcess.recording) ? "critical" : "default"
+            onClicked: if (root.screenrecProcess) root.screenrecProcess.toggle()
+        }
     }
 
-    // Row 3 — Audio (added after SegmentedControl is built; see step 7a)
-    // RowLayout {
-    //     SectionLabel { text: "Audio" }
-    //     SegmentedControl { model: ["None", "System", "Mic", "Both"]; selected: _audioIdx }
+    // Row 3 — Audio source (SegmentedControl — not yet built; see step 7a)
+    // SegmentedControl {
+    //     Layout.fillWidth: true
+    //     model:    ["None", "System", "Mic", "Both"]
+    //     selected: root._audioIdx
+    //     onToggled: (idx) => root._audioIdx = idx
     // }
 }
 ```
 
 **Behavior:**
-- **Mode TogglePair** (`Single | Replay`): switches `recMode` Prefs; blocked (disabled) while recording is active
-- **Start/Stop TogglePair** (`▶ | ■`):
-  - Single mode: `▶` → start oneshot; `■` → send `stop` CTL command
-  - Replay mode: `▶ | ■` → send `toggleRec` CTL command (toggles recording-to-file; gsr daemon stays alive)
-  - `selected` is driven by `screenrecProcess.recording` — the toggle reflects actual state, not user intent
-- **Row 2 — Single mode:** "Region" label + crosshair `IconButton` → triggers `screenrecStartRegion` FIFO; no button when already recording
-- **Row 2 — Replay mode:** "W-S-e: save" hint text only (keybind reminder for replay save); no interactive button
+- **SectionHeader**: tapping collapses/expands Row 2. State in `_recCollapsed: bool`.
+- **Mode TogglePair** (`Single | Replay`): `_modeIdx = 0` → oneshot, `_modeIdx = 1` → replay. Blocked (disabled) while recording. Does not call ScreenrecProcess directly — mode switch takes effect on next `toggle()` call.
+- **Col 2 — Single mode** (`PanelButton "Region Pick"`): launches `pillbox-screenrec-region` as a direct process (slurp needs pointer grab as labwc child). Disabled while recording.
+- **Col 2 — Replay mode** (`Text`): static hint only. No interaction.
+- **Col 3 — ScrollChip** (Replay only): shows current replay save duration. Scroll to cycle through `[5, 10, 30, 60, 120, 300]` seconds. Stubbed for now — wire to `Prefs.replaySaveDefaultSecs` in a follow-up pass.
+- **IconButton ▶/■**:
+  - Single mode: `▶` → `toggle()` starts gsr; `■` → `toggle()` stops + saves
+  - Replay mode: `▶/■` → `toggle()` sends `SIGRTMIN` (toggles recording-to-file; gsr daemon stays alive)
+  - Label and variant driven by `screenrecProcess.recording` — reflects real state, not intent
 
 ---
 

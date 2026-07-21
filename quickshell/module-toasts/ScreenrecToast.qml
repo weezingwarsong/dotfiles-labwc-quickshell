@@ -30,10 +30,27 @@ Item {
             root._recording    = false
             root._showingSaved = true
             _elapsed.stop()
+            _dismissTimer.start(Prefs.notificationTimeout)
+        }
+        function onReplaySaved(path) {
+            root._savedSecs    = 0
+            root._savedPath    = path
+            root._showingSaved = true
+            _dismissTimer.start(Prefs.notificationTimeout)
         }
         function onRecordingError() {
             root._recording = false
             _elapsed.stop()
+        }
+    }
+
+    HoverHandler {
+        onHoveredChanged: {
+            if (hovered) {
+                if (_dismissTimer.running) _dismissTimer.pause()
+            } else {
+                if (_dismissTimer.running) _dismissTimer.resume()
+            }
         }
     }
 
@@ -43,7 +60,10 @@ Item {
         onTriggered: root._elapsedSecs++
     }
 
-    function _dismiss() { if (!root._recording) root._showingSaved = false }
+    function _dismiss() {
+        _dismissTimer.kill()
+        root._showingSaved = false
+    }
 
     TapHandler {
         acceptedButtons: Qt.RightButton
@@ -89,7 +109,7 @@ Item {
             // Stop
             IconButton {
                 label: "■"
-                onClicked: if (root.screenrecProcess) root.screenrecProcess.stop()
+                onClicked: if (root.screenrecProcess) root.screenrecProcess.toggle()
             }
         }
 
@@ -137,6 +157,15 @@ Item {
         return _p(m) + ":" + _p(s)
     }
     function _p(n) { return n < 10 ? "0" + n : "" + n }
+
+    LocalTimer {
+        id: _dismissTimer
+        variant: 4
+        color:   Style.accentColor
+        Layout.fillWidth: true
+        visible: running && root._showingSaved && !root._recording
+        onCompleted: root._dismiss()
+    }
 
     Process { id: _openProc;     command: ["xdg-open", root._savedPath] }
     Process { id: _copyPathProc; command: ["sh", "-c", "printf '%s' \"$1\" | wl-copy", "sh", root._savedPath] }

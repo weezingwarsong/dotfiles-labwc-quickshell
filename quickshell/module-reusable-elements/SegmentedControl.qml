@@ -1,12 +1,11 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Mutually exclusive button group (MD3 Segmented Button).
-// Pure look-and-feel — no persistence. The caller owns `selected` and handles `onToggled`.
-//
-// variant "accent"   — active button: accentBgColor / textOnAccent
-// variant "critical" — active button: criticalBgColor / textCritical
-RowLayout {
+// MD3-style mutually exclusive button row.
+// All segments share equal width (parent.width / N). Caller owns `selected` and handles `onToggled`.
+// variant "accent"   — selected fill: accentBgColor / textOnAccent
+// variant "critical" — selected fill: criticalBgColor / textCritical
+Rectangle {
     id: root
 
     property var    model:      []
@@ -16,26 +15,31 @@ RowLayout {
 
     signal toggled(int index)
 
-    spacing: 2
+    implicitHeight: Style.buttonHeight
+    radius:         Style.panelElementRadius
+    border.width:   Style.elementBorderWidth
+    border.color:   Style.borderFaintColor
+    clip:           true
+    color:          Style.transparent
 
     Repeater {
         model: root.model
 
         delegate: Rectangle {
-            id: _btn
+            id: _seg
 
             required property string modelData
             required property int    index
 
-            property bool _active:  index === root.selected
-            property bool _hovered: _hover.hovered
+            readonly property bool _active:  index === root.selected
+            readonly property bool _hovered: _hover.hovered
+            readonly property real _segW:    root.model.length > 0
+                                             ? root.width / root.model.length : root.width
 
-            implicitWidth:  Math.max(24, _label.implicitWidth + Style.panelElementHpadding)
-            implicitHeight: Math.max(Style.buttonHeight, _label.implicitHeight + Style.panelElementVpadding)
-
-            radius:       Style.panelElementRadius
-            border.width: _active ? 0 : Style.elementBorderWidth
-            border.color: Style.borderFaintColor
+            x:      index * _seg._segW
+            y:      0
+            width:  _seg._segW
+            height: root.height
 
             color: {
                 if (_active) {
@@ -48,13 +52,21 @@ RowLayout {
             }
             Behavior on color { ColorAnimation { duration: 120 } }
 
+            // Vertical divider on the left edge of every segment except the first
+            Rectangle {
+                visible: _seg.index > 0
+                x: 0; y: 0
+                width:  Style.elementBorderWidth
+                height: parent.height
+                color:  Style.borderFaintColor
+            }
+
             Text {
-                id: _label
                 anchors.centerIn: parent
-                text:           _btn.modelData
+                text:           _seg.modelData
                 font.family:    root.fontFamily
                 font.pixelSize: Style.fontSizeBody
-                color: _btn._active
+                color: _seg._active
                     ? (root.variant === "critical" ? Style.textCritical : Style.textOnAccent)
                     : Style.textSecondary
                 Behavior on color { ColorAnimation { duration: 120 } }
@@ -63,7 +75,6 @@ RowLayout {
             Rectangle {
                 id: _flash
                 anchors.fill: parent
-                radius:  Style.panelElementRadius
                 color:   root.variant === "critical" ? Style.textCritical : Style.accentColor
                 opacity: 0
             }
@@ -76,10 +87,10 @@ RowLayout {
 
             TapHandler {
                 onTapped: {
-                    if (_btn.index !== root.selected) {
+                    if (_seg.index !== root.selected) {
                         _flash.opacity = 0.15
                         _flashOut.start()
-                        root.toggled(_btn.index)
+                        root.toggled(_seg.index)
                     }
                 }
             }
