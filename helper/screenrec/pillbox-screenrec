@@ -1,21 +1,35 @@
 #!/bin/bash
 # pillbox-screenrec — screen recorder helper for Pillbox (v2)
 #
-# Usage: pillbox-screenrec oneshot|replay [options]
+# Wraps gpu-screen-recorder in two modes that map to Pillbox's Single/Replay UI.
+#
+# ── MODE OVERVIEW ──────────────────────────────────────────────────────────────
+#
+# oneshot  No daemon. gsr spawns when the user starts recording and exits when
+#          stopped. SIGINT saves and exits. Any capture source supported.
+#          Lifecycle: spawn → record → SIGINT → save → exit.
+#
+# replay   Permanent daemon. gsr spawns at Quickshell startup and runs
+#          indefinitely, maintaining a rolling in-RAM buffer. Signals toggle
+#          recording-to-file and trigger buffer saves independently.
+#          Lifecycle: spawn at startup → buffer always hot → signals as needed
+#                     → SIGINT only on emergency (exits WITHOUT saving buffer).
+#
+# ── USAGE ──────────────────────────────────────────────────────────────────────
+#
+#   pillbox-screenrec oneshot|replay [options]
 #
 # Sub-mode oneshot:
-#   Spawns gsr on demand. Records until stopped.
 #   --source screen|region  (default: screen)
 #   --region WxH+X+Y        (coords from slurp; required when source=region)
 #   --fps N                 (default: 60)
-#   --dir PATH              (recordings output dir)
+#   --dir PATH              (output dir for recordings)
 #
 # Sub-mode replay:
-#   Spawns gsr immediately. Rolling replay buffer always hot. Screen only.
 #   --fps N
-#   --dir PATH              (regular recordings dir, -ro)
-#   --replay-dir PATH       (replay clips dir, -o)
-#   --replay-secs N         (buffer size in seconds, default: 300)
+#   --dir PATH              (output dir for toggle-recordings, passed as gsr -ro)
+#   --replay-dir PATH       (output dir for replay clips, passed as gsr -o)
+#   --replay-secs N         (replay buffer size in seconds, default: 300)
 #
 # Audio (both modes):
 #   --audio none            no audio (default)
@@ -24,28 +38,53 @@
 #   --audio both            desktop + mic  (-a default_output -a default_input)
 #   --audio <gsr-source>    raw gsr source string (device:name, app:name, etc.)
 #
-# stdout protocol (read by ScreenrecProcess.qml via SplitParser):
-#   screenrec:started
-#   screenrec:stopped:PATH       recording-to-file ended; PATH is absolute
-#   screenrec:replay:saved:PATH  replay clip saved
-#   screenrec:error:REASON       something went wrong (exits 1 unless gsr crashed)
+# ── GSR SIGNALS ────────────────────────────────────────────────────────────────
 #
-# CTL FIFO: ~/.local/share/pillbox/screenrec-ctl
-#   Both modes : stop          → SIGINT  (oneshot: saves; replay: exits without saving)
-#   Both modes : pause         → SIGUSR2 (toggle pause/resume)
-#   replay only: toggleRec     → SIGRTMIN (start/stop recording to -ro dir)
-#   replay only: saveReplay    → SIGUSR1  (save full buffer to -o dir)
-#   replay only: saveReplay:10  → SIGRTMIN+1
-#   replay only: saveReplay:30  → SIGRTMIN+2
-#   replay only: saveReplay:60  → SIGRTMIN+3
-#   replay only: saveReplay:300 → SIGRTMIN+4
-#   replay only: saveReplay:600 → SIGRTMIN+5
-#   replay only: saveReplay:1800→ SIGRTMIN+6
+# oneshot only:
+#   SIGINT     Stop and save recording → -sc callback fires, gsr exits
+#   SIGUSR2    Pause / unpause  (man: "not for streaming/replay")
 #
-# Save notifications flow:
-#   gsr -sc pillbox-screenrec-saved fires on each file save.
-#   The callback writes TYPE:PATH to the screenrec-notify FIFO.
-#   A background reader in this script forwards those messages to stdout.
+# replay only:
+#   SIGRTMIN   Toggle recording-to-file in -ro dir (start if idle, stop+save if active)
+#              → -sc fires with type "regular" on stop+save
+#   SIGUSR1    Save full replay buffer to -o dir → -sc fires with type "replay"
+#   SIGRTMIN+1 Save last 10 s to -o dir
+#   SIGRTMIN+2 Save last 30 s
+#   SIGRTMIN+3 Save last 60 s
+#   SIGRTMIN+4 Save last 5 min
+#   SIGRTMIN+5 Save last 10 min
+#   SIGRTMIN+6 Save last 30 min
+#   SIGINT     Emergency exit — NO save, buffer discarded, gsr exits
+#
+# NOTE: SIGUSR2 (pause) is documented as "not for streaming/replay" in the gsr
+# man page. It is wired in the CTL loop below but has no effect in replay mode.
+#
+# ── GSR -sc CALLBACK ───────────────────────────────────────────────────────────
+#
+# gsr calls  pillbox-screenrec-saved <PATH> <TYPE>  after each file save.
+# TYPE is one of: regular (recording-to-file), replay (buffer save), screenshot.
+# The callback writes "TYPE:PATH" to the screenrec-notify FIFO.
+# A background reader here translates that to the stdout protocol below.
+#
+# ── STDOUT PROTOCOL (read by ScreenrecProcess.qml via SplitParser) ─────────────
+#
+#   screenrec:started             gsr is alive and ready
+#   screenrec:stopped:PATH        recording-to-file ended and saved (oneshot or SIGRTMIN)
+#   screenrec:replay:saved:PATH   replay buffer clip saved (SIGUSR1 or SIGRTMIN+N)
+#   screenrec:error:REASON        something went wrong
+#
+# ── CTL FIFO: ~/.local/share/pillbox/screenrec-ctl ────────────────────────────
+#
+#   Both modes : stop            → SIGINT
+#   Both modes : pause           → SIGUSR2  (no-op in replay mode, see note above)
+#   replay only: toggleRec       → SIGRTMIN
+#   replay only: saveReplay      → SIGUSR1
+#   replay only: saveReplay:10   → SIGRTMIN+1
+#   replay only: saveReplay:30   → SIGRTMIN+2
+#   replay only: saveReplay:60   → SIGRTMIN+3
+#   replay only: saveReplay:300  → SIGRTMIN+4
+#   replay only: saveReplay:600  → SIGRTMIN+5
+#   replay only: saveReplay:1800 → SIGRTMIN+6
 
 set -o noglob   # prevent glob expansion in kill signal arithmetic
 
@@ -203,13 +242,13 @@ case "$SUBMODE" in
         AUDIO_FLAGS="$(_audio_flags)"
         # shellcheck disable=SC2086
         gpu-screen-recorder \
-            $CAPTURE \
-            $AUDIO_FLAGS \
-            -f "$FPS" \
-            -c mp4 \
-            -o "$OUTPUT" \
-            -sc "$SC_CALLBACK" \
-            -v no \
+            $CAPTURE \           # -w screen | -w region -region WxH+X+Y
+            $AUDIO_FLAGS \       # zero, one, or two -a flags; empty = no audio
+            -f "$FPS" \          # frame rate cap
+            -c mp4 \             # container format
+            -o "$OUTPUT" \       # output file path (single file, not a directory)
+            -sc "$SC_CALLBACK" \ # called with PATH TYPE after each save
+            -v no \              # suppress fps/damage chatter on stdout
             >/dev/null 2>"$GSR_ERR" &
         ;;
 
@@ -217,16 +256,16 @@ case "$SUBMODE" in
         AUDIO_FLAGS="$(_audio_flags)"
         # shellcheck disable=SC2086
         gpu-screen-recorder \
-            -w screen \
+            -w screen \          # replay mode is screen-only (region not supported with -r)
             $AUDIO_FLAGS \
             -f "$FPS" \
             -c mp4 \
-            -r "$REPLAY_SECS" \
-            -bm cbr \
-            -q 40000 \
-            -o "$REPLAY_DIR" \
-            -ro "$SAVE_DIR" \
-            -sc "$SC_CALLBACK" \
+            -r "$REPLAY_SECS" \  # rolling replay buffer size in seconds; kept in RAM
+            -bm cbr \            # constant bitrate — predictable RAM usage for the buffer
+            -q 40000 \           # 40 Mbps CBR (man page recommended value for replay)
+            -o "$REPLAY_DIR" \   # directory: replay buffer saves (SIGUSR1, SIGRTMIN+N) go here
+            -ro "$SAVE_DIR" \    # directory: toggle-recordings (SIGRTMIN) go here
+            -sc "$SC_CALLBACK" \ # called with PATH TYPE after each save; TYPE = regular|replay
             -v no \
             >/dev/null 2>"$GSR_ERR" &
         ;;
