@@ -1,0 +1,35 @@
+#!/bin/sh
+# pillbox-screenrec-e — mode-aware handler for the W-S-e keybind.
+#
+# Single mode: invoke slurp and start region recording (same as pillbox-screenrec-region).
+# Replay mode: save the last N seconds of the replay buffer to file.
+#
+# Must be called from rc.xml (NOT via QML Process) so slurp can get the
+# Wayland pointer grab in Single mode.
+#
+# recMode and replaySaveDefaultSecs are read from pillbox.conf (INI format).
+# Keys written by Prefs.qml / Qt Settings — no section header, plain key=value.
+
+FIFO="$HOME/.local/share/pillbox/pillbox.fifo"
+CONF="$HOME/.config/pillbox.conf"
+
+_conf_get() {
+    grep -m1 "^$1=" "$CONF" 2>/dev/null | cut -d= -f2-
+}
+
+REC_MODE="$(_conf_get recMode)"
+REC_MODE="${REC_MODE:-oneshot}"
+
+case "$REC_MODE" in
+    replay)
+        SECS="$(_conf_get replaySaveDefaultSecs)"
+        SECS="${SECS:-30}"
+        [ -p "$FIFO" ] && echo "screenrecSaveReplay:$SECS" > "$FIFO"
+        ;;
+    *)
+        # Single / oneshot: pick region via slurp, start recording
+        REGION="$(slurp -f '%wx%h+%x+%y' 2>/dev/null)" || exit 0
+        [ -n "$REGION" ] || exit 0
+        [ -p "$FIFO" ] && echo "screenrecStartRegionWith:$REGION" > "$FIFO"
+        ;;
+esac

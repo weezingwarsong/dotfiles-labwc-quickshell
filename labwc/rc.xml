@@ -111,7 +111,7 @@
       <action name="Execute" command="sh -c 'echo screenrecToggle > ~/.local/share/pillbox/pillbox.fifo'" />
     </keybind>
     <keybind key="W-S-e">
-      <action name="Execute" command="~/.local/bin/pillbox-screenrec-region" />
+      <action name="Execute" command="~/.local/bin/pillbox-screenrec-e" />
     </keybind>
 
 

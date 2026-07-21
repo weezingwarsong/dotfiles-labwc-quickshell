@@ -550,7 +550,7 @@ Both keybinds are mode-aware.
 
 W-S-e calls `pillbox-screenrec-region` in one-shot mode (slurp runs as direct labwc child — pointer grab works). In replay mode it sends `screenrecSaveReplay` (or `screenrecSaveReplay:30`) to FIFO.
 
-> **Gap (not yet implemented):** W-S-e is currently mode-unaware — rc.xml always runs `pillbox-screenrec-region` regardless of `recMode`. In replay mode it should instead write `screenrecSaveReplay:N` to the FIFO. Needs a thin mode-aware wrapper script (rc.xml cannot query Prefs state directly).
+> ~~**Gap (not yet implemented):** W-S-e is currently mode-unaware — rc.xml always runs `pillbox-screenrec-region` regardless of `recMode`. In replay mode it should instead write `screenrecSaveReplay:N` to the FIFO. Needs a thin mode-aware wrapper script (rc.xml cannot query Prefs state directly).~~ **Fixed** — `pillbox-screenrec-e` reads `recMode` and `replaySaveDefaultSecs` from `~/.config/pillbox.conf` (Qt Settings INI). Single mode: runs slurp → `screenrecStartRegionWith:COORDS`. Replay mode: writes `screenrecSaveReplay:N` to FIFO. rc.xml W-S-e updated to call `pillbox-screenrec-e`.
 
 ---
 
@@ -853,7 +853,7 @@ SegmentedControl {
 - [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
 - [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
 - [ ] **11. Fix toast** — both `ScreenshotPreview.qml` and `ScreenrecToast.qml` need review and repair to work with current state.
-- [ ] **12. W-S-e mode-aware keybind** — currently always runs `pillbox-screenrec-region` (slurp). In replay mode should send `screenrecSaveReplay:N` to FIFO instead. Needs a mode-aware wrapper script. See 2D gap note.
+- [x] **12. W-S-e mode-aware keybind** — `pillbox-screenrec-e` reads `recMode` + `replaySaveDefaultSecs` from `pillbox.conf`. Single: slurp → `screenrecStartRegionWith`. Replay: `screenrecSaveReplay:N`. rc.xml updated; symlinked to `~/.local/bin`. See 2D.
 - [ ] **13. Wire audio SegmentedControl in ControlPanel** — uncomment Row 3; add `_audioIdx` property; hide row when Replay daemon is active (`_modeIdx === 1 && screenrecProcess.active`); add `recAudio` Prefs entry (default `"none"`); wire ScreenrecProcess to pass `--audio <mode>` to script on each invocation. See section 4.
 
 > **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.

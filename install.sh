@@ -48,6 +48,8 @@ ln -snf "$DOTFILES/helper/screenrec/pillbox-screenrec"          "$HOME/.local/bi
 echo "  linked pillbox-screenrec → ~/.local/bin"
 ln -snf "$DOTFILES/helper/screenrec/pillbox-screenrec-region"   "$HOME/.local/bin/pillbox-screenrec-region"
 echo "  linked pillbox-screenrec-region → ~/.local/bin"
+ln -snf "$DOTFILES/helper/screenrec/pillbox-screenrec-e"        "$HOME/.local/bin/pillbox-screenrec-e"
+echo "  linked pillbox-screenrec-e → ~/.local/bin"
 ln -snf "$DOTFILES/helper/screenrec/pillbox-screenrec-saved"    "$HOME/.local/bin/pillbox-screenrec-saved"
 echo "  linked pillbox-screenrec-saved → ~/.local/bin"
 
