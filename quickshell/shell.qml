@@ -8,6 +8,7 @@ import "./module-panels"
 import "./module-reusable-elements"
 import "./module-visualizer"
 import "./module-window-switcher"
+import "./module-toasts"
 
 ShellRoot {
     id: root
@@ -80,6 +81,12 @@ ShellRoot {
         screenshotProcess:  screenshot
         screenrecProcess:   screenrec
         notificationServer: notifServer
+    }
+
+    ScreenshotOverlayWindow {
+        active:    toastWindow.screenshotPreviewActive
+        imagePath: toastWindow.screenshotPreviewPath
+        filename:  toastWindow.screenshotPreviewFilename
     }
 
     // Wallpaper window — Background layer, always present, covers all workspaces.

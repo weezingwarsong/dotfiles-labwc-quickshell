@@ -10,6 +10,10 @@ PanelWindow {
     property var screenrecProcess:   null
     property var notificationServer: null
 
+    readonly property bool   screenshotPreviewActive:   _ssLoader.item ? _ssLoader.item._showPreview : false
+    readonly property string screenshotPreviewPath:     _ssLoader.item ? _ssLoader.item._path        : ""
+    readonly property string screenshotPreviewFilename: _ssLoader.item ? _ssLoader.item._filename    : ""
+
     screen:         Quickshell.screens[0]
     anchors.bottom: true
     anchors.right:  true
