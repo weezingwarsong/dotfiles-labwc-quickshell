@@ -8,6 +8,7 @@ Rectangle {
 
     property string source:   ""
     property string filename: ""
+    property int    fillMode: Image.PreserveAspectFit
     signal thumbnailClicked()
     signal filenameClicked()
 
@@ -23,7 +24,7 @@ Rectangle {
         id: _img
         anchors.fill: parent
         source:       root.source !== "" ? ("file://" + root.source) : ""
-        fillMode:     Image.PreserveAspectFit
+        fillMode:     root.fillMode
         asynchronous: true
         cache:        false
     }

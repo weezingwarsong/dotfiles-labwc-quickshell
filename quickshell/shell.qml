@@ -89,6 +89,10 @@ ShellRoot {
         filename:  toastWindow.screenshotPreviewFilename
     }
 
+    BankPreviewOverlay {
+        imagePath: panelSurface.hoveredScreenshotPath
+    }
+
     // Wallpaper window — Background layer, always present, covers all workspaces.
     // No external daemon: Qt renders color/image/GIF/video directly.
     PanelWindow {

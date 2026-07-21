@@ -12,6 +12,8 @@ Item {
     property var screenshotProcess:      null
     property int notificationInitialTab: 0
 
+    property string hoveredShotPath: ""
+
     property int _tab: notificationInitialTab
 
     Keys.onTabPressed: (event) => {
@@ -338,15 +340,28 @@ Item {
                                 Layout.bottomMargin: Style.panelElementVpadding
                             }
 
-                            RowLayout {
+                            // Item + anchors avoids RowLayout's circular parent.width issue
+                            Item {
                                 Layout.fillWidth: true
-                                spacing: Style.panelCardHpadding
+                                implicitHeight: _thumb.height
+
+                                readonly property int _gap: Style.panelCardHpadding
 
                                 MediaThumbnail {
-                                    source:   _shotEntry.modelData.path
-                                    filename: ""
-                                    Layout.preferredWidth: Prefs.bankThumbWidth
+                                    id: _thumb
+                                    source:    _shotEntry.modelData.path
+                                    filename:  ""
+                                    fillMode:  Image.PreserveAspectCrop
+                                    anchors.left: parent.left
+                                    anchors.top:  parent.top
+                                    width:  (parent.width - parent._gap) / 2
+                                    height: Math.round(width * 9 / 16)
                                     onThumbnailClicked: _xdgOpen.running = true
+
+                                    HoverHandler {
+                                        onHoveredChanged: root.hoveredShotPath =
+                                            hovered ? _shotEntry.modelData.path : ""
+                                    }
 
                                     Process {
                                         id: _xdgOpen
@@ -355,8 +370,13 @@ Item {
                                 }
 
                                 ColumnLayout {
-                                    Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignTop
+                                    id: _meta
+                                    anchors {
+                                        left:       _thumb.right
+                                        leftMargin: parent._gap
+                                        right:      parent.right
+                                        top:        parent.top
+                                    }
                                     spacing: Style.panelElementHpadding
 
                                     Text {
@@ -389,7 +409,7 @@ Item {
 
                                             Process {
                                                 id: _copyImg
-                                                command: ["sh", "-c", "wl-copy -t image/png < \"$1\"", "sh", _shotEntry.modelData.path]
+                                                command: ["pillbox-copy-multi", _shotEntry.modelData.path]
                                             }
                                         }
 

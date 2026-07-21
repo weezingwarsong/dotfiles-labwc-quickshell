@@ -31,6 +31,11 @@ PanelWindow {
     property int    notificationInitialTab: 0
     property string calendarInitialView:   ""
 
+    readonly property string hoveredScreenshotPath:
+        (root.activePanel === "notifications" && _loader.item)
+            ? (_loader.item.hoveredShotPath ?? "")
+            : ""
+
     signal dismissRequested()
     signal navigateRequested(int direction)
 
