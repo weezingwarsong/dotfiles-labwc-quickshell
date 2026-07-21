@@ -236,12 +236,18 @@ Item {
                             verticalAlignment: Text.AlignVCenter
                         }
 
-                        // Col 3 — replay save duration (stub — wire to Prefs.replaySaveDefaultSecs later)
+                        // Col 3 — replay save duration
                         ScrollChip {
                             visible: Prefs.recMode === "replay"
                             variant: "value"
-                            text:    "30s"
-                            onScrolled: (delta) => { /* stub */ }
+                            text:    root._replaySaveLabel(Prefs.replaySaveDefaultSecs)
+                            onScrolled: (delta) => {
+                                var steps = [10, 30, 60, 300, 600, 1800]
+                                var cur = steps.indexOf(Prefs.replaySaveDefaultSecs)
+                                if (cur < 0) cur = 1
+                                var next = Math.max(0, Math.min(steps.length - 1, cur + (delta > 0 ? 1 : -1)))
+                                Prefs.setReplaySaveDefaultSecs(steps[next])
+                            }
                         }
 
                         // Col 4 — Start / Stop (writes screenrecToggle to FIFO)
@@ -306,6 +312,12 @@ Item {
 
     // ── Screenrec state ───────────────────────────────────────────────────────
     property bool _recCollapsed: false
+
+    function _replaySaveLabel(secs) {
+        if (secs < 60)  return secs + "s"
+        if (secs < 3600) return (secs / 60) + "m"
+        return (secs / 3600) + "h"
+    }
 
     // ── FIFO writer ───────────────────────────────────────────────────────────
     function _fifo(cmd) {

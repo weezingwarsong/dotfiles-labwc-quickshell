@@ -90,11 +90,15 @@ Item {
         command: {
             var mode = root.recMode
             var args = ["pillbox-screenrec", mode]
+            args.push("--fps"); args.push(Prefs.recordingFps)
             if (root._dir !== "") {
                 args.push("--dir"); args.push(root._dir)
             }
-            if (mode === "replay" && root._replayDir !== "") {
-                args.push("--replay-dir"); args.push(root._replayDir)
+            if (mode === "replay") {
+                args.push("--replay-secs"); args.push(Prefs.replayBufferSecs)
+                if (root._replayDir !== "") {
+                    args.push("--replay-dir"); args.push(root._replayDir)
+                }
             }
             if (mode === "oneshot" && root._regionCoords !== "") {
                 args.push("--source"); args.push("region")

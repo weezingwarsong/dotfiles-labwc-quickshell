@@ -49,7 +49,10 @@ Item {
         property string replayDir:     ""
 
         // Screen recorder mode — persists across restarts.
-        property string recMode: "oneshot"   // "oneshot" | "replay"
+        property string recMode:             "oneshot"  // "oneshot" | "replay"
+        property int    replayBufferSecs:    300        // rolling buffer size (5 min)
+        property int    replaySaveDefaultSecs: 30       // W-S-e / ScrollChip save duration
+        property int    recordingFps:        60         // shared across modes
 
         property int notificationTimeout: 5000   // ms; shown in Settings as seconds
 
@@ -87,10 +90,13 @@ Item {
 
     readonly property bool extractColors: _store.extractColors
 
-    readonly property string screenshotDir: _store.screenshotDir
-    readonly property string recordingDir:  _store.recordingDir
-    readonly property string replayDir:     _store.replayDir
-    readonly property string recMode:       _store.recMode
+    readonly property string screenshotDir:       _store.screenshotDir
+    readonly property string recordingDir:        _store.recordingDir
+    readonly property string replayDir:           _store.replayDir
+    readonly property string recMode:             _store.recMode
+    readonly property int    replayBufferSecs:    _store.replayBufferSecs
+    readonly property int    replaySaveDefaultSecs: _store.replaySaveDefaultSecs
+    readonly property int    recordingFps:        _store.recordingFps
     readonly property int    notificationTimeout: _store.notificationTimeout
     readonly property int    bankMaxLines:        _store.bankMaxLines
     readonly property int    bankThumbWidth:      _store.bankThumbWidth
@@ -125,9 +131,12 @@ Item {
     function setExtractColors(v) { _store.extractColors = v }
 
     function setScreenshotDir(v)        { _store.screenshotDir        = v }
-    function setRecordingDir(v)         { _store.recordingDir         = v }
-    function setReplayDir(v)            { _store.replayDir            = v }
-    function setRecMode(v)              { _store.recMode              = v }
+    function setRecordingDir(v)            { _store.recordingDir            = v }
+    function setReplayDir(v)               { _store.replayDir               = v }
+    function setRecMode(v)                 { _store.recMode                 = v }
+    function setReplayBufferSecs(v)        { _store.replayBufferSecs        = v }
+    function setReplaySaveDefaultSecs(v)   { _store.replaySaveDefaultSecs   = v }
+    function setRecordingFps(v)            { _store.recordingFps            = v }
     function setNotificationTimeout(v)  { _store.notificationTimeout  = v }
     function setBankMaxLines(v)         { _store.bankMaxLines         = v }
     function setBankThumbWidth(v)       { _store.bankThumbWidth       = v }
