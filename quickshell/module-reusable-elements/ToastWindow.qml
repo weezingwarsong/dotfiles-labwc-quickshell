@@ -26,10 +26,11 @@ PanelWindow {
     implicitHeight: _col.implicitHeight
     mask: Region { item: _col }
 
-    visible: (_ssLoader.item ? _ssLoader.item.shouldShow : false) ||
-             (_ntLoader.item ? _ntLoader.item.shouldShow : false) ||
-             (_utLoader.item ? _utLoader.item.shouldShow : false) ||
-             (_srLoader.item ? _srLoader.item.shouldShow : false)
+    visible: (_srLoader.item    ? _srLoader.item.shouldShow    : false) ||
+             (_srRecLoader.item ? _srRecLoader.item.shouldShow : false) ||
+             (_ssLoader.item    ? _ssLoader.item.shouldShow    : false) ||
+             (_ntLoader.item    ? _ntLoader.item.shouldShow    : false) ||
+             (_utLoader.item    ? _utLoader.item.shouldShow    : false)
 
     function dismiss(id) {
         if (id === "screenshot"   && _ssLoader.item) _ssLoader.item._dismiss()
@@ -43,7 +44,25 @@ PanelWindow {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         spacing: 6
 
-        // ScreenshotPreview — transient, sits above the others
+        // Replay captured — slot 6, furthest from edge (not yet built; reserved)
+
+        // Post recording — slot 5 (ScreenrecToast: saved state, temporary until ScreenrecSavedToast built)
+        Loader {
+            id: _srLoader
+            Layout.fillWidth: true
+            source: Qt.resolvedUrl("../module-toasts/ScreenrecToast.qml")
+            onLoaded: item.screenrecProcess = Qt.binding(function() { return root.screenrecProcess })
+        }
+
+        // While recording — slot 4
+        Loader {
+            id: _srRecLoader
+            Layout.fillWidth: true
+            source: Qt.resolvedUrl("../module-toasts/ScreenrecRecordingToast.qml")
+            onLoaded: item.screenrecProcess = Qt.binding(function() { return root.screenrecProcess })
+        }
+
+        // Screenshot preview — slot 3
         Loader {
             id: _ssLoader
             Layout.fillWidth: true
@@ -51,30 +70,20 @@ PanelWindow {
             onLoaded: item.screenshotProcess = Qt.binding(function() { return root.screenshotProcess })
         }
 
-        // NotificationToast — Normal/Low/Transient, index 2
+        // Normal/Low/Transient notifications — slot 2
         Loader {
             id: _ntLoader
             Layout.fillWidth: true
             source: Qt.resolvedUrl("../module-toasts/NotificationToast.qml")
-            onLoaded: {
-                item.notificationServer = Qt.binding(function() { return root.notificationServer })
-            }
+            onLoaded: item.notificationServer = Qt.binding(function() { return root.notificationServer })
         }
 
-        // CriticalNotificationToast — Critical urgency only, index 1, closer to corner
+        // Critical notifications — slot 1, nearest to screen corner
         Loader {
             id: _utLoader
             Layout.fillWidth: true
             source: Qt.resolvedUrl("../module-toasts/CriticalNotificationToast.qml")
             onLoaded: item.notificationServer = Qt.binding(function() { return root.notificationServer })
-        }
-
-        // ScreenrecToast — index 0, closest to screen corner
-        Loader {
-            id: _srLoader
-            Layout.fillWidth: true
-            source: Qt.resolvedUrl("../module-toasts/ScreenrecToast.qml")
-            onLoaded: item.screenrecProcess = Qt.binding(function() { return root.screenrecProcess })
         }
     }
 }

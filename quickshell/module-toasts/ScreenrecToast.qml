@@ -6,12 +6,11 @@ Item {
     id: root
 
     property var screenrecProcess: null
-    readonly property bool shouldShow: _recording || _showingSaved
+    readonly property bool shouldShow: _showingSaved
 
-    property bool   _recording:    false
     property bool   _showingSaved: false
     property string _savedPath:    ""
-    property int    _elapsedSecs:  0
+    property int    _elapsedSecs:  0   // tracks duration while recording, for display in saved state
     property int    _savedSecs:    0
 
     visible:        shouldShow
@@ -21,27 +20,16 @@ Item {
         target: root.screenrecProcess
         function onRecordingStarted() {
             root._elapsedSecs = 0
-            root._recording   = true
             _elapsed.start()
         }
         function onRecordingStopped(path) {
             root._savedSecs    = root._elapsedSecs
             root._savedPath    = path
-            root._recording    = false
             root._showingSaved = true
             _elapsed.stop()
             _dismissTimer.start(Prefs.notificationTimeout)
         }
-        function onReplaySaved(path) {
-            root._savedSecs    = 0
-            root._savedPath    = path
-            root._showingSaved = true
-            _dismissTimer.start(Prefs.notificationTimeout)
-        }
-        function onRecordingError() {
-            root._recording = false
-            _elapsed.stop()
-        }
+        function onRecordingError() { _elapsed.stop() }
     }
 
     HoverHandler {
@@ -73,51 +61,12 @@ Item {
     PanelCard {
         id: _card
         anchors.fill: parent
-        color: root._recording ? Style.criticalBgColor : Style.surfaceLowColor
-        Behavior on color { ColorAnimation { duration: 200 } }
+        color: Style.surfaceLowColor
 
-        // ── Recording state ───────────────────────────────────────────────────
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            visible: root._recording
-
-            // Pulsing red dot
-            Rectangle {
-                Layout.preferredWidth:  10
-                Layout.preferredHeight: 10
-                Layout.maximumWidth:    10
-                Layout.alignment: Qt.AlignVCenter
-                radius: 5
-                color: Style.textCritical
-
-                SequentialAnimation on opacity {
-                    running: root._recording; loops: Animation.Infinite
-                    NumberAnimation { to: 0.2; duration: 600 }
-                    NumberAnimation { to: 1.0; duration: 600 }
-                }
-            }
-
-            Text {
-                text:           _fmt(root._elapsedSecs)
-                color:          Style.textCritical
-                font.family:    Style.fontMono
-                font.pixelSize: Style.fontSizeBody
-                Layout.fillWidth: true
-            }
-
-            // Stop
-            IconButton {
-                label: "■"
-                onClicked: if (root.screenrecProcess) root.screenrecProcess.toggle()
-            }
-        }
-
-        // ── Saved state ───────────────────────────────────────────────────────
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            visible: root._showingSaved && !root._recording
+            visible: root._showingSaved
 
             Text {
                 text:           root._savedPath.split("/").pop()
@@ -163,7 +112,7 @@ Item {
         variant: 4
         color:   Style.accentColor
         Layout.fillWidth: true
-        visible: running && root._showingSaved && !root._recording
+        visible: running && root._showingSaved
         onCompleted: root._dismiss()
     }
 
