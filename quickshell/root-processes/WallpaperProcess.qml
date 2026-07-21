@@ -232,7 +232,11 @@ Item {
 
     Process {
         id: _checkProc
-        command: ["test", "-f", root.thumbPath(root._thumbActivePath)]
+        // exit 0 = thumb exists AND source is not newer → valid, skip ffmpeg
+        // exit 1 = thumb missing OR source newer → regenerate
+        command: ["sh", "-c",
+                  "test -f \"$2\" && ! test \"$1\" -nt \"$2\"",
+                  "sh", root._thumbActivePath, root.thumbPath(root._thumbActivePath)]
         onExited: function(code, signal) {
             if (code === 0) {
                 var updated = Object.assign({}, root.thumbsReady)
