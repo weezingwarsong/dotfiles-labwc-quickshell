@@ -283,13 +283,13 @@ case "$SUBMODE" in
         AUDIO_FLAGS="$(_audio_flags)"
         # shellcheck disable=SC2086
         gpu-screen-recorder \
-            $CAPTURE \           # -w screen | -w region -region WxH+X+Y
-            $AUDIO_FLAGS \       # zero, one, or two -a flags; empty = no audio
-            -f "$FPS" \          # frame rate cap
-            -c mp4 \             # container format
-            -o "$OUTPUT" \       # output file path (single file, not a directory)
-            -sc "$SC_CALLBACK" \ # called with PATH TYPE after each save
-            -v no \              # suppress fps/damage chatter on stdout
+            $CAPTURE \
+            $AUDIO_FLAGS \
+            -f "$FPS" \
+            -c mp4 \
+            -o "$OUTPUT" \
+            -sc "$SC_CALLBACK" \
+            -v no \
             >/dev/null 2>"$GSR_ERR" &
         ;;
 
@@ -297,16 +297,16 @@ case "$SUBMODE" in
         AUDIO_FLAGS="$(_audio_flags)"
         # shellcheck disable=SC2086
         gpu-screen-recorder \
-            -w screen \          # replay mode is screen-only (region not supported with -r)
+            -w screen \
             $AUDIO_FLAGS \
             -f "$FPS" \
             -c mp4 \
-            -r "$REPLAY_SECS" \  # rolling replay buffer size in seconds; kept in RAM
-            -bm cbr \            # constant bitrate — predictable RAM usage for the buffer
-            -q 40000 \           # 40 Mbps CBR (man page recommended value for replay)
-            -o "$REPLAY_DIR" \   # directory: replay buffer saves (SIGUSR1, SIGRTMIN+N) go here
-            -ro "$SAVE_DIR" \    # directory: toggle-recordings (SIGRTMIN) go here
-            -sc "$SC_CALLBACK" \ # called with PATH TYPE after each save; TYPE = regular|replay
+            -r "$REPLAY_SECS" \
+            -bm cbr \
+            -q 40000 \
+            -o "$REPLAY_DIR" \
+            -ro "$SAVE_DIR" \
+            -sc "$SC_CALLBACK" \
             -v no \
             >/dev/null 2>"$GSR_ERR" &
         ;;
