@@ -513,9 +513,9 @@ gpu-screen-recorder \
     -f 60 \
     -c mp4 \
     -r <replayBufferSecs> \     # Prefs: replayBufferSecs, default 300 (5 min)
-    -bm cbr -q 10000 \          # CBR for predictable RAM usage
-    -o "$REPLAY_DIR" \          # replay clips save here
-    -ro "$RECORDING_DIR" \      # toggle-recording saves here
+    -bm cbr -q 40000 \          # CBR 40 Mbps — man page recommended value for replay
+    -o "$REPLAY_DIR" \          # directory: replay clips (SIGUSR1, SIGRTMIN+N) save here
+    -ro "$RECORDING_DIR" \      # directory: toggle-recordings (SIGRTMIN) save here
     -sc pillbox-screenrec-saved
 ```
 
@@ -523,13 +523,17 @@ gpu-screen-recorder \
 
 | Signal | Effect |
 |---|---|
-| `SIGRTMIN` | Toggle recording to `-ro` dir (start if idle, stop + save if active) |
-| `SIGUSR1` | Save full replay clip to `-o` dir |
+| `SIGRTMIN` | Toggle recording to `-ro` dir (start if idle, stop + save if active) → `-sc` fires type "regular" |
+| `SIGUSR1` | Save full replay buffer to `-o` dir → `-sc` fires type "replay" |
+| `SIGRTMIN+1` | Save last 10 s |
 | `SIGRTMIN+2` | Save last 30 s |
 | `SIGRTMIN+3` | Save last 60 s |
 | `SIGRTMIN+4` | Save last 5 min |
-| `SIGUSR2` | Pause / unpause |
-| `SIGINT` | Emergency stop — exits gsr entirely |
+| `SIGRTMIN+5` | Save last 10 min |
+| `SIGRTMIN+6` | Save last 30 min |
+| `SIGINT` | Emergency stop — exits gsr WITHOUT saving buffer |
+
+> **SIGUSR2 (pause) is NOT supported in replay mode.** The gsr man page explicitly states "not for streaming/replay". It is wired in the CTL loop for completeness but is a no-op when gsr runs as a replay daemon. Only valid in oneshot mode.
 
 Switching Replay → One-shot: SIGINT stops gsr, one-shot mode takes over on next start. Switching back: restarts persistent gsr.
 
@@ -545,6 +549,8 @@ Both keybinds are mode-aware.
 | **W-S-e** | Invoke slurp picker → one-shot region recording | Save last N seconds (Prefs: `replaySaveDefaultSecs`, default 30 s) |
 
 W-S-e calls `pillbox-screenrec-region` in one-shot mode (slurp runs as direct labwc child — pointer grab works). In replay mode it sends `screenrecSaveReplay` (or `screenrecSaveReplay:30`) to FIFO.
+
+> **Gap (not yet implemented):** W-S-e is currently mode-unaware — rc.xml always runs `pillbox-screenrec-region` regardless of `recMode`. In replay mode it should instead write `screenrecSaveReplay:N` to the FIFO. Needs a thin mode-aware wrapper script (rc.xml cannot query Prefs state directly).
 
 ---
 
@@ -781,14 +787,15 @@ Audio capture applies to Screenrec only — not to screenshots, not to replay (r
 - [x] **2. Build the rest of the UI** — `module-toasts/ScreenshotPreview.qml`, `module-toasts/ScreenrecToast.qml`, Screenshots tab in NotificationPanel, Screenrec section in Control panel.
 - [x] **3. Update the plan with what has been completed. Commit and push.**
 - [x] **4. Rewrite screenrec script backend** — `pillbox-screenrec` (oneshot + replay sub-modes, notify FIFO, signal-based CTL), `pillbox-screenrec-saved` (write to notify FIFO). See section 2E. See D9.
-- [ ] **5. Rewrite `ScreenrecProcess.qml`** — dual mode, `Component.onCompleted` init for replay, new API (`toggle`, `saveReplay`, `saveReplaySeconds`, `pause`, `emergencyStop`). See section 2F.
-- [ ] **6. Update `FifoListener.qml` + `shell.qml`** — replace stale screenrec commands with new ones. See section 2F.
-- [ ] **7. Rewrite ControlPanel screenrec section** *(on hold — Panel audit must complete first)* — mode toggle (one-shot / replay), new button layout. See section 2H and `docs/PanelAudit.md`.
-- [ ] **7a. Build `SegmentedControl.qml`** — new reusable element. MD3 Segmented Button: row of N mutually exclusive buttons, shared rounded border, accent highlight on selected. API: `model: list<string>`, `selected: int`, `fontFamily: string` (optional, for Nerd Font glyphs), `signal toggled(int index)`. Used for audio source selection (`None | System | Mic | Both`) and potentially other N-option controls. Build before completing step 7 so the audio row can be wired in the same pass.
-- [ ] **8. Add Prefs entries** — `recMode`, `replayBufferSecs`, `replaySaveDefaultSecs`, `recordingFps`. See section 2I.
+- [x] **5. Rewrite `ScreenrecProcess.qml`** — dual mode, `Component.onCompleted` init for replay, new API (`toggle`, `saveReplay`, `saveReplaySeconds`, `pause`, `emergencyStop`). See section 2F.
+- [x] **6. Update `FifoListener.qml` + `shell.qml`** — replace stale screenrec commands with new ones. See section 2F.
+- [x] **7. Rewrite ControlPanel screenrec section** — PanelCard + SectionHeader (collapsible) + RowLayout: TogglePair mode (Single|Replay), PanelButton/Text col2 (mode-dependent), ScrollChip duration stub, TogglePair start/stop with state-based color. See section 2H.
+- [x] **7a. Build `SegmentedControl.qml`** — equal-width segments via `x`-positioning inside a clipped `Rectangle`. Outer border + radius on container; inner vertical dividers. `fontFamily` prop for Nerd Font glyphs.
+- [ ] **8. Add missing Prefs entries** — `replayBufferSecs` (default 300), `replaySaveDefaultSecs` (default 30), `recordingFps` (default 60). Note: `recMode`, `recordingDir`, `replayDir` are already present. See section 2I.
 - [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
 - [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
 - [ ] **11. Fix toast** — both `ScreenshotPreview.qml` and `ScreenrecToast.qml` need review and repair to work with current state.
+- [ ] **12. W-S-e mode-aware keybind** — currently always runs `pillbox-screenrec-region` (slurp). In replay mode should send `screenrecSaveReplay:N` to FIFO instead. Needs a mode-aware wrapper script. See 2D gap note.
 
 > **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.
 
