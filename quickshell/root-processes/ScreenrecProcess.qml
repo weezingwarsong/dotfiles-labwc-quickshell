@@ -1,5 +1,6 @@
 import QtQuick
 import QtCore
+import Quickshell
 import Quickshell.Io
 
 Item {
@@ -69,6 +70,37 @@ Item {
     function pause()              { _sendCtl("pause") }
     function emergencyStop()      { _sendCtl("stop") }
 
+    // ── Thumbnail cache ───────────────────────────────────────────────────────
+    // Separate dir from screenshot thumbs. Video first-frame via ffmpeg -ss 00:00:01.
+    // Source-newer check skips re-generation for existing valid thumbs.
+    property string _cacheDir:        ""
+    property var    thumbsReady:      ({})  // path → true; reassigned on each update
+    property var    _thumbQueue:      []
+    property int    _thumbQueueIdx:   0
+    property string _thumbActivePath: ""
+
+    readonly property int _thumbW: {
+        var screens = Quickshell.screens
+        var sw = screens.length > 0 ? screens[0].width : 1920
+        return Math.round(sw * Prefs.panelWidth / 200)
+    }
+
+    function thumbPath(path) {
+        return root._cacheDir + "/" + path.split("/").pop() + ".jpg"
+    }
+
+    function _appendThumbQueue(paths) {
+        root._thumbQueue = root._thumbQueue.concat(paths)
+        _startNextThumb()
+    }
+
+    function _startNextThumb() {
+        if (_thumbCheckProc.running || _thumbProc.running) return
+        if (root._thumbQueueIdx >= root._thumbQueue.length) return
+        root._thumbActivePath = root._thumbQueue[root._thumbQueueIdx]
+        _thumbCheckProc.running = true
+    }
+
     // ── Internal ──────────────────────────────────────────────────────────────
     property string _dir:          ""
     property string _replayDir:    ""
@@ -125,11 +157,13 @@ Item {
                     if (root.recMode === "oneshot") root.active = false
                     root.lastRecordingPath = path
                     root.recordingStopped(path)
+                    root._appendThumbQueue([path])
                     console.log("[ScreenrecProcess] stopped:", path)
                 } else if (line.startsWith("screenrec:replay:saved:")) {
                     var rpath = line.slice(23)
                     root.lastReplayPath = rpath
                     root.replaySaved(rpath)
+                    root._appendThumbQueue([rpath])
                     console.log("[ScreenrecProcess] replay saved:", rpath)
                 } else if (line.startsWith("screenrec:error:")) {
                     var msg = line.slice(16)
@@ -158,9 +192,55 @@ Item {
         }
     }
 
+    // ── Thumbnail processes ───────────────────────────────────────────────────
+    Process {
+        id: _thumbMkdirProc
+        command: ["mkdir", "-p", root._cacheDir]
+    }
+
+    // exit 0 = thumb exists AND source is not newer → valid, skip ffmpeg
+    // exit 1 = thumb missing OR source newer → regenerate
+    Process {
+        id: _thumbCheckProc
+        command: ["sh", "-c",
+                  "test -f \"$2\" && ! test \"$1\" -nt \"$2\"",
+                  "sh", root._thumbActivePath, root.thumbPath(root._thumbActivePath)]
+        onExited: function(code, signal) {
+            if (code === 0) {
+                var updated = Object.assign({}, root.thumbsReady)
+                updated[root._thumbActivePath] = true
+                root.thumbsReady = updated
+                root._thumbQueueIdx++
+                root._startNextThumb()
+            } else {
+                _thumbProc.running = true
+            }
+        }
+    }
+
+    Process {
+        id: _thumbProc
+        command: ["ffmpeg", "-y", "-loglevel", "quiet",
+                  "-ss", "00:00:01", "-i", root._thumbActivePath,
+                  "-frames:v", "1", "-q:v", "3",
+                  root.thumbPath(root._thumbActivePath)]
+        onExited: function(code, signal) {
+            if (code === 0 && root._thumbActivePath !== "") {
+                var updated = Object.assign({}, root.thumbsReady)
+                updated[root._thumbActivePath] = true
+                root.thumbsReady = updated
+                console.log("[ScreenrecProcess] thumb:", root._thumbActivePath.split("/").pop())
+            }
+            root._thumbQueueIdx++
+            root._startNextThumb()
+        }
+    }
+
     Component.onCompleted: {
         var home = StandardPaths.writableLocation(StandardPaths.HomeLocation)
                        .toString().replace(/^file:\/\//, "")
+        var runtime = StandardPaths.writableLocation(StandardPaths.RuntimeLocation)
+                          .toString().replace(/^file:\/\//, "")
         root._dir       = Prefs.recordingDir !== ""
             ? Prefs.recordingDir
             : home + "/.config/pillbox/media/Recordings"
@@ -168,6 +248,8 @@ Item {
             ? Prefs.replayDir
             : home + "/.config/pillbox/media/Replays"
         root._ctlFifo   = home + "/.local/share/pillbox/screenrec-ctl"
+        root._cacheDir  = runtime + "/pillbox/thumbs/recording"
+        _thumbMkdirProc.running = true
         console.log("[ScreenrecProcess] init | mode:", root.recMode, "| dir:", root._dir)
 
         if (root.recMode === "replay")

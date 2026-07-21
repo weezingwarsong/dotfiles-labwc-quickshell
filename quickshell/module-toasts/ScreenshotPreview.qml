@@ -66,7 +66,9 @@ Item {
             spacing: 8
 
             MediaThumbnail {
-                source:   root._path
+                source:   root.screenshotProcess && root.screenshotProcess.thumbsReady[root._path]
+                          ? root.screenshotProcess.thumbPath(root._path)
+                          : root._path
                 filename: root._filename
                 Layout.fillWidth: true
                 onThumbnailClicked: {

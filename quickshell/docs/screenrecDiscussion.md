@@ -626,31 +626,127 @@ In one-shot mode: gsr spawns on first `toggle()` call.
 
 ---
 
-### 2G. ScreenrecToast — Spec (target unchanged)
+### 2G. Screenrec Toast — Three-Toast Split (redesigned)
 
-The toast spec from the original plan remains the target. Two states:
+**Decision:** The single `ScreenrecToast.qml` is split into three independent toast modules. Each has its own `shouldShow`, its own dismiss logic, and its own slot in ToastWindow. The old two-state (recording + saved) design in a single file is obsolete.
 
-**State 1 — Recording active (persistent):**
+---
+
+#### Toast 1 — While Recording (`ScreenrecRecordingToast.qml`)
+
+**Trigger:** `onRecordingStarted()` sets `shouldShow: true`. `onRecordingStopped()` clears it (no linger — the Post Recording toast takes over immediately).
+
+**Visual:** current `ScreenrecToast.qml` recording-state row — unchanged.
 ```
-┌────────────────────────────────────┐
-│  ● 00:03:42   [ ■ Stop ]  [ ↓ ]  │
-└────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  ● 00:03:42                       [ ■ ]  │
+└──────────────────────────────────────────┘
 ```
-- Pulsing red dot, elapsed timer (monospaced), Stop button, Save Replay button (replay mode only)
+- Pulsing red dot (10px, `textCritical`, SequentialAnimation opacity)
+- Elapsed timer (monospaced, `textCritical`, `_fmt(elapsedSecs)`)
+- Stop `IconButton` (`"■"`) — writes `screenrecToggle` to FIFO
 - Background: `criticalBgColor`
+- **No auto-dismiss timer.** Persists until `onRecordingStopped` fires.
+- **No hover-pause** — nothing to pause, no timer running.
 
-**State 2 — Saved (auto-dismisses after 8 s, hover-pause):**
+**Open questions (TBD):**
+- Does the stop button call `screenrecProcess.toggle()` directly or go through FIFO? → *TBD when building*
+
+---
+
+#### Toast 2 — Post Recording (`ScreenrecSavedToast.qml`)
+
+**Trigger:** `onRecordingStopped(path)` — fires immediately when recording stops. Auto-dismisses after `Prefs.notificationTimeout`. Hover-pauses.
+
+**Visual:** follows `ScreenshotPreview.qml` layout — two-column RowLayout inside PanelCard.
+
 ```
-┌─────────────────────────────────────────┐
-│  [filename.mp4]  3:42  [ play ] [ ⋮ ]  │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  [ ■ thumbnail or filename ]   [ × ]         │
+│  [ or text row with filename ] [ copy path ] │
+│                                [ ⋮ more  ]   │
+│  ════════ timer bar ════════════════════════  │
+└──────────────────────────────────────────────┘
 ```
-- Filename (elide middle), duration, open button, more button
-- Background: `pillBgColor`
 
-`shouldShow: _recording || _showingSaved`
+**Thumbnail gap:** `MediaThumbnail` uses Qt's `Image` element which cannot decode video frames. Recordings are `.mp4` — the source will be blank. Two options:
+- **A) No thumbnail now:** show filename + duration as a text row (like the old saved-state row), add buttons column. Retrofit thumbnail when recordings bank is built (bank will need ffmpeg thumbs anyway).
+- **B) ffmpeg thumb at save time:** script emits `screenrec:stopped:<path>:<thumbpath>` after extracting a first-frame JPEG. `ScreenrecProcess` parses both; `recordingStopped` signal gains a `thumbPath` arg.
 
-The toast receives its data from `ScreenrecProcess` signals — these signals are unchanged, so the existing `ScreenrecToast.qml` stub can remain as-is until the backend is ready.
+**→ TBD — user decides per-toast review.**
+
+**Actions column (same pattern as ScreenshotPreview):**
+- `×` — dismiss
+- `▶` open — `xdg-open path` — play in default video player
+- `⋮` more — stub (`screenshotUI`-equivalent for recordings bank — not built yet; button present but disabled or no-op)
+
+**Signals needed:** `recordingStopped(path)` current signature is sufficient if no thumbnail. If thumbnail: add `thumbPath` param. Duration: elapsed secs already tracked client-side in Toast 1 — pass `_savedSecs` at dismiss.
+
+**Open questions (TBD):**
+- Thumbnail or not? → *TBD — user decides*
+- If thumbnail: option A or B? → *TBD*
+- "More" button: disabled or hidden until bank is built? → *TBD*
+
+---
+
+#### Toast 3 — Replay Captured (`ScreenrecReplayToast.qml`)
+
+**Trigger:** `onReplaySaved(path)` — fires when gsr saves a replay clip. Auto-dismisses after `Prefs.notificationTimeout`. Hover-pauses.
+
+**Visual:** PanelCard with text label + timer bar. No thumbnail (replay clips vary in length; no image to show).
+
+```
+┌──────────────────────────────────────────────┐
+│  30s Replay Captured            [ × ] [ ▶ ]  │
+│  ════════ timer bar ════════════════════════  │
+└──────────────────────────────────────────────┘
+```
+
+- "30s" is the actual saved duration — **dynamic, not from `Prefs.replaySaveDefaultSecs`**, because any invocation (FIFO, keybind, another process) can request a different duration
+- `×` dismiss, `▶` xdg-open
+
+**Secs tracking options:**
+- **A) QML-side:** `_lastSaveReplaySecs` property on `ScreenrecProcess`, updated in `saveReplaySeconds(n)`. When `onReplaySaved` fires, toast reads this property. Zero-script-change.
+- **B) Signal param:** `replaySaved(path)` → `replaySaved(path, secs)`. Script emits `screenrec:replay:saved:<secs>:<path>`. Cleaner contract, handles external savers correctly.
+
+**→ TBD — user decides per-toast review.**
+
+**Open questions (TBD):**
+- Secs: option A (QML tracking) or B (signal param)? → *TBD*
+- Buttons: just `×` and `▶`? Or also copy path? → *TBD*
+
+---
+
+### 2G-2. ToastWindow — Slot Order (redesigned)
+
+**New z-order** (nearest screen edge → furthest, i.e. bottom of ColumnLayout → top):
+
+| Position | Toast | File | Persistent? |
+|---|---|---|---|
+| Nearest (bottom of col) | Critical notification | `CriticalNotificationToast.qml` | No |
+| 2 | Normal notification | `NotificationToast.qml` | No |
+| 3 | Screenshot | `ScreenshotPreview.qml` | No |
+| 4 | While Recording | `ScreenrecRecordingToast.qml` | **Yes** — anchors the stack while active |
+| 5 | Post Recording | `ScreenrecSavedToast.qml` | No |
+| Furthest (top of col) | Replay Captured | `ScreenrecReplayToast.qml` | No |
+
+In ColumnLayout (anchored to bottom), the **last item in code** is nearest the edge. Declaration order in code (top → bottom = furthest → nearest):
+
+```
+ReplayToast               ← first in code, furthest from edge
+PostRecordingToast
+WhileRecordingToast
+ScreenshotPreview
+NotificationToast
+CriticalNotificationToast ← last in code, nearest to edge
+```
+
+**ToastWindow structural changes needed:**
+- Add 3 new Loaders for the new toast files
+- Remove or replace `_srLoader` (old `ScreenrecToast.qml`)
+- Update `visible:` OR expression (6 shouldShows instead of 4)
+- Update `dismiss(id)` function for new IDs
+- Register 3 new files in `module-toasts/qmldir`, remove old `ScreenrecToast.qml` entry
 
 ---
 
@@ -870,8 +966,12 @@ SegmentedControl {
 - [x] **7a. Build `SegmentedControl.qml`** — equal-width segments via `x`-positioning inside a clipped `Rectangle`. Outer border + radius on container; inner vertical dividers. `fontFamily` prop for Nerd Font glyphs.
 - [x] **8. Add missing Prefs entries** — `replayBufferSecs` (default 300), `replaySaveDefaultSecs` (default 30), `recordingFps` (default 60). ScreenrecProcess wired to pass `--fps` and `--replay-secs` from Prefs. ScrollChip in ControlPanel wired to `Prefs.replaySaveDefaultSecs`, cycles `[10,30,60,300,600,1800]` s, calls `Prefs.setReplaySaveDefaultSecs`. See section 2I.
 - [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
-- [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
-- [ ] **11. Fix toast** — both `ScreenshotPreview.qml` and `ScreenrecToast.qml` need review and repair to work with current state.
+- [ ] **10. Build three screenrec toast modules** — replace `ScreenrecToast.qml` with three separate files per section 2G. Open questions resolved per-toast by user before build.
+  - [ ] **10a. `ScreenrecRecordingToast.qml`** — persistent while-recording toast. See 2G Toast 1. TBD: stop button via direct call or FIFO.
+  - [ ] **10b. `ScreenrecSavedToast.qml`** — post-recording toast. See 2G Toast 2. TBD: thumbnail strategy (none now / ffmpeg option B), "more" stub behavior.
+  - [ ] **10c. `ScreenrecReplayToast.qml`** — replay-captured toast. See 2G Toast 3. TBD: secs tracking (QML option A / signal param option B), button set.
+  - [ ] **10d. ToastWindow reorder** — 6-slot declaration order per 2G-2. New Loaders, updated `visible:` OR, updated `dismiss()`. Remove old `_srLoader`. Update qmldir.
+- [ ] **11. Fix screenshot toast** — `ScreenshotPreview.qml` needs review to work with current state. (ScreenrecToast.qml is being replaced, not fixed.)
 - [x] **12. W-S-e mode-aware keybind** — `pillbox-screenrec-e` reads `recMode` + `replaySaveDefaultSecs` from `pillbox.conf`. Single: slurp → `screenrecStartRegionWith`. Replay: `screenrecSaveReplay:N`. rc.xml updated; symlinked to `~/.local/bin`. See 2D.
 - [x] **14. Wire ControlPanel TogglePairs through FIFO** — Mode TogglePair: writes `screenrecSetMode:oneshot|replay`, `selected` from `Prefs.recMode`, `enabled` from `!screenrecProcess.recording` (not `active` — allows switching back from Replay while daemon is idle). Start/Stop: writes `screenrecToggle`. `_fifo(cmd)` helper + `_fifoProc` Process added. `screenrecSetMode` wired in FifoListener, shell.qml; `setMode(mode)` added to ScreenrecProcess — stops daemon automatically when switching replay→oneshot while idle.
 - [x] **13. Wire audio SegmentedControl in ControlPanel** — `recAudio` Prefs entry added (default `"none"`). SegmentedControl Row 2 added inside screenrec PanelCard below the controls row; hidden when replay daemon is `active` (can't change audio mid-daemon without losing buffer). ScreenrecProcess passes `--audio` from Prefs on every spawn. See section 4. — uncomment Row 3; add `_audioIdx` property; hide row when Replay daemon is active (`_modeIdx === 1 && screenrecProcess.active`); add `recAudio` Prefs entry (default `"none"`); wire ScreenrecProcess to pass `--audio <mode>` to script on each invocation. See section 4.
@@ -952,6 +1052,14 @@ command: ["sh", "-c",
 3. **SIGRTMIN computed at runtime:** `python3 -c 'import signal; print(int(signal.SIGRTMIN))'` with fallback 34. Signal arithmetic uses `$(( _RTMIN + N ))`.
 4. **`saveReplay:10` added:** man page shows `SIGRTMIN+1` = save last 10 seconds, not in original plan. Added for completeness.
 5. **Audio (`--audio`) added ahead of ControlPanel work:** Plan said script should accept audio param without breaking when absent. Added `--audio none|system|mic|both|<raw-gsr-source>` to both oneshot and replay invocations. Maps to zero, one, or two `-a` gsr flags. Passes through unchanged when `--audio none` or omitted. ControlPanel (step 7) and ScreenrecProcess (step 5) can wire it without revisiting the script.
+
+### D10 — ScreenshotPreview toast uses bank thumbnail for display
+
+`ScreenshotPreview.qml` `MediaThumbnail.source` updated to use `screenshotProcess.thumbPath(path)` when `screenshotProcess.thumbsReady[path]` is true, falling back to the raw PNG path while the JPEG is still generating. All file-operation references (`_path`) unchanged — toast still copies/opens the full-res image.
+
+The fallback-then-switch is free: `thumbsReady` is a `property var` reassigned on every thumb completion (`root.thumbsReady = Object.assign({}, ...)`) so QML re-evaluates the binding and silently switches to the smaller JPEG once ready.
+
+---
 
 ### D7 — NotificationPanel missing Quickshell.Io import + keyboard Tab shortcut added
 
