@@ -698,15 +698,9 @@ In one-shot mode: gsr spawns on first `toggle()` call.
 - "30s" is the actual saved duration — **dynamic, not from `Prefs.replaySaveDefaultSecs`**, because any invocation (FIFO, keybind, another process) can request a different duration
 - `×` dismiss, `▶` xdg-open
 
-**Secs tracking options:**
-- **A) QML-side:** `_lastSaveReplaySecs` property on `ScreenrecProcess`, updated in `saveReplaySeconds(n)`. When `onReplaySaved` fires, toast reads this property. Zero-script-change.
-- **B) Signal param:** `replaySaved(path)` → `replaySaved(path, secs)`. Script emits `screenrec:replay:saved:<secs>:<path>`. Cleaner contract, handles external savers correctly.
+**Secs:** read `Prefs.replaySaveDefaultSecs` directly at toast show time. ScrollChip and `pillbox-screenrec-e` both use this Prefs value — no tracking needed, no signal changes.
 
-**→ TBD — user decides per-toast review.**
-
-**Open questions (TBD):**
-- Secs: option A (QML tracking) or B (signal param)? → *TBD*
-- Buttons: just `×` and `▶`? Or also copy path? → *TBD*
+**Buttons:** `×` dismiss, `▶` xdg-open. No copy path (replay clips are background saves; path isn't the primary action).
 
 ---
 
@@ -962,7 +956,7 @@ SegmentedControl {
 - [ ] **10. Build three screenrec toast modules** — replace `ScreenrecToast.qml` with three separate files per section 2G. Open questions resolved per-toast by user before build.
   - [x] **10a. `ScreenrecRecordingToast.qml`** — persistent while-recording toast. Stop button → `screenrecToggle` via FIFO. Works for casual recording in both One-shot and Replay modes. `ScreenrecToast.qml` stripped to saved-state only (elapsed tracker kept internally for duration display). ToastWindow reordered: critical→normal→screenshot→while-recording→post-recording (slot 5 temp)→replay (slot 6 reserved).
   - [ ] **10b. `ScreenrecSavedToast.qml`** — post-recording toast. Applies to casual recording in both modes (`onRecordingStopped`). Thumbnail: use `screenrecProcess.thumbsReady[path]` / `thumbPath(path)` (pipeline already built); placeholder while generating (can't fall back to raw mp4 unlike PNG screenshots). "more" stub: button present, disabled.
-  - [ ] **10c. `ScreenrecReplayToast.qml`** — replay-captured toast. See 2G Toast 3. TBD: secs tracking (QML option A / signal param option B), button set.
+  - [x] **10c. `ScreenrecReplayToast.qml`** — replay-captured toast. Duration reads `Prefs.replaySaveDefaultSecs` directly — ScrollChip and `pillbox-screenrec-e` both write/read the same Prefs value, so it's always current when `onReplaySaved` fires. Label via `_replayLabel()` (Xs/Xm/Xh). Buttons: × dismiss, ▶ xdg-open. No thumbnail (replay clips have no fixed frame; not worth the ffmpeg wait for a background save).
   - [ ] **10d. ToastWindow reorder** — done as part of 10a.
 - [ ] **11. Fix screenshot toast** — `ScreenshotPreview.qml` needs review to work with current state. (ScreenrecToast.qml is being replaced, not fixed.)
 - [x] **12. W-S-e mode-aware keybind** — `pillbox-screenrec-e` reads `recMode` + `replaySaveDefaultSecs` from `pillbox.conf`. Single: slurp → `screenrecStartRegionWith`. Replay: `screenrecSaveReplay:N`. rc.xml updated; symlinked to `~/.local/bin`. See 2D.

@@ -26,11 +26,12 @@ PanelWindow {
     implicitHeight: _col.implicitHeight
     mask: Region { item: _col }
 
-    visible: (_srSavedLoader.item ? _srSavedLoader.item.shouldShow : false) ||
-             (_srRecLoader.item  ? _srRecLoader.item.shouldShow  : false) ||
-             (_ssLoader.item     ? _ssLoader.item.shouldShow     : false) ||
-             (_ntLoader.item     ? _ntLoader.item.shouldShow     : false) ||
-             (_utLoader.item     ? _utLoader.item.shouldShow     : false)
+    visible: (_srReplayLoader.item ? _srReplayLoader.item.shouldShow : false) ||
+             (_srSavedLoader.item ? _srSavedLoader.item.shouldShow : false) ||
+             (_srRecLoader.item   ? _srRecLoader.item.shouldShow   : false) ||
+             (_ssLoader.item      ? _ssLoader.item.shouldShow      : false) ||
+             (_ntLoader.item      ? _ntLoader.item.shouldShow      : false) ||
+             (_utLoader.item      ? _utLoader.item.shouldShow      : false)
 
     function dismiss(id) {
         if (id === "screenshot"   && _ssLoader.item) _ssLoader.item._dismiss()
@@ -44,7 +45,13 @@ PanelWindow {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         spacing: 6
 
-        // Replay captured — slot 6, furthest from edge (not yet built; reserved)
+        // Replay captured — slot 6, furthest from edge
+        Loader {
+            id: _srReplayLoader
+            Layout.fillWidth: true
+            source: Qt.resolvedUrl("../module-toasts/ScreenrecReplayToast.qml")
+            onLoaded: item.screenrecProcess = Qt.binding(function() { return root.screenrecProcess })
+        }
 
         // Post recording — slot 5
         Loader {

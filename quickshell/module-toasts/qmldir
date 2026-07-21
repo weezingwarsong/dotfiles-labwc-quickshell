@@ -14,5 +14,6 @@ ScreenshotOverlayWindow 1.0 ScreenshotOverlayWindow.qml
 BankPreviewOverlay 1.0 BankPreviewOverlay.qml
 ScreenrecRecordingToast 1.0 ScreenrecRecordingToast.qml
 ScreenrecSavedToast 1.0 ScreenrecSavedToast.qml
+ScreenrecReplayToast 1.0 ScreenrecReplayToast.qml
 NotificationToast 1.0 NotificationToast.qml
 CriticalNotificationToast 1.0 CriticalNotificationToast.qml
