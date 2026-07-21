@@ -85,6 +85,42 @@
 #   replay only: saveReplay:300  → SIGRTMIN+4
 #   replay only: saveReplay:600  → SIGRTMIN+5
 #   replay only: saveReplay:1800 → SIGRTMIN+6
+#
+# ── MULTI-INSTANCE BEHAVIOUR ───────────────────────────────────────────────────
+#
+# gsr itself has no singleton enforcement — two raw invocations record
+# independently into separate output files with no awareness of each other.
+#
+# This script enforces one instance at a time via a PID file ($PILLBOX_RUN/
+# screenrec.pid). The guard covers both modes: a second call (oneshot or replay)
+# while any instance holds the PID file will fail immediately with
+# "screenrec:error:already recording". This prevents:
+#   - two simultaneous oneshot recordings
+#   - starting oneshot while the replay daemon is running (and vice versa)
+#
+# ── REPLAY MODE SIGNAL BEHAVIOUR ───────────────────────────────────────────────
+#
+# In replay mode gsr is a persistent daemon. The following operations are
+# available while it runs, each mapped to a distinct signal:
+#
+#   Start replay daemon         spawn gsr with -r N (done at Quickshell boot)
+#   Capture replay (full buf)   SIGUSR1
+#   Capture replay (last N s)   SIGRTMIN+1…+6
+#   Start casual recording      SIGRTMIN  (toggles: starts when idle)
+#   Stop casual recording       SIGRTMIN  (toggles: stops+saves when active)
+#   Stop replay daemon          SIGINT    — exits WITHOUT saving buffer (emergency only)
+#
+# Key constraints:
+#   - SIGRTMIN is a TOGGLE, not separate start/stop signals.
+#   - There is no signal that saves the buffer AND exits cleanly. SIGINT always
+#     discards the buffer. There is no graceful daemon shutdown.
+#   - "Stop casual recording + stop daemon" must be sequenced: send SIGRTMIN
+#     first (saves the in-progress file via -sc callback), then SIGINT.
+#     If SIGINT is sent while a casual recording is active, that file is lost.
+#
+# This script guards the last constraint by tracking _in_reg_rec internally.
+# When `stop` arrives in replay mode and _in_reg_rec=true, the CTL loop sends
+# SIGRTMIN, waits for the -sc callback to confirm the save, then sends SIGINT.
 
 set -o noglob   # prevent glob expansion in kill signal arithmetic
 
@@ -127,6 +163,7 @@ PILLBOX_RUN="$HOME/.local/share/pillbox"
 CTL_FIFO="$PILLBOX_RUN/screenrec-ctl"
 NOTIFY_FIFO="$PILLBOX_RUN/screenrec-notify"
 PID_FILE="$PILLBOX_RUN/screenrec.pid"
+STOP_PENDING="$PILLBOX_RUN/screenrec-stop-pending"  # sentinel: stop is waiting for casual rec to save
 GSR_ERR="/tmp/pillbox-gsr-err"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -158,6 +195,7 @@ _audio_flags() {
 
 NOTIFY_READER_PID=""
 WATCHER_PID=""
+_in_reg_rec=false      # replay mode: true while casual recording-to-file is active
 
 die() {
     echo "screenrec:error:$1"
@@ -172,7 +210,7 @@ cleanup() {
     [ -n "$NOTIFY_READER_PID" ] && wait "$NOTIFY_READER_PID" 2>/dev/null || true
     exec 3>&- 2>/dev/null || true
     [ -n "$WATCHER_PID" ] && kill "$WATCHER_PID" 2>/dev/null || true
-    rm -f "$CTL_FIFO" "$NOTIFY_FIFO" "$PID_FILE"
+    rm -f "$CTL_FIFO" "$NOTIFY_FIFO" "$PID_FILE" "$STOP_PENDING"
 }
 
 _emergency_stop() {
@@ -211,8 +249,11 @@ exec 4<>"$NOTIFY_FIFO"
         type="${msg%%:*}"
         path="${msg#*:}"
         case "$type" in
-            regular) echo "screenrec:stopped:$path" ;;
-            replay)  echo "screenrec:replay:saved:$path" ;;
+            regular)
+                echo "screenrec:stopped:$path"
+                rm -f "$STOP_PENDING"  # unblock stop handler if it's waiting
+                ;;
+            replay) echo "screenrec:replay:saved:$path" ;;
         esac
     done
 ) < "$NOTIFY_FIFO" &
@@ -301,13 +342,26 @@ while IFS= read -r CMD <&3; do
     case "$CMD" in
 
         stop)
+            if [ "$SUBMODE" = "replay" ] && [ "$_in_reg_rec" = "true" ]; then
+                # Casual recording in progress — stop+save it before killing daemon.
+                # SIGINT in replay mode discards without saving; we must send SIGRTMIN
+                # first and wait for the -sc callback to confirm the file was written.
+                touch "$STOP_PENDING"
+                kill -"$_RTMIN" "$GSR_PID" 2>/dev/null || true
+                _timeout=50  # 5 s max (50 × 0.1 s)
+                while [ -f "$STOP_PENDING" ] && [ "$_timeout" -gt 0 ]; do
+                    sleep 0.1
+                    _timeout=$(( _timeout - 1 ))
+                done
+                _in_reg_rec=false
+            fi
             kill -INT "$GSR_PID" 2>/dev/null || true
             wait "$GSR_PID" 2>/dev/null
             kill "$WATCHER_PID" 2>/dev/null || true
             WATCHER_PID=""
             # cleanup() closes fd 4, drains notify reader, then exits.
             # For oneshot: -sc fired before gsr exited → reader emits stopped.
-            # For replay: SIGINT exits without save → reader emits nothing.
+            # For replay: notify reader already emitted stopped (above); SIGINT emits nothing.
             break
             ;;
 
@@ -321,6 +375,7 @@ while IFS= read -r CMD <&3; do
                 continue
             fi
             kill -"$_RTMIN" "$GSR_PID" 2>/dev/null || echo "screenrec:error:toggleRec failed"
+            if [ "$_in_reg_rec" = "true" ]; then _in_reg_rec=false; else _in_reg_rec=true; fi
             ;;
 
         saveReplay)
@@ -344,6 +399,8 @@ while IFS= read -r CMD <&3; do
         __gsr_exited__)
             kill "$WATCHER_PID" 2>/dev/null || true
             WATCHER_PID=""
+            _in_reg_rec=false
+            rm -f "$STOP_PENDING"
             if [ "$SUBMODE" = "oneshot" ] && [ -f "$OUTPUT" ] && [ -s "$OUTPUT" ]; then
                 # gsr exited cleanly on its own (unusual but not an error); -sc should
                 # have fired. Let the notify reader emit the stopped message.
