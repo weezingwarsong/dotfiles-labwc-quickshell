@@ -669,23 +669,16 @@ In one-shot mode: gsr spawns on first `toggle()` call.
 └──────────────────────────────────────────────┘
 ```
 
-**Thumbnail gap:** `MediaThumbnail` uses Qt's `Image` element which cannot decode video frames. Recordings are `.mp4` — the source will be blank. Two options:
-- **A) No thumbnail now:** show filename + duration as a text row (like the old saved-state row), add buttons column. Retrofit thumbnail when recordings bank is built (bank will need ffmpeg thumbs anyway).
-- **B) ffmpeg thumb at save time:** script emits `screenrec:stopped:<path>:<thumbpath>` after extracting a first-frame JPEG. `ScreenrecProcess` parses both; `recordingStopped` signal gains a `thumbPath` arg.
+**Thumbnail:** uses `screenrecProcess.thumbsReady[path]` / `screenrecProcess.thumbPath(path)` — the pipeline built in ScreenrecProcess (ffmpeg first-frame JPEG, `$XDG_RUNTIME_DIR/pillbox/thumbs/recording/`). While the thumb is generating (~1-2s), `MediaThumbnail` shows its `surfaceLowColor` placeholder; no fallback to raw mp4 (Qt Image can't decode video). The `thumbsReady` reactive reassignment triggers automatic switch once the JPEG is ready. All file operations use the raw `_path`.
 
-**→ TBD — user decides per-toast review.**
+**Duration:** shown inline in `MediaThumbnail`'s filename overlay — `filename: _filename + "  " + _fmt(_savedSecs)` — keeps the two-column layout clean without an extra row.
 
-**Actions column (same pattern as ScreenshotPreview):**
+**Actions column:**
 - `×` — dismiss
 - `▶` open — `xdg-open path` — play in default video player
-- `⋮` more — stub (`screenshotUI`-equivalent for recordings bank — not built yet; button present but disabled or no-op)
+- `⋮` more — present but `enabled: false` stub (recordings bank not built yet)
 
-**Signals needed:** `recordingStopped(path)` current signature is sufficient if no thumbnail. If thumbnail: add `thumbPath` param. Duration: elapsed secs already tracked client-side in Toast 1 — pass `_savedSecs` at dismiss.
-
-**Open questions (TBD):**
-- Thumbnail or not? → *TBD — user decides*
-- If thumbnail: option A or B? → *TBD*
-- "More" button: disabled or hidden until bank is built? → *TBD*
+**Trigger:** `onRecordingStopped(path)` — fires for casual recording in both One-shot and Replay modes. `onReplaySaved` is NOT handled here — that goes to Toast 3.
 
 ---
 
@@ -967,10 +960,10 @@ SegmentedControl {
 - [x] **8. Add missing Prefs entries** — `replayBufferSecs` (default 300), `replaySaveDefaultSecs` (default 30), `recordingFps` (default 60). ScreenrecProcess wired to pass `--fps` and `--replay-secs` from Prefs. ScrollChip in ControlPanel wired to `Prefs.replaySaveDefaultSecs`, cycles `[10,30,60,300,600,1800]` s, calls `Prefs.setReplaySaveDefaultSecs`. See section 2I.
 - [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
 - [ ] **10. Build three screenrec toast modules** — replace `ScreenrecToast.qml` with three separate files per section 2G. Open questions resolved per-toast by user before build.
-  - [ ] **10a. `ScreenrecRecordingToast.qml`** — persistent while-recording toast. See 2G Toast 1. TBD: stop button via direct call or FIFO.
-  - [ ] **10b. `ScreenrecSavedToast.qml`** — post-recording toast. See 2G Toast 2. TBD: thumbnail strategy (none now / ffmpeg option B), "more" stub behavior.
+  - [x] **10a. `ScreenrecRecordingToast.qml`** — persistent while-recording toast. Stop button → `screenrecToggle` via FIFO. Works for casual recording in both One-shot and Replay modes. `ScreenrecToast.qml` stripped to saved-state only (elapsed tracker kept internally for duration display). ToastWindow reordered: critical→normal→screenshot→while-recording→post-recording (slot 5 temp)→replay (slot 6 reserved).
+  - [ ] **10b. `ScreenrecSavedToast.qml`** — post-recording toast. Applies to casual recording in both modes (`onRecordingStopped`). Thumbnail: use `screenrecProcess.thumbsReady[path]` / `thumbPath(path)` (pipeline already built); placeholder while generating (can't fall back to raw mp4 unlike PNG screenshots). "more" stub: button present, disabled.
   - [ ] **10c. `ScreenrecReplayToast.qml`** — replay-captured toast. See 2G Toast 3. TBD: secs tracking (QML option A / signal param option B), button set.
-  - [ ] **10d. ToastWindow reorder** — 6-slot declaration order per 2G-2. New Loaders, updated `visible:` OR, updated `dismiss()`. Remove old `_srLoader`. Update qmldir.
+  - [ ] **10d. ToastWindow reorder** — done as part of 10a.
 - [ ] **11. Fix screenshot toast** — `ScreenshotPreview.qml` needs review to work with current state. (ScreenrecToast.qml is being replaced, not fixed.)
 - [x] **12. W-S-e mode-aware keybind** — `pillbox-screenrec-e` reads `recMode` + `replaySaveDefaultSecs` from `pillbox.conf`. Single: slurp → `screenrecStartRegionWith`. Replay: `screenrecSaveReplay:N`. rc.xml updated; symlinked to `~/.local/bin`. See 2D.
 - [x] **14. Wire ControlPanel TogglePairs through FIFO** — Mode TogglePair: writes `screenrecSetMode:oneshot|replay`, `selected` from `Prefs.recMode`, `enabled` from `!screenrecProcess.recording` (not `active` — allows switching back from Replay while daemon is idle). Start/Stop: writes `screenrecToggle`. `_fifo(cmd)` helper + `_fifoProc` Process added. `screenrecSetMode` wired in FifoListener, shell.qml; `setMode(mode)` added to ScreenrecProcess — stops daemon automatically when switching replay→oneshot while idle.

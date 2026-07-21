@@ -26,17 +26,17 @@ PanelWindow {
     implicitHeight: _col.implicitHeight
     mask: Region { item: _col }
 
-    visible: (_srLoader.item    ? _srLoader.item.shouldShow    : false) ||
-             (_srRecLoader.item ? _srRecLoader.item.shouldShow : false) ||
-             (_ssLoader.item    ? _ssLoader.item.shouldShow    : false) ||
-             (_ntLoader.item    ? _ntLoader.item.shouldShow    : false) ||
-             (_utLoader.item    ? _utLoader.item.shouldShow    : false)
+    visible: (_srSavedLoader.item ? _srSavedLoader.item.shouldShow : false) ||
+             (_srRecLoader.item  ? _srRecLoader.item.shouldShow  : false) ||
+             (_ssLoader.item     ? _ssLoader.item.shouldShow     : false) ||
+             (_ntLoader.item     ? _ntLoader.item.shouldShow     : false) ||
+             (_utLoader.item     ? _utLoader.item.shouldShow     : false)
 
     function dismiss(id) {
         if (id === "screenshot"   && _ssLoader.item) _ssLoader.item._dismiss()
         if (id === "notification" && _ntLoader.item) _ntLoader.item._dismiss()
         if (id === "critical"     && _utLoader.item) _utLoader.item._dismiss()
-        if (id === "screenrec"    && _srLoader.item) _srLoader.item._dismiss()
+        if (id === "screenrecSaved" && _srSavedLoader.item) _srSavedLoader.item._dismiss()
     }
 
     ColumnLayout {
@@ -46,11 +46,11 @@ PanelWindow {
 
         // Replay captured — slot 6, furthest from edge (not yet built; reserved)
 
-        // Post recording — slot 5 (ScreenrecToast: saved state, temporary until ScreenrecSavedToast built)
+        // Post recording — slot 5
         Loader {
-            id: _srLoader
+            id: _srSavedLoader
             Layout.fillWidth: true
-            source: Qt.resolvedUrl("../module-toasts/ScreenrecToast.qml")
+            source: Qt.resolvedUrl("../module-toasts/ScreenrecSavedToast.qml")
             onLoaded: item.screenrecProcess = Qt.binding(function() { return root.screenrecProcess })
         }
 
