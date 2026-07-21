@@ -201,66 +201,86 @@ Item {
 
                 Item {
                     Layout.fillWidth: true; clip: true
-                    Layout.preferredHeight: !root._recCollapsed ? _recRow.implicitHeight + 8 : 0
+                    Layout.preferredHeight: !root._recCollapsed ? _recContent.implicitHeight + 8 : 0
                     Behavior on Layout.preferredHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                    RowLayout {
-                        id: _recRow
+                    ColumnLayout {
+                        id: _recContent
                         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 8 }
-                        spacing: Style.panelElementHpadding
+                        spacing: 8
 
-                        // Col 1 — Mode picker (writes screenrecSetMode:* to FIFO)
-                        TogglePair {
-                            labelA:   "Single"
-                            labelB:   "Replay"
-                            selected: Prefs.recMode === "replay" ? 1 : 0
-                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
-                            onToggled: (idx) => root._fifo("screenrecSetMode:" + (idx === 1 ? "replay" : "oneshot"))
-                        }
-
-                        // Col 2 — mode-dependent context (fills remaining space)
-                        PanelButton {
+                        RowLayout {
+                            id: _recRow
                             Layout.fillWidth: true
-                            visible:  Prefs.recMode !== "replay"
-                            label:    "Region Pick"
-                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
-                            onClicked: _regionProc.running = true
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            visible:        Prefs.recMode === "replay"
-                            text:           "W-S-e: capture replay"
-                            color:          Style.textMuted
-                            font.family:    Style.fontMono
-                            font.pixelSize: Style.fontSizeSubtle
-                            verticalAlignment: Text.AlignVCenter
-                        }
+                            spacing: Style.panelElementHpadding
 
-                        // Col 3 — replay save duration
-                        ScrollChip {
-                            visible: Prefs.recMode === "replay"
-                            variant: "value"
-                            text:    root._replaySaveLabel(Prefs.replaySaveDefaultSecs)
-                            onScrolled: (delta) => {
-                                var steps = [10, 30, 60, 300, 600, 1800]
-                                var cur = steps.indexOf(Prefs.replaySaveDefaultSecs)
-                                if (cur < 0) cur = 1
-                                var next = Math.max(0, Math.min(steps.length - 1, cur + (delta > 0 ? 1 : -1)))
-                                Prefs.setReplaySaveDefaultSecs(steps[next])
+                            // Col 1 — Mode picker (writes screenrecSetMode:* to FIFO)
+                            TogglePair {
+                                labelA:   "Single"
+                                labelB:   "Replay"
+                                selected: Prefs.recMode === "replay" ? 1 : 0
+                                enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
+                                onToggled: (idx) => root._fifo("screenrecSetMode:" + (idx === 1 ? "replay" : "oneshot"))
+                            }
+
+                            // Col 2 — mode-dependent context (fills remaining space)
+                            PanelButton {
+                                Layout.fillWidth: true
+                                visible:  Prefs.recMode !== "replay"
+                                label:    "Region Pick"
+                                enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
+                                onClicked: _regionProc.running = true
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible:        Prefs.recMode === "replay"
+                                text:           "W-S-e: capture replay"
+                                color:          Style.textMuted
+                                font.family:    Style.fontMono
+                                font.pixelSize: Style.fontSizeSubtle
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            // Col 3 — replay save duration
+                            ScrollChip {
+                                visible: Prefs.recMode === "replay"
+                                variant: "value"
+                                text:    root._replaySaveLabel(Prefs.replaySaveDefaultSecs)
+                                onScrolled: (delta) => {
+                                    var steps = [10, 30, 60, 300, 600, 1800]
+                                    var cur = steps.indexOf(Prefs.replaySaveDefaultSecs)
+                                    if (cur < 0) cur = 1
+                                    var next = Math.max(0, Math.min(steps.length - 1, cur + (delta > 0 ? 1 : -1)))
+                                    Prefs.setReplaySaveDefaultSecs(steps[next])
+                                }
+                            }
+
+                            // Col 4 — Start / Stop (writes screenrecToggle to FIFO)
+                            TogglePair {
+                                readonly property bool _rec:
+                                    root.screenrecProcess && root.screenrecProcess.recording
+                                labelA:     "■"
+                                labelB:     "󰑊"
+                                fontFamily: Style.fontNerd
+                                colorA:     _rec ? Style.textSuccess : Style.textMuted
+                                colorB:     Style.textCritical
+                                selected:   _rec ? 1 : 0
+                                onToggled:  (idx) => root._fifo("screenrecToggle")
                             }
                         }
 
-                        // Col 4 — Start / Stop (writes screenrecToggle to FIFO)
-                        TogglePair {
-                            readonly property bool _rec:
-                                root.screenrecProcess && root.screenrecProcess.recording
-                            labelA:     "■"
-                            labelB:     "󰑊"
-                            fontFamily: Style.fontNerd
-                            colorA:     _rec ? Style.textSuccess : Style.textMuted
-                            colorB:     Style.textCritical
-                            selected:   _rec ? 1 : 0
-                            onToggled:  (idx) => root._fifo("screenrecToggle")
+                        // Row 2 — Audio source picker
+                        // Hidden while replay daemon is active: audio flags are baked at spawn
+                        // time and can't change while gsr is running without losing the buffer.
+                        SegmentedControl {
+                            Layout.fillWidth: true
+                            visible:  !(Prefs.recMode === "replay" && root.screenrecProcess && root.screenrecProcess.active)
+                            model:    ["None", "System", "Mic", "Both"]
+                            selected: {
+                                var i = ["none", "system", "mic", "both"].indexOf(Prefs.recAudio)
+                                return i >= 0 ? i : 0
+                            }
+                            onToggled: (idx) => Prefs.setRecAudio(["none", "system", "mic", "both"][idx])
                         }
                     }
                 }

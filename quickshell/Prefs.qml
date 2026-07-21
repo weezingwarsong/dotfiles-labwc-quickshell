@@ -50,6 +50,7 @@ Item {
 
         // Screen recorder mode — persists across restarts.
         property string recMode:             "oneshot"  // "oneshot" | "replay"
+        property string recAudio:           "none"     // "none" | "system" | "mic" | "both"
         property int    replayBufferSecs:    300        // rolling buffer size (5 min)
         property int    replaySaveDefaultSecs: 30       // W-S-e / ScrollChip save duration
         property int    recordingFps:        60         // shared across modes
@@ -94,6 +95,7 @@ Item {
     readonly property string recordingDir:        _store.recordingDir
     readonly property string replayDir:           _store.replayDir
     readonly property string recMode:             _store.recMode
+    readonly property string recAudio:            _store.recAudio
     readonly property int    replayBufferSecs:    _store.replayBufferSecs
     readonly property int    replaySaveDefaultSecs: _store.replaySaveDefaultSecs
     readonly property int    recordingFps:        _store.recordingFps
@@ -134,6 +136,7 @@ Item {
     function setRecordingDir(v)            { _store.recordingDir            = v }
     function setReplayDir(v)               { _store.replayDir               = v }
     function setRecMode(v)                 { _store.recMode                 = v }
+    function setRecAudio(v)               { _store.recAudio               = v }
     function setReplayBufferSecs(v)        { _store.replayBufferSecs        = v }
     function setReplaySaveDefaultSecs(v)   { _store.replaySaveDefaultSecs   = v }
     function setRecordingFps(v)            { _store.recordingFps            = v }

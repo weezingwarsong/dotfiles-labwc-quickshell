@@ -92,7 +92,8 @@ Item {
         command: {
             var mode = root.recMode
             var args = ["pillbox-screenrec", mode]
-            args.push("--fps"); args.push(Prefs.recordingFps)
+            args.push("--fps");   args.push(Prefs.recordingFps)
+            args.push("--audio"); args.push(Prefs.recAudio !== "" ? Prefs.recAudio : "none")
             if (root._dir !== "") {
                 args.push("--dir"); args.push(root._dir)
             }
