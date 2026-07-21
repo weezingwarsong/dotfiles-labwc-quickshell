@@ -762,6 +762,7 @@ PanelCard {
 | `replayBufferSecs` | `300` | Rolling buffer size (5 min) |
 | `replaySaveDefaultSecs` | `30` | W-S-e save duration in replay mode |
 | `recordingFps` | `60` | Shared across modes |
+| `recAudio` | `"none"` | Audio mode: `"none"`, `"system"`, `"mic"`, `"both"` |
 
 ---
 
@@ -771,13 +772,70 @@ Covered in section 2C. Replay is Mode B of Screenrec — always-on, signal-contr
 
 ---
 
-## 4. Audio Capture (deferred)
+## 4. Audio Capture
 
-gpu-screen-recorder `-a` flag: PipeWire/PulseAudio audio source. Options: None (default), system audio (default sink monitor), mic, both.
+### 4A. gsr Audio Model
 
-Audio is intentionally deferred for the initial build. The Control panel audio array is specced (see 2F) but hidden until implemented. All FIFO commands and script backend are designed to accept an audio parameter without breaking when it's absent.
+gsr accepts zero or more `-a <source>` flags. Each `-a` adds one audio source mixed into the recording:
 
-Audio capture applies to Screenrec only — not to screenshots, not to replay (replay inherits whatever audio flags the parent recording has).
+| Source string | Meaning |
+|---|---|
+| `default_output` | Desktop / system audio (default output device) |
+| `default_input` | Microphone (default input device) |
+
+The flag can be specified multiple times. To capture both: `-a default_output -a default_input`.
+
+**Key constraint: audio flags are baked into the gsr invocation at spawn time.** There is no signal to change audio sources while gsr is running. To switch audio modes the process must be stopped and restarted with new flags.
+
+### 4B. Pillbox Audio Modes
+
+Four modes, mutually exclusive. Selected via SegmentedControl in ControlPanel.
+
+| Pillbox mode | gsr flags |
+|---|---|
+| None | (no `-a` flag) |
+| System | `-a default_output` |
+| Mic | `-a default_input` |
+| Both | `-a default_output -a default_input` |
+
+The script already maps these correctly in `_audio_flags()`. ScreenrecProcess passes `--audio <mode>` to the script on each invocation.
+
+### 4C. UI Decision — Replay Mode Interaction
+
+Because audio cannot be changed without restarting gsr:
+
+- **Single mode:** audio can be changed freely between recordings. SegmentedControl is always enabled. The selected mode takes effect on the next `toggle()` call (next spawn).
+- **Replay mode:** the daemon is already running. Changing audio would require stopping and restarting the daemon — losing the replay buffer. This is destructive and unexpected.
+
+**Decision:** Hide the audio SegmentedControl row entirely while the Replay daemon is active. The row is visible only when:
+- Mode is Single, OR
+- Mode is Replay but the daemon has not started yet (i.e., `!screenrecProcess.active`)
+
+When hidden in Replay mode, the last-selected audio mode is still stored in Prefs and will apply if/when the daemon is restarted.
+
+### 4D. Prefs Entry
+
+Add `recAudio` (default `"none"`) to Prefs. See section 2I update below.
+
+### 4E. ControlPanel Row 3
+
+Row 3 in the Screenrec PanelCard, below the mode/start row:
+
+```qml
+// Row 3 — Audio source
+SegmentedControl {
+    Layout.fillWidth: true
+    visible: !(root._modeIdx === 1 && root.screenrecProcess && root.screenrecProcess.active)
+    model:    ["None", "System", "Mic", "Both"]
+    selected: root._audioIdx
+    onToggled: (idx) => {
+        root._audioIdx = idx
+        // Prefs.recAudio = ["none","system","mic","both"][idx]  // wire when Prefs entry added
+    }
+}
+```
+
+`_audioIdx` is a ControlPanel local property (int, default 0) until Prefs wiring is done.
 
 ---
 
@@ -796,6 +854,7 @@ Audio capture applies to Screenrec only — not to screenshots, not to replay (r
 - [ ] **10. Build post-recording and post-screenshot UI** — `ScreenrecToast.qml` (wire to new signal protocol), `ScreenshotPreview.qml` (review and fix). Toast architecture spec remains valid (section 1B, 2G).
 - [ ] **11. Fix toast** — both `ScreenshotPreview.qml` and `ScreenrecToast.qml` need review and repair to work with current state.
 - [ ] **12. W-S-e mode-aware keybind** — currently always runs `pillbox-screenrec-region` (slurp). In replay mode should send `screenrecSaveReplay:N` to FIFO instead. Needs a mode-aware wrapper script. See 2D gap note.
+- [ ] **13. Wire audio SegmentedControl in ControlPanel** — uncomment Row 3; add `_audioIdx` property; hide row when Replay daemon is active (`_modeIdx === 1 && screenrecProcess.active`); add `recAudio` Prefs entry (default `"none"`); wire ScreenrecProcess to pass `--audio <mode>` to script on each invocation. See section 4.
 
 > **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.
 
