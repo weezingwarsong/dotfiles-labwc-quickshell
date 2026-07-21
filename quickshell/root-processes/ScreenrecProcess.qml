@@ -54,10 +54,12 @@ Item {
     function setMode(mode) {
         if (mode !== "oneshot" && mode !== "replay") return
         if (mode === root.recMode) return
-        if (root.active) {
-            console.log("[ScreenrecProcess] setMode blocked: process active")
+        if (root.recording) {
+            console.log("[ScreenrecProcess] setMode blocked: recording in progress")
             return
         }
+        // Replay daemon running but no casual recording — stop daemon then switch
+        if (root.active) _sendCtl("stop")
         Prefs.setRecMode(mode)
         if (mode === "replay") _proc.running = true
     }

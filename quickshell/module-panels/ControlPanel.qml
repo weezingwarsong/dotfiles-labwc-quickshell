@@ -214,7 +214,7 @@ Item {
                             labelA:   "Single"
                             labelB:   "Replay"
                             selected: Prefs.recMode === "replay" ? 1 : 0
-                            enabled:  !(root.screenrecProcess && root.screenrecProcess.active)
+                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
                             onToggled: (idx) => root._fifo("screenrecSetMode:" + (idx === 1 ? "replay" : "oneshot"))
                         }
 
@@ -223,7 +223,7 @@ Item {
                             Layout.fillWidth: true
                             visible:  Prefs.recMode !== "replay"
                             label:    "Region Pick"
-                            enabled:  !(root.screenrecProcess && root.screenrecProcess.active)
+                            enabled:  !(root.screenrecProcess && root.screenrecProcess.recording)
                             onClicked: _regionProc.running = true
                         }
                         Text {
