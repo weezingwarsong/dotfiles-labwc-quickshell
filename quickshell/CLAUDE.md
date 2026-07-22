@@ -12,10 +12,10 @@ Pillbox is a Quickshell/QML desktop shell for **labwc** (Wayland). Two visual pr
 | `docs/modules.md` | Root process specs, pill behavior, panel behavior — built and planned |
 | `docs/style-system.md` | Token system, Prefs.qml, Style.qml, palette, v2 roadmap |
 | `docs/components.md` | Reusable visual elements in `module-reusable-elements/` |
-| `docs/completed.md` | Reverse-chronological log of completed work and key decisions |
-| `docs/LocalTimerDiscussion.md` | Design record for `LocalTimerProcess` + `LocalTimer` — multi-instance ephemeral timers, 5 variants, resolved decisions (active, not archived) |
-| `docs/UselessPrettyThings.md` | Design discussion for real-time system graphs in the ControlPanel System section — metrics, style, data source TBD |
-| `docs/ToastWindowAudit.md` | Pre-build audit of ToastWindow stack for NotificationToast integration — current state, gaps, file-by-file change list |
+| `docs/archive/completed.md` | Reverse-chronological log of completed work and key decisions |
+| `docs/archive/LocalTimerDiscussion.md` | Design record for `LocalTimerProcess` + `LocalTimer` — multi-instance ephemeral timers, 5 variants, resolved decisions (archived, work complete) |
+| `docs/archive/UselessPrettyThings.md` | Design + build record for orbital system graphs in ControlPanel — shader, oscillation, data pipeline (archived, work complete) |
+| `docs/archive/ToastWindowAudit.md` | Pre-build audit of ToastWindow stack for NotificationToast integration — current state, gaps, file-by-file change list (archived) |
 | `docs/archive/screenrecDiscussion.md` | Full design + build record for screenshot & screenrec system — scripts, QML processes, three toast modules, thumbnail pipeline, keyboard stack (archived, work complete) |
 | `docs/archive/CarouselDiscussion.md` | Design + implementation record for `Carousel.qml` — viewport model, 3 size tiers, window rule, layout stack (archived, work complete) |
 | `docs/archive/WallpaperPanelImageDiscussion.md` | Design record for WallpaperPanel image tab rewrite — PanelCard + SectionHeader + Carousel wiring (archived, work complete) |
