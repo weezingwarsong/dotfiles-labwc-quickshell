@@ -4,10 +4,45 @@ import Quickshell.Io
 
 Item {
     id: root
+    focus: true
+    Component.onCompleted: forceActiveFocus()
 
     property var audioProcess:     null
     property var networkProcess:   null
     property var screenrecProcess: null
+
+    Keys.onPressed: (event) => {
+        switch (event.key) {
+        case Qt.Key_Up:
+            if (root.audioProcess) root.audioProcess.setSinkVolume(0.05)
+            event.accepted = true; break
+        case Qt.Key_Down:
+            if (root.audioProcess) root.audioProcess.setSinkVolume(-0.05)
+            event.accepted = true; break
+        case Qt.Key_M:
+            if (root.audioProcess) root.audioProcess.toggleSinkMute()
+            event.accepted = true; break
+        case Qt.Key_N:
+            if (root.networkProcess) root.networkProcess.toggleNetworking()
+            event.accepted = true; break
+        case Qt.Key_R:
+            root._fifo("screenrecSetMode:" + (Prefs.recMode === "replay" ? "oneshot" : "replay"))
+            event.accepted = true; break
+        case Qt.Key_A:
+            if (Prefs.recMode !== "replay") {
+                var modes = ["none", "system", "mic", "both"]
+                var cur   = modes.indexOf(Prefs.recAudio)
+                var next  = modes[(cur < 0 ? 0 : cur + 1) % modes.length]
+                root._fifo("screenrecSetAudio:" + next)
+                event.accepted = true
+            } else {
+                event.accepted = false
+            }
+            break
+        default:
+            event.accepted = false
+        }
+    }
 
     property bool _audioCollapsed:   false
     property bool _networkCollapsed: false

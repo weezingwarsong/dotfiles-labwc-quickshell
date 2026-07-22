@@ -31,6 +31,7 @@ Item {
 
     signal screenrecToggleRequested()
     signal screenrecSetModeRequested(string mode)
+    signal screenrecSetAudioRequested(string mode)
     signal screenrecSaveReplayRequested()
     signal screenrecSaveReplaySecondsRequested(int n)
     signal screenrecEmergencyStopRequested()
@@ -81,7 +82,8 @@ Item {
                 else if (cmd === "screenrecToggle")        root.screenrecToggleRequested()
                 else if (cmd === "screenrecSaveReplay")    root.screenrecSaveReplayRequested()
                 else if (cmd === "screenrecEmergencyStop") root.screenrecEmergencyStopRequested()
-                else if (cmd.startsWith("screenrecSetMode:")) root.screenrecSetModeRequested(cmd.slice(17))
+                else if (cmd.startsWith("screenrecSetMode:"))  root.screenrecSetModeRequested(cmd.slice(17))
+                else if (cmd.startsWith("screenrecSetAudio:")) root.screenrecSetAudioRequested(cmd.slice(18))
 
                 else if (cmd.startsWith("screenshotNotify:"))          root.screenshotNotifyRequested(cmd.slice(17))
                 else if (cmd.startsWith("screenrecStartRegionWith:"))  root.screenrecStartRegionWithRequested(cmd.slice(25))

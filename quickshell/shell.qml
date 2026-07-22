@@ -50,6 +50,7 @@ ShellRoot {
 
         onScreenrecToggleRequested:              screenrec.toggle()
         onScreenrecSetModeRequested:             (mode)   => screenrec.setMode(mode)
+        onScreenrecSetAudioRequested:            (mode)   => Prefs.setRecAudio(mode)
         onScreenrecSaveReplayRequested:          screenrec.saveReplay()
         onScreenrecSaveReplaySecondsRequested:   (n)      => screenrec.saveReplaySeconds(n)
         onScreenrecEmergencyStopRequested:       screenrec.emergencyStop()
