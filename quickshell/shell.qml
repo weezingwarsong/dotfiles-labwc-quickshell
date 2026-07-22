@@ -226,11 +226,6 @@ ShellRoot {
         mprisProcess: mpris
     }
 
-    NotificationPill {
-        id: notificationPill
-        notificationServer: notifServer
-    }
-
     HoverZone { id: hoverZone }
 
     PillController {
@@ -239,8 +234,7 @@ ShellRoot {
         timePill:      timePill
         workspacePill: workspacePill
         windowPill:    windowPill
-        mprisPill:          mprisPill
-        notificationPill:   notificationPill
+        mprisPill:     mprisPill
     }
 
     PillWindow {

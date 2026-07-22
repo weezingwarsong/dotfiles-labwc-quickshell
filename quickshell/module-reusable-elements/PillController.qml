@@ -10,24 +10,21 @@ QtObject {
     property var workspacePill: null
     property var windowPill: null
     property var mprisPill: null
-    property var notificationPill: null
 
     // ── Stage 1: Winner ───────────────────────────────────────────────────────
     // Each pill exposes priority: int. Highest wins. No pill-specific logic here —
     // adding a new pill never requires touching PillController.
     //
     // Priority table — leave gaps so future pills can insert without renumbering:
-    //   200  WindowPill        switcher open (transient, time-critical)
-    //   100  WorkspacePill     workspace flash (transient, time-critical)
-    //    10  TimePill          calendar imminent / timer active
-    //     5  MprisPill         track actively playing
-    //     2  NotificationPill  7s peek on arrival (any urgency)
-    //     1  TimePill idle     permanent fallback (always shows time)
-    //     0  any pill off      inactive, won't win
+    //   200  WindowPill    switcher open (transient, time-critical)
+    //   100  WorkspacePill workspace flash (transient, time-critical)
+    //    10  TimePill      calendar imminent / timer active
+    //     5  MprisPill     track actively playing
+    //     1  TimePill idle permanent fallback (always shows time)
+    //     0  any pill off  inactive, won't win
 
     readonly property var winner: {
         var pills = []
-        if (notificationPill) pills.push(notificationPill)
         if (windowPill)       pills.push(windowPill)
         if (workspacePill)    pills.push(workspacePill)
         if (mprisPill)        pills.push(mprisPill)
