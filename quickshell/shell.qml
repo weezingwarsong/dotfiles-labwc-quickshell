@@ -77,6 +77,7 @@ ShellRoot {
     NetworkProcess     { id: network }
     ScreenshotProcess  { id: screenshot }
     ScreenrecProcess   { id: screenrec  }
+    SystemProcess      { id: systemInfo }
 
     ToastWindow {
         id: toastWindow
@@ -285,6 +286,7 @@ ShellRoot {
         networkProcess:     network
         screenshotProcess:  screenshot
         screenrecProcess:   screenrec
+        systemProcess:      systemInfo
         onDismissRequested:  panelController.toggle(panelController.activePanel)
         onNavigateRequested: (dir) => panelController.navigate(dir)
     }

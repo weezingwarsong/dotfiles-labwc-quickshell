@@ -52,6 +52,8 @@ ln -snf "$DOTFILES/helper/screenrec/pillbox-screenrec-e"        "$HOME/.local/bi
 echo "  linked pillbox-screenrec-e → ~/.local/bin"
 ln -snf "$DOTFILES/helper/screenrec/pillbox-screenrec-saved"    "$HOME/.local/bin/pillbox-screenrec-saved"
 echo "  linked pillbox-screenrec-saved → ~/.local/bin"
+ln -snf "$DOTFILES/helper/sysmon/pillbox-sysmon"               "$HOME/.local/bin/pillbox-sysmon"
+echo "  linked pillbox-sysmon → ~/.local/bin"
 
 # Kvantum: symlink theme selector + create output dir for matugen-generated theme files
 mkdir -p "$HOME/.config/Kvantum/Pillbox"

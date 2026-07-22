@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# pillbox-sysmon — emit system metrics once per second
+# Output: cpu:N mem:N gpu:N disk:N  (N = 0–100 integer)
+
+GPU_PATH="/sys/class/drm/card1/device/gpu_busy_percent"
+DISK_DEV="nvme0n1"
+DISK_CEIL_MB=2000
+
+_read_cpu() {
+    awk '/^cpu / {
+        total = $2+$3+$4+$5+$6+$7+$8+$9
+        idle  = $5+$6
+        print total, idle
+    }' /proc/stat
+}
+
+_read_disk() {
+    awk -v dev="$DISK_DEV" '$3 == dev { print $6, $10 }' /proc/diskstats
+}
+
+# Initial sample (no output — need a diff pair)
+read -r prev_cpu_total prev_cpu_idle <<< "$(_read_cpu)"
+read -r prev_disk_r    prev_disk_w   <<< "$(_read_disk)"
+
+while true; do
+    sleep 1
+
+    # ── CPU ──────────────────────────────────────────────────────────────────
+    read -r cur_cpu_total cur_cpu_idle <<< "$(_read_cpu)"
+    dt=$(( cur_cpu_total - prev_cpu_total ))
+    di=$(( cur_cpu_idle  - prev_cpu_idle  ))
+    if [ "$dt" -gt 0 ]; then
+        cpu=$(( 100 * (dt - di) / dt ))
+    else
+        cpu=0
+    fi
+    prev_cpu_total=$cur_cpu_total
+    prev_cpu_idle=$cur_cpu_idle
+
+    # ── MEM ──────────────────────────────────────────────────────────────────
+    mem=$(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf "%d", 100*(t-a)/t}' /proc/meminfo)
+
+    # ── GPU ──────────────────────────────────────────────────────────────────
+    gpu=$(cat "$GPU_PATH" 2>/dev/null || echo 0)
+
+    # ── DISK ─────────────────────────────────────────────────────────────────
+    read -r cur_disk_r cur_disk_w <<< "$(_read_disk)"
+    delta_sectors=$(( (cur_disk_r - prev_disk_r) + (cur_disk_w - prev_disk_w) ))
+    # sectors × 512 bytes ÷ 1_000_000 = MB; cap at ceiling
+    delta_mb=$(( delta_sectors * 512 / 1000000 ))
+    disk=$(( 100 * delta_mb / DISK_CEIL_MB ))
+    [ "$disk" -gt 100 ] && disk=100
+    [ "$disk" -lt 0   ] && disk=0
+    prev_disk_r=$cur_disk_r
+    prev_disk_w=$cur_disk_w
+
+    printf "cpu:%d mem:%d gpu:%d disk:%d\n" "$cpu" "$mem" "$gpu" "$disk"
+done

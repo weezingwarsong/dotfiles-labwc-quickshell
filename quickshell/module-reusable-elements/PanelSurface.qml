@@ -28,6 +28,7 @@ PanelWindow {
     property var networkProcess:      null
     property var screenshotProcess:   null
     property var screenrecProcess:    null
+    property var systemProcess:       null
     property int    notificationInitialTab: 0
     property string calendarInitialView:   ""
 
@@ -172,6 +173,7 @@ PanelWindow {
                                 it.audioProcess     = Qt.binding(() => root.audioProcess)
                                 it.networkProcess   = Qt.binding(() => root.networkProcess)
                                 it.screenrecProcess = Qt.binding(() => root.screenrecProcess)
+                                it.systemProcess    = Qt.binding(() => root.systemProcess)
                                 break
                         }
                     }
