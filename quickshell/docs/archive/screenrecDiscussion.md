@@ -1,6 +1,6 @@
 # Screenshot & Screenrec — Design Discussion
 
-## Status: Design complete — ready to build
+## Status: Complete — archived
 
 ---
 
@@ -142,11 +142,11 @@ Qt native screen capture: rejected. Mandatory portal dialog is a non-starter for
 
 | Feature | Status |
 |---|---|
-| Screenshot — whole screen / all screens / region | In discussion |
-| Screenrec — 1 screen only | In discussion |
-| Screenrec — region pick | TBD |
-| Replay buffer | TBD |
-| Audio capture | TBD |
+| Screenshot — whole screen / all screens / region | Done |
+| Screenrec — 1 screen only | Done |
+| Screenrec — region pick | Done |
+| Replay buffer | Done |
+| Audio capture | Done |
 
 ---
 
@@ -953,15 +953,16 @@ SegmentedControl {
 - [x] **7a. Build `SegmentedControl.qml`** — equal-width segments via `x`-positioning inside a clipped `Rectangle`. Outer border + radius on container; inner vertical dividers. `fontFamily` prop for Nerd Font glyphs.
 - [x] **8. Add missing Prefs entries** — `replayBufferSecs` (default 300), `replaySaveDefaultSecs` (default 30), `recordingFps` (default 60). ScreenrecProcess wired to pass `--fps` and `--replay-secs` from Prefs. ScrollChip in ControlPanel wired to `Prefs.replaySaveDefaultSecs`, cycles `[10,30,60,300,600,1800]` s, calls `Prefs.setReplaySaveDefaultSecs`. See section 2I.
 - [x] **9. Build screenshot image bank** — `_scanProc` added to `ScreenshotProcess.qml` (find + StdioCollector, mtime sort + cap 200). Scan fires in `Component.onCompleted`. Screenshots tab in NotificationPanel renders correctly. Delete button added to each card (calls `screenshotProcess.deleteScreenshot(path)` — immediate list update + async `rm -f`). See D8 for implementation deviations.
-- [ ] **10. Build three screenrec toast modules** — replace `ScreenrecToast.qml` with three separate files per section 2G. Open questions resolved per-toast by user before build.
+- [x] **10. Build three screenrec toast modules** — replace `ScreenrecToast.qml` with three separate files per section 2G. Open questions resolved per-toast by user before build.
   - [x] **10a. `ScreenrecRecordingToast.qml`** — persistent while-recording toast. Stop button → `screenrecToggle` via FIFO. Works for casual recording in both One-shot and Replay modes. `ScreenrecToast.qml` stripped to saved-state only (elapsed tracker kept internally for duration display). ToastWindow reordered: critical→normal→screenshot→while-recording→post-recording (slot 5 temp)→replay (slot 6 reserved).
-  - [ ] **10b. `ScreenrecSavedToast.qml`** — post-recording toast. Applies to casual recording in both modes (`onRecordingStopped`). Thumbnail: use `screenrecProcess.thumbsReady[path]` / `thumbPath(path)` (pipeline already built); placeholder while generating (can't fall back to raw mp4 unlike PNG screenshots). "more" stub: button present, disabled.
+  - [x] **10b. `ScreenrecSavedToast.qml`** — post-recording toast. Applies to casual recording in both modes (`onRecordingStopped`). Thumbnail: `screenrecProcess.thumbsReady[path]` / `thumbPath(path)` — surfaceLowColor placeholder while JPEG generates (no mp4 fallback). Duration appended inline in filename overlay (`_fmt(_savedSecs)`). "more" stub: present, `enabled: false`. `ScreenrecToast.qml` deleted.
   - [x] **10c. `ScreenrecReplayToast.qml`** — replay-captured toast. Duration reads `Prefs.replaySaveDefaultSecs` directly — ScrollChip and `pillbox-screenrec-e` both write/read the same Prefs value, so it's always current when `onReplaySaved` fires. Label via `_replayLabel()` (Xs/Xm/Xh). Buttons: × dismiss, ▶ xdg-open. No thumbnail (replay clips have no fixed frame; not worth the ffmpeg wait for a background save).
-  - [ ] **10d. ToastWindow reorder** — done as part of 10a.
-- [ ] **11. Fix screenshot toast** — `ScreenshotPreview.qml` needs review to work with current state. (ScreenrecToast.qml is being replaced, not fixed.)
+  - [x] **10d. ToastWindow reorder** — done as part of 10a. Final 6-slot order: CriticalNotif → Notif → Screenshot → WhileRecording → PostRecording → ReplayCaptured (nearest→furthest).
+- [x] **11. Fix screenshot toast** — `ScreenshotPreview.qml` `MediaThumbnail.source` updated to use bank thumbnail via `screenshotProcess.thumbsReady[path]` / `thumbPath(path)`. Falls back to raw PNG while JPEG generates. See D10.
 - [x] **12. W-S-e mode-aware keybind** — `pillbox-screenrec-e` reads `recMode` + `replaySaveDefaultSecs` from `pillbox.conf`. Single: slurp → `screenrecStartRegionWith`. Replay: `screenrecSaveReplay:N`. rc.xml updated; symlinked to `~/.local/bin`. See 2D.
 - [x] **14. Wire ControlPanel TogglePairs through FIFO** — Mode TogglePair: writes `screenrecSetMode:oneshot|replay`, `selected` from `Prefs.recMode`, `enabled` from `!screenrecProcess.recording` (not `active` — allows switching back from Replay while daemon is idle). Start/Stop: writes `screenrecToggle`. `_fifo(cmd)` helper + `_fifoProc` Process added. `screenrecSetMode` wired in FifoListener, shell.qml; `setMode(mode)` added to ScreenrecProcess — stops daemon automatically when switching replay→oneshot while idle.
 - [x] **13. Wire audio SegmentedControl in ControlPanel** — `recAudio` Prefs entry added (default `"none"`). SegmentedControl Row 2 added inside screenrec PanelCard below the controls row; hidden when replay daemon is `active` (can't change audio mid-daemon without losing buffer). ScreenrecProcess passes `--audio` from Prefs on every spawn. See section 4. — uncomment Row 3; add `_audioIdx` property; hide row when Replay daemon is active (`_modeIdx === 1 && screenrecProcess.active`); add `recAudio` Prefs entry (default `"none"`); wire ScreenrecProcess to pass `--audio <mode>` to script on each invocation. See section 4.
+- [x] **15. ControlPanel keyboard stack** — `focus: true` + `forceActiveFocus()` on root Item + `Keys.onPressed` switch. Keys: `↑`/`↓` sink volume ±5%, `M` sink mute toggle, `N` toggle networking, `R` toggle rec mode (oneshot↔replay via `screenrecSetMode:` FIFO), `A` cycle audio source (none→system→mic→both, Single mode only via new `screenrecSetAudio:` FIFO command). New `screenrecSetAudio:<mode>` command added to FifoListener (`screenrecSetAudioRequested` signal) and wired in shell.qml → `Prefs.setRecAudio(mode)`. See D11.
 
 > **Deviation policy:** if the build deviates from any spec above, note the deviation and the new decision inline (do not delete the original spec). User will review later to revert, fix, or accept.
 
@@ -1053,3 +1054,23 @@ The fallback-then-switch is free: `thumbsReady` is a `property var` reassigned o
 **Fix:** `NotificationPanel.qml` was missing `import Quickshell.Io` — caused `Process is not a type` error on open, making the panel invisible. Added the import.
 
 **Addition:** `focus: true` added to NotificationPanel root Item (mirrors MediaPlayerPanel pattern). `Keys.onPressed` handles `Qt.Key_Tab` to toggle `_tab` between 0 (Notifications) and 1 (Screenshots). PanelSurface Loader already has `focus: true` so keyboard focus propagates automatically on panel open.
+
+### D11 — ControlPanel keyboard stack + `screenrecSetAudio` FIFO command
+
+**Addition (not in original spec):** Keyboard stack added to ControlPanel following the MediaPlayerPanel pattern (`focus: true`, `Component.onCompleted: forceActiveFocus()`, `Keys.onPressed` switch).
+
+**Key bindings:**
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` | Sink volume ±5% (`audioProcess.setSinkVolume(±0.05)`) |
+| `M` | Toggle sink mute |
+| `N` | Toggle networking (`networkProcess.toggleNetworking()`) |
+| `R` | Toggle rec mode oneshot↔replay (`screenrecSetMode:oneshot|replay` via FIFO) |
+| `A` | Cycle audio source: none→system→mic→both→none (`screenrecSetAudio:<mode>` via FIFO, Single mode only — blocked in Replay mode) |
+
+**New FIFO command `screenrecSetAudio:<mode>`:** No FIFO path existed for audio — the SegmentedControl had been calling `Prefs.setRecAudio()` directly. For consistency (all write actions through FIFO), a new command was added:
+- `FifoListener.qml` — new `screenrecSetAudioRequested(string mode)` signal + `cmd.startsWith("screenrecSetAudio:")` → `cmd.slice(18)` handler
+- `shell.qml` — `onScreenrecSetAudioRequested: (mode) => Prefs.setRecAudio(mode)`
+
+The existing SegmentedControl continues calling `Prefs.setRecAudio()` directly (no change needed — both paths write the same Prefs key).
