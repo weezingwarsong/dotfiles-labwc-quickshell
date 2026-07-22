@@ -15,6 +15,8 @@ Item {
     visible:        _visible
     implicitHeight: _visible ? _card.implicitHeight : 0
 
+    // ── Replay arrival ───────────────────────────────────────────────────────
+
     Connections {
         target: root.screenrecProcess
         function onReplaySaved(path) {
@@ -24,10 +26,14 @@ Item {
         }
     }
 
+    // ── Dismiss ───────────────────────────────────────────────────────────────
+
     function _dismiss() {
         _toastTimer.kill()
         root._visible = false
     }
+
+    // ── Hover — pause / resume timer ─────────────────────────────────────────
 
     HoverHandler {
         onHoveredChanged: {
@@ -38,6 +44,8 @@ Item {
             }
         }
     }
+
+    // ── Card ──────────────────────────────────────────────────────────────────
 
     TapHandler { acceptedButtons: Qt.RightButton; onTapped: root._dismiss() }
 
@@ -72,6 +80,8 @@ Item {
             onCompleted: root._dismiss()
         }
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     function _replayLabel() {
         var s = Prefs.replaySaveDefaultSecs
